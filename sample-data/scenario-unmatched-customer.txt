@@ -1,0 +1,32 @@
+PURCHASE ORDER
+
+PO Number       : PO-2026-UNMATCHED
+PO Date         : 24 June 2026
+
+BUYER DETAILS
+Customer ID     : CUST-9999
+Company Name    : Unknown Trading Company
+Contact Person  : Robert Lane
+Email           : robert.lane@unknown.com
+
+SHIP TO
+Some Warehouse
+123 Industrial Road
+Chicago, IL 60639
+USA
+
+Contract Reference : CONTRACT-XX-2026-001
+Payment Terms      : Net 30
+Requested Delivery Date : 15 July 2026
+
+ORDER LINES
+-----------------------------------------------------------------------
+Line | SKU          | Description                   | Quantity | UOM
+-----------------------------------------------------------------------
+1    | SKU-STL-4520 | Carbon Steel Pipe 4 inch SCH40|  200     | FT
+-----------------------------------------------------------------------
+
+Delivery Instructions : Standard delivery during business hours.
+
+Scenario: Customer account CUST-9999 does not exist in the customer master.
+Expected result: UNMATCHED CUSTOMER exception.

@@ -26,3 +26,9 @@ data/submitted_pos.json
 Thumbs.db
 .idea/
 .vscode/
+
+# Office temp / lock files
+~$*
+
+# Generated Word deliverables (kept out of the code repo)
+*.docx

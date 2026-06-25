@@ -1,0 +1,33 @@
+PURCHASE ORDER
+
+PO Number       : PO-2026-INVALIDSHIPTO
+PO Date         : 24 June 2026
+
+BUYER DETAILS
+Customer ID     : CUST-1001
+Company Name    : Acme Industrial Supplies Ltd
+Contact Person  : John Miller
+Email           : john.miller@acme.com
+
+SHIP TO
+Acme Unregistered Site
+9000 Nowhere Boulevard
+Faraway City, ZZ 99999
+USA
+
+Contract Reference : CONTRACT-ACME-2026-007
+Payment Terms      : Net 30
+Requested Delivery Date : 18 July 2026
+
+ORDER LINES
+-----------------------------------------------------------------------
+Line | SKU          | Description                   | Quantity | UOM
+-----------------------------------------------------------------------
+1    | SKU-STL-4520 | Carbon Steel Pipe 4 inch SCH40|  300     | FT
+-----------------------------------------------------------------------
+
+Delivery Instructions : Call site contact before delivery.
+
+Scenario: Customer CUST-1001 is valid, but ship-to ZIP 99999 is not registered
+to any ship-to location in the system.
+Expected result: INVALID SHIP-TO exception (valid ship-tos listed).

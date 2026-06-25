@@ -1,0 +1,33 @@
+PURCHASE ORDER
+
+PO Number       : PO-2026-MISMATCH
+PO Date         : 24 June 2026
+
+BUYER DETAILS
+Customer ID     : CUST-1001
+Company Name    : Acme Industrial Supplies Ltd
+Contact Person  : John Miller
+Email           : john.miller@acme.com
+
+SHIP TO
+Globex Los Angeles Warehouse
+800 South Hope Street
+Los Angeles, CA 90001
+USA
+
+Contract Reference : CONTRACT-ACME-2026-007
+Payment Terms      : Net 30
+Requested Delivery Date : 22 July 2026
+
+ORDER LINES
+-----------------------------------------------------------------------
+Line | SKU          | Description                   | Quantity | UOM
+-----------------------------------------------------------------------
+1    | SKU-VLV-2201 | Ball Valve 2 inch Full Port   |   15     | EA
+-----------------------------------------------------------------------
+
+Delivery Instructions : Forklift required on site.
+
+Scenario: Customer CUST-1001 (Acme) requests ship-to ZIP 90001, which exists but
+belongs to Globex Corporation - a different corporate parent.
+Expected result: HIERARCHY MISMATCH exception.

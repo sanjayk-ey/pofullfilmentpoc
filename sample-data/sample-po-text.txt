@@ -1,0 +1,38 @@
+PURCHASE ORDER
+
+PO Number       : PO-2026-DEMO-001
+PO Date         : 24 June 2026
+
+BUYER DETAILS
+Customer ID     : CUST-1001
+Company Name    : Acme Industrial Supplies Ltd
+Contact Person  : John Miller
+Email           : john.miller@acme.com
+Phone           : +1-312-555-0192
+
+SHIP TO
+Acme Industrial Supplies - Chicago Warehouse
+4500 West Diversey Avenue
+Chicago, IL 60639
+USA
+
+Contract Reference : CONTRACT-ACME-2026-007
+Payment Terms      : Net 30
+Requested Delivery Date : 15 July 2026
+
+ORDER LINES
+-----------------------------------------------------------------------
+Line | SKU          | Description                   | Quantity | UOM
+-----------------------------------------------------------------------
+1    | SKU-STL-4520 | Carbon Steel Pipe 4 inch SCH40|  500     | FT
+2    | SKU-FLG-3010 | Stainless Steel Flange 3 inch |   80     | EA
+3    | SKU-VLV-2201 | Ball Valve 2 inch Full Port   |   25     | EA
+-----------------------------------------------------------------------
+
+Delivery Instructions : Deliver to Dock 3. Forklift required on site.
+                        Call warehouse manager before delivery: 312-555-0199.
+
+Special Instructions  : This is a blanket order. Partial shipments accepted.
+
+NOTES
+Urgent order - please confirm availability within 24 hours.
