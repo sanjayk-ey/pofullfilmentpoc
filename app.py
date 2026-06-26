@@ -10,6 +10,7 @@ from modules.extractor        import POExtractor, ExtractedPO
 from modules.excel_parser     import parse_excel
 from modules                  import duplicate_checker as dup
 from modules.account_validator import AccountValidator, AccountValidationResult
+from modules.pipeline         import build_context, SEQUENTIAL_STAGES, GOVERNANCE, EXECUTION
 
 # ─── Page setup ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -281,6 +282,110 @@ def render_account_result(av: AccountValidationResult):
             st.markdown(f"- {line}")
 
 
+# ─── Helper: generic stage-result renderer (US-03 … US-12) ────────────────────
+def render_stage_result(res):
+    st.markdown("---")
+    st.markdown(f"### {res.icon} {res.title}")
+    if res.is_exception:
+        st.error(f"🔴  EXCEPTION — {res.exception_type}")
+        st.markdown(res.headline)
+    else:
+        st.success(f"✅  {res.headline}")
+
+    for sec in res.sections:
+        if sec["type"] == "kv":
+            if sec.get("title"):
+                st.markdown(f"**{sec['title']}**")
+            rows = "".join(f"<tr><td><b>{l}</b></td><td>{v}</td></tr>" for l, v in sec["rows"])
+            st.markdown(f"<table class='field-table'><tbody>{rows}</tbody></table>",
+                        unsafe_allow_html=True)
+            st.write("")
+        elif sec["type"] == "table":
+            if sec.get("title"):
+                st.markdown(f"**{sec['title']}**")
+            head = "".join(f"<th>{h}</th>" for h in sec["headers"])
+            body = "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>"
+                           for r in sec["rows"])
+            st.markdown(f"<table class='field-table'><thead><tr>{head}</tr></thead>"
+                        f"<tbody>{body}</tbody></table>", unsafe_allow_html=True)
+            st.write("")
+        elif sec["type"] == "note":
+            st.markdown(f"_{sec['text']}_")
+
+    # ── Non-CSR approval: mocked email notification + hard stop banner ──────────
+    if res.data.get("approval_email_sent_to"):
+        approver  = res.data["approval_email_sent_to"]
+        role      = res.data.get("approval_email_role", "")
+        role_disp = f" ({role})" if role else ""
+        st.info(
+            f"📧 **Triggered email to respective approver and awaiting approval.**\n\n"
+            f"A notification has been sent to **{approver}{role_disp}**. "
+            f"The order will resume automatically once the approver responds."
+        )
+        st.markdown(
+            "<div style='background:#1E293B; border-left:4px solid #F59E0B; "
+            "padding:12px 16px; border-radius:6px; margin-top:8px;'>"
+            "⏸ <b>Process halted</b> — no further actions will be executed until "
+            "approval is granted or rejected."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        st.write("")
+
+    if res.audit_trail:
+        with st.expander("🧾 View audit trail"):
+            for line in res.audit_trail:
+                st.markdown(f"- {line}")
+
+
+def _run_stage_animation(stage, ctx):
+    result = [None]
+    with st.status(f"{stage.icon} {stage.title}...", expanded=True) as status:
+        for delay, emoji, text in stage.steps:
+            st.write(f"{emoji} {text}")
+            time.sleep(delay)
+        result[0] = stage.validate(ctx)
+        status.update(label=f"{stage.icon} {stage.title} — complete",
+                      state="complete", expanded=False)
+    return result[0]
+
+
+def run_full_pipeline(po: ExtractedPO, av: AccountValidationResult):
+    """Run US-03 … US-12 with per-stage animation and rendering. Returns results list."""
+    ctx = build_context(po, av)
+    results = []
+    paused = False
+
+    for stage in SEQUENTIAL_STAGES:
+        res = _run_stage_animation(stage, ctx)
+        ctx.update(res.data or {})
+        render_stage_result(res)
+        results.append(res)
+        if res.is_exception:
+            paused = True
+            break
+
+    # Exception governance (always runs)
+    with st.status(f"{GOVERNANCE.icon} {GOVERNANCE.title}...", expanded=True) as status:
+        for delay, emoji, text in GOVERNANCE.steps:
+            st.write(f"{emoji} {text}")
+            time.sleep(delay)
+        gov = GOVERNANCE.route(results, ctx)
+        status.update(label=f"{GOVERNANCE.icon} {GOVERNANCE.title} — complete",
+                      state="complete", expanded=False)
+    render_stage_result(gov)
+    results.append(gov)
+
+    # Order execution (only when nothing paused)
+    if not paused:
+        ex = _run_stage_animation(EXECUTION, ctx)
+        ctx.update(ex.data or {})
+        render_stage_result(ex)
+        results.append(ex)
+
+    return results
+
+
 # ─── Helper: account validation processing animation ──────────────────────────
 def run_account_validation(customer_account, ship_to_zip) -> AccountValidationResult:
     steps = [
@@ -368,13 +473,17 @@ def process_text_input(text: str):
 
         # Account validation runs only when extraction is clean (no duplicate, no missing fields)
         av = None
+        stage_results = None
         if not is_dup and not po.missing_fields:
             av = run_account_validation(po.customer_account, po.ship_to_zip)
             render_account_result(av)
+            if not av.is_exception:
+                stage_results = run_full_pipeline(po, av)
 
     st.session_state.messages.append(
         {"role": "assistant", "type": "po_result",
-         "po": po, "is_dup": is_dup, "dup_rec": dup_rec, "av": av}
+         "po": po, "is_dup": is_dup, "dup_rec": dup_rec, "av": av,
+         "stage_results": stage_results}
     )
 
 
@@ -405,13 +514,17 @@ def process_excel_input(uploaded_file):
 
         # Account validation runs only when extraction is clean (no duplicate, no missing fields)
         av = None
+        stage_results = None
         if not is_dup and not po.missing_fields:
             av = run_account_validation(po.customer_account, po.ship_to_zip)
             render_account_result(av)
+            if not av.is_exception:
+                stage_results = run_full_pipeline(po, av)
 
     st.session_state.messages.append(
         {"role": "assistant", "type": "po_result",
-         "po": po, "is_dup": is_dup, "dup_rec": dup_rec, "av": av}
+         "po": po, "is_dup": is_dup, "dup_rec": dup_rec, "av": av,
+         "stage_results": stage_results}
     )
     st.session_state.show_upload = False
     st.session_state.upload_key += 1
@@ -471,6 +584,9 @@ for msg in st.session_state.messages:
             render_po_result(msg["po"], msg.get("is_dup", False), msg.get("dup_rec"))
             if msg.get("av") is not None:
                 render_account_result(msg["av"])
+            if msg.get("stage_results"):
+                for res in msg["stage_results"]:
+                    render_stage_result(res)
 
 # ─── Upload panel (shown when ➕ clicked) ─────────────────────────────────────
 if st.session_state.show_upload:

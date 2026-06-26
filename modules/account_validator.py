@@ -3,7 +3,7 @@ account_validator.py
 Corporate Account Hierarchy and Ship-To Validation.
 
 Reads MOCK master data (no real ERP / CRM / WMS / OMS / SMTP) from a single
-Excel workbook:  mock-data/master-data.xlsx  with sheets:
+Excel workbook:  mock-data/customer-master-data.xlsx  with sheets:
     Customer_Master    - customer accounts + ERP customer records + CRM/account records
     Account_Hierarchy  - branch -> regional division -> global parent
     Ship_To_Master     - ship-to locations matched by ZIP
@@ -26,8 +26,8 @@ from typing import Optional, List, Dict, Tuple
 
 import openpyxl
 
-MOCK_DIR     = os.path.join(os.path.dirname(__file__), "..", "mock-data")
-MASTER_XLSX  = os.path.join(MOCK_DIR, "master-data.xlsx")
+MOCK_DIR             = os.path.join(os.path.dirname(__file__), "..", "mock-data")
+CUSTOMER_MASTER_XLSX = os.path.join(MOCK_DIR, "customer-master-data.xlsx")
 
 # Rule levels ordered from most specific to least specific
 RULE_LEVELS = ["ship_to", "branch", "regional_division", "global_parent"]
@@ -103,7 +103,7 @@ def _clean(v):
 
 
 class AccountValidator:
-    def __init__(self, master_path: str = MASTER_XLSX):
+    def __init__(self, master_path: str = CUSTOMER_MASTER_XLSX):
         wb = openpyxl.load_workbook(master_path, data_only=True)
         self._customer_rows  = _read_sheet(wb, "Customer_Master")
         self._hierarchy_rows = _read_sheet(wb, "Account_Hierarchy")

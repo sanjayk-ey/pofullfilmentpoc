@@ -1,6 +1,6 @@
 """
-Generates the master data workbook: mock-data/master-data.xlsx
-Run once:  python create_master_data_excel.py
+Generates the customer master data workbook: mock-data/customer-master-data.xlsx
+Run once:  python create_customer_master_data_excel.py
 
 Sheets:
   Customer_Master   - customer accounts + ERP customer records + CRM/account records
@@ -8,8 +8,9 @@ Sheets:
   Ship_To_Master    - ship-to locations with ZIP and owning branch
   Hierarchy_Rules   - rules defined at each hierarchy level (most specific wins)
 
-NOTE: For the POC there is NO real ERP / CRM / WMS / OMS / SMTP. This single
-Excel workbook simulates all "Systems / Data Needed" for account validation.
+NOTE: For the POC there is NO real ERP / CRM / WMS / OMS / SMTP. This workbook
+simulates the customer-side "Systems / Data Needed" for account validation.
+Other master data (e.g. product master) will live in its own workbook.
 """
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -107,6 +108,8 @@ write_sheet(
         ["ST-NYC-003", "Acme New York Distribution Center", "55 Water Street, New York, NY", "10001", "BR-ACME-NE", "ACTIVE"],
         ["ST-LON-004", "Acme London Depot", "10 Canada Square, London", "E145AB", "BR-ACME-UK", "ACTIVE"],
         ["ST-LA-005", "Globex Los Angeles Warehouse", "800 South Hope Street, Los Angeles, CA", "90001", "BR-GLOBEX-WEST", "ACTIVE"],
+        ["ST-AK-006", "Acme Remote Site (Alaska)", "1 Industrial Rd, Ketchikan, AK", "99950", "BR-ACME-MW", "ACTIVE"],
+        ["ST-CA-007", "Acme California Project Site", "9000 Sunset Blvd, Beverly Hills, CA", "90210", "BR-ACME-MW", "ACTIVE"],
     ],
     [14, 32, 40, 10, 16, 10],
 )
@@ -141,6 +144,6 @@ write_sheet(
     [18, 16, 12, 18, 14, 22, 22],
 )
 
-out = os.path.join(OUT_DIR, "master-data.xlsx")
+out = os.path.join(OUT_DIR, "customer-master-data.xlsx")
 wb.save(out)
 print("Created:", out)

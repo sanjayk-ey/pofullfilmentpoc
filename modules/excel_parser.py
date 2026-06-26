@@ -58,6 +58,15 @@ HEADER_ALIASES = {
     "ship to":                "ship_to_address",
     "ship-to":                "ship_to_address",
     "deliver to":             "ship_to_address",
+    "buyer id":               "buyer_id",
+    "buyer no":               "buyer_id",
+    "buyer number":           "buyer_id",
+    "buyer code":             "buyer_id",
+    "cost center":            "cost_center",
+    "cost centre":            "cost_center",
+    "cost center id":         "cost_center",
+    "cost center code":       "cost_center",
+    "cost centre id":         "cost_center",
 }
 
 
@@ -149,6 +158,8 @@ def _build_text(header: dict, lines: list) -> str:
         ("po_number",               "PO Number"),
         ("customer_account",        "Customer ID"),
         ("company_name",            "Company"),
+        ("buyer_id",                "Buyer ID"),
+        ("cost_center",             "Cost Center"),
         ("contract_reference",      "Contract Reference"),
         ("ship_to_address",         "Ship To"),
         ("ship_to_zip",             "ZIP"),

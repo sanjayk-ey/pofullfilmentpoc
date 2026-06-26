@@ -31,6 +31,10 @@ class ExtractedPO:
     requested_delivery_date: Optional[str] = None
     delivery_instructions: Optional[str] = None
 
+    # Buyer context (used by downstream authorization / approval stages)
+    buyer_id:             Optional[str]  = None
+    cost_center:          Optional[str]  = None
+
     # Order lines
     order_lines: List[OrderLine] = field(default_factory=list)
 
@@ -113,6 +117,12 @@ class Patterns:
     ]
     PAYMENT_TERMS = [
         r'Payment\s+Terms?\s*[:\-]\s*(.+?)(?:\n|$)',
+    ]
+    BUYER = [
+        r'Buyer\s*(?:ID|No\.?|Number|Code)\s*[:\-]\s*([A-Z0-9][\w\-]{2,20})',
+    ]
+    COST_CENTER = [
+        r'Cost\s*Cent(?:er|re)\s*(?:ID|No\.?|Code)?\s*[:\-]\s*([A-Z0-9][\w\-]{2,20})',
     ]
 
 
@@ -287,6 +297,10 @@ class POExtractor:
 
         # Contract Reference (optional field — full confidence when present)
         po.contract_reference, scores["contract_reference"] = self._first_match(text, Patterns.CONTRACT)
+
+        # Buyer context (optional at intake; used by downstream authorization)
+        po.buyer_id, _    = self._first_match(text, Patterns.BUYER)
+        po.cost_center, _ = self._first_match(text, Patterns.COST_CENTER)
 
         # Ship-to ZIP — 100% when a valid ZIP is found, 0% when missing
         po.ship_to_zip, scores["ship_to_zip"] = self._find_zip_near_keyword(text)

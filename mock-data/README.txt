@@ -1,11 +1,35 @@
-MOCK MASTER DATA (Corporate Account Hierarchy & Ship-To Validation)
-===================================================================
+MOCK MASTER DATA (full PO-to-Fulfillment orchestration)
+=======================================================
 
-IMPORTANT: For the POC, NO real ERP, CRM, WMS, OMS, or SMTP systems are used.
-All "systems / data needed" are simulated with a single local Excel
-workbook (master-data.xlsx) read by modules/account_validator.py.
+IMPORTANT: For the POC, NO real ERP, CRM, WMS, OMS, TMS, or SMTP systems are
+used. Every "systems / data needed" input is simulated with local Excel
+workbooks read by the modules in ../modules/.
 
-FILE: master-data.xlsx  (regenerate with: python create_master_data_excel.py)
+DOMAIN WORKBOOKS (regenerate all new ones with: python create_master_data.py)
+-----------------------------------------------------------------------------
+  customer-master-data.xlsx            (US-02)  account hierarchy & ship-to
+      -> python create_customer_master_data_excel.py
+  buyer-master-data.xlsx               (US-03)  buyer profiles, permissions, cost
+                                                centers, product visibility rules
+  product-master-data.xlsx             (US-04)  product master, attributes, UOM
+                                                conversions, substitution rules
+  compliance-master-data.xlsx          (US-05)  compliance rules, regional
+                                                restrictions, SDS repository, eligibility
+  pricing-master-data.xlsx             (US-06)  price list, contracts, volume tiers,
+                                                rebates, promos, surcharges, freight, margin
+  budget-master-data.xlsx              (US-07)  budgets, cost centers, approval matrix
+  credit-master-data.xlsx              (US-08)  credit, invoice aging, payment terms, risk
+  inventory-master-data.xlsx           (US-09)  plant/DC/in-transit stock, ATP, allocation
+  logistics-master-data.xlsx           (US-10)  carrier coverage, freight rating, SLA, warehouses
+  exception-governance-master-data.xlsx(US-11)  severity matrix, role routing, SLA thresholds
+  execution-master-data.xlsx           (US-12)  integration endpoints, templates, documents
+
+The sections below describe customer-master-data.xlsx (US-02). The other
+workbooks follow the same layout (row 1 title, row 2 headers, row 3+ data) and
+their sheets/fields are documented per story in
+../sample-data/US-XX/US-XX_Summary_for_Manager.docx.
+
+FILE: customer-master-data.xlsx  (regenerate with: python create_customer_master_data_excel.py)
 SHEETS
 ------
 1. Customer_Master
@@ -56,21 +80,21 @@ TEST SCENARIOS  (sample PO files in ../sample-data/)
 HAPPY PATH      : CUST-1001 + ZIP 60639  -> resolves Chicago Warehouse under
                   Midwest Branch / North America / Acme Global. Rules applied
                   from ship-to level. Proceeds to buyer authorization.
-                  File: sample-po-text.txt
+                  File: US-01/sample-po-text.txt
 
 UNMATCHED CUST  : CUST-9999 (not in customer master) -> "Unmatched customer"
                   exception.
-                  File: scenario-unmatched-customer.txt
+                  File: US-02/scenario-unmatched-customer.txt
 
 DUPLICATE CUST  : CUST-7000 (two master records) -> "Duplicate customer"
                   exception; both candidate records shown.
-                  File: scenario-duplicate-customer.txt
+                  File: US-02/scenario-duplicate-customer.txt
 
 INVALID SHIP-TO : CUST-1001 + ZIP 99999 (ZIP not in any ship-to master record)
                   -> "Invalid ship-to" exception; possible ship-tos for the
                   customer are listed.
-                  File: scenario-invalid-shipto.txt
+                  File: US-02/scenario-invalid-shipto.txt
 
 HIERARCHY       : CUST-1001 (Acme) + ZIP 90001 (Globex LA — exists but belongs
   MISMATCH        to a different parent) -> "Hierarchy mismatch" exception.
-                  File: scenario-hierarchy-mismatch.txt
+                  File: US-02/scenario-hierarchy-mismatch.txt

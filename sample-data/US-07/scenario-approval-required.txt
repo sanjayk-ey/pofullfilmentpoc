@@ -1,0 +1,28 @@
+PURCHASE ORDER
+
+PO Number       : PO-US07-APPROVE
+PO Date         : 24 June 2026
+
+BUYER DETAILS
+Customer ID     : CUST-1001
+Buyer ID        : BUY-002
+Cost Center     : CC-MW-200
+
+SHIP TO
+Acme Chicago Warehouse
+4500 West Diversey Avenue, Chicago, IL 60639
+USA
+
+Contract Reference : CONTRACT-ACME-2026-007
+Payment Terms      : Net 30
+Requested Delivery Date : 15 July 2026
+
+ORDER LINES
+--------------------------------------------------------------------------------
+Line | SKU              | Description                      | Qty     | UOM
+--------------------------------------------------------------------------------
+1    | SKU-STL-4520     | Carbon Steel Pipe                | 200     | FT
+2    | SKU-FLG-3010     | Stainless Steel Flange           | 80      | EA
+--------------------------------------------------------------------------------
+
+Delivery Instructions : Deliver to Dock 3. Forklift required on site.
