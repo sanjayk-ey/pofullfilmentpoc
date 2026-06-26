@@ -2,14 +2,24 @@
 inventory_validator.py
 Inventory Availability, ATP, Allocation, and Partial Fulfillment Planning.
 
-Checks availability across plant stock, DC stock, in-transit stock, and ATP;
-applies customer-specific fulfillment rules; proposes partial fulfillment with a
-backorder plan when the full quantity is not available.
+This stage now applies the FULFILLMENT RULE PROFILE resolved by the account
+validator (from customer-master-data.xlsx -> Fulfillment_Rules sheet) and
+makes every decision visible in the StageResult output:
 
-Master data: inventory-master-data.xlsx (Plant_Stock, DC_Stock, In_Transit, ATP,
-Allocation_Rules, Fulfillment_Preferences).
+  - min_order_qty           order rejected if total qty below the MOQ
+  - restricted_warehouses   never sourced from these DCs (audit/contract rules)
+  - preferred_warehouse     first DC tried for each line
+  - alternate_warehouses    fallback DCs in declared order
+  - split_shipment_allowed  if N and a line needs >1 DC, raise an exception
+  - backorder_allowed       if N and a line cannot be fully sourced, raise
+  - max_backorder_days      acceptable backorder window
+  - allocation_priority     used when stock is constrained
 
-Exception types: INVENTORY_SHORTAGE, ALLOCATION_CONFLICT.
+A customer-level row in inventory-master-data.xlsx -> Fulfillment_Preferences
+still acts as an override for legacy compatibility.
+
+Exception types: INVENTORY_SHORTAGE, ALLOCATION_CONFLICT, SPLIT_NOT_ALLOWED,
+                 MIN_ORDER_QTY_NOT_MET, RESTRICTED_WAREHOUSE.
 """
 from modules.stage_result import StageResult
 from modules.xlsx_util import load_sheets, clean, to_num
@@ -31,73 +41,215 @@ class InventoryValidator:
                         ["Plant_Stock", "DC_Stock", "In_Transit", "ATP",
                          "Allocation_Rules", "Fulfillment_Preferences"])
         self.atp = {clean(r.get("sku")): r for r in s["ATP"] if clean(r.get("sku"))}
-        self.dc = s["DC_Stock"]
-        self.plant = s["Plant_Stock"]
-        self.transit = s["In_Transit"]
-        self.alloc = {clean(r.get("customer_tier")): r for r in s["Allocation_Rules"] if clean(r.get("customer_tier"))}
-        self.prefs = {clean(r.get("customer_account")): r for r in s["Fulfillment_Preferences"] if clean(r.get("customer_account"))}
+        # DC stock indexed (sku, location) -> qty
+        self.dc_stock = {}
+        for d in s["DC_Stock"]:
+            sku = clean(d.get("sku"))
+            loc = clean(d.get("location_id"))
+            if sku and loc:
+                self.dc_stock[(sku, loc)] = to_num(d.get("on_hand_qty"), 0) or 0
+        self.alloc = {clean(r.get("customer_tier")): r for r in s["Allocation_Rules"]
+                      if clean(r.get("customer_tier"))}
+        self.prefs = {clean(r.get("customer_account")): r for r in s["Fulfillment_Preferences"]
+                      if clean(r.get("customer_account"))}
 
-    def _dc_for(self, sku, preferred, restricted):
-        rows = [d for d in self.dc if clean(d.get("sku")) == sku
-                and clean(d.get("location_id")) != restricted
-                and to_num(d.get("on_hand_qty"), 0) > 0]
-        rows.sort(key=lambda d: 0 if clean(d.get("location_id")) == preferred else 1)
-        return rows
+    # ── Helpers ────────────────────────────────────────────────────────────────
+    def _resolve_profile(self, ctx):
+        """Merge hierarchy profile (primary) with customer-level override (legacy)."""
+        prof = dict(ctx.get("fulfillment_profile") or {})
+        cust = self.prefs.get(clean(ctx.get("customer_account"))) or {}
+        # Customer-level override (only if set) overrides specific fields
+        if clean(cust.get("preferred_warehouse")):
+            prof["preferred_warehouse"] = clean(cust.get("preferred_warehouse"))
+        if clean(cust.get("restricted_dc")):
+            r = prof.get("restricted_warehouses") or []
+            extra = clean(cust.get("restricted_dc"))
+            if extra and extra not in r:
+                prof["restricted_warehouses"] = r + [extra]
+        # Sensible defaults if no profile was resolved at all
+        prof.setdefault("preferred_warehouse", "")
+        prof.setdefault("alternate_warehouses", [])
+        prof.setdefault("restricted_warehouses", [])
+        prof.setdefault("split_shipment_allowed", True)
+        prof.setdefault("backorder_allowed", True)
+        prof.setdefault("max_backorder_days", 0)
+        prof.setdefault("min_order_qty", 0)
+        prof.setdefault("delivery_sla_days", 0)
+        prof.setdefault("allocation_priority", "SILVER")
+        prof.setdefault("rule_id", "DEFAULT")
+        prof.setdefault("rule_name", "Default")
+        return prof
 
+    def _allowed_dcs_for_sku(self, sku, profile):
+        """Ordered list of (dc_id, qty) for this SKU honoring preferred -> alternates,
+        excluding restricted DCs."""
+        restricted = set(profile.get("restricted_warehouses") or [])
+        order = []
+        pref = profile.get("preferred_warehouse")
+        if pref and pref not in restricted:
+            order.append(pref)
+        for alt in (profile.get("alternate_warehouses") or []):
+            if alt and alt not in restricted and alt not in order:
+                order.append(alt)
+        # Add any other DCs in the master as a final fallback (still excluding restricted)
+        for (s, loc) in self.dc_stock:
+            if s == sku and loc not in restricted and loc not in order:
+                order.append(loc)
+        return [(loc, self.dc_stock.get((sku, loc), 0)) for loc in order]
+
+    # ── Main ───────────────────────────────────────────────────────────────────
     def validate(self, ctx) -> StageResult:
         r = StageResult(self.stage_key, self.title, self.icon)
         customer = clean(ctx.get("customer_account"))
         lines = ctx.get("resolved_lines", [])
-        pref = self.prefs.get(customer, {})
-        preferred = clean(pref.get("preferred_warehouse"))
-        restricted = clean(pref.get("restricted_dc"))
-        tier = clean(pref.get("customer_tier")) or "SILVER"
-        backorder_tol = to_num(pref.get("backorder_tolerance_days"),
-                               to_num((self.alloc.get(tier) or {}).get("backorder_tolerance_days"), 0))
-        r.log(f"Inventory check started ({customer}, tier {tier}, preferred {preferred}).")
+        profile = self._resolve_profile(ctx)
 
-        avail_rows = []
-        plan = []
-        for ln in lines:
-            sku = ln["sku"]; need = to_num(ln.get("qty_base"), 0) or 0
-            atp = to_num((self.atp.get(sku) or {}).get("atp_qty"), 0)
-            dcs = self._dc_for(sku, preferred, restricted)
-            source = clean(dcs[0].get("location_id")) if dcs else (preferred or "PLANT")
-            avail_rows.append([sku, f"{need:g}", f"{atp:g}", source,
-                               "Available" if need <= atp else "Short"])
+        r.log(f"Inventory check started ({customer}). "
+              f"Applying fulfillment profile '{profile.get('rule_id')}' "
+              f"({profile.get('rule_name')}).")
 
-            if need > atp:
-                backordered = need - atp
-                eta = clean((self.atp.get(sku) or {}).get("next_replenishment_date"))
-                r.fail("INVENTORY_SHORTAGE",
-                       f"SKU '{sku}' requested {need:g} but only {atp:g} available-to-promise.")
-                r.kv("Partial fulfillment proposal", [
-                    ("SKU", sku),
-                    ("Requested", f"{need:g}"),
-                    ("Available now", f"{atp:g} from {source}"),
-                    ("Backordered", f"{backordered:g}"),
-                    ("Estimated availability", eta or "TBD"),
-                    ("Backorder tolerance", f"{backorder_tol} days"),
-                    ("Split shipment", clean(pref.get("split_shipment")) or "—"),
+        # Show the resolved fulfillment profile up front so the demo is obvious
+        r.kv("Applied fulfillment rules (profile)", [
+            ("Rule ID",                   profile.get("rule_id")),
+            ("Rule name",                 profile.get("rule_name")),
+            ("Preferred warehouse",       profile.get("preferred_warehouse") or "—"),
+            ("Alternate warehouses",      ", ".join(profile.get("alternate_warehouses") or []) or "—"),
+            ("Restricted warehouses",     ", ".join(profile.get("restricted_warehouses") or []) or "none"),
+            ("Split shipment allowed",    "Yes" if profile.get("split_shipment_allowed") else "No"),
+            ("Backorder allowed",         "Yes" if profile.get("backorder_allowed") else "No"),
+            ("Max backorder days",        profile.get("max_backorder_days")),
+            ("Minimum order quantity",    profile.get("min_order_qty")),
+            ("Target delivery SLA",       f"{profile.get('delivery_sla_days')} days"),
+            ("Allocation priority",       profile.get("allocation_priority")),
+        ])
+        if profile.get("description"):
+            r.note(profile["description"])
+
+        # ── Min order quantity check ──────────────────────────────────────────
+        moq = int(profile.get("min_order_qty") or 0)
+        if moq > 0:
+            total_qty = sum(int(to_num(ln.get("qty_base"), 0) or 0) for ln in lines)
+            if total_qty < moq:
+                r.fail("MIN_ORDER_QTY_NOT_MET",
+                       f"Total order quantity {total_qty} is below the customer's "
+                       f"minimum order quantity of {moq}.")
+                r.kv("MOQ check", [
+                    ("Total order quantity",   total_qty),
+                    ("Required minimum",       moq),
+                    ("Shortfall",              moq - total_qty),
+                    ("Recommended action",     "CSR to confirm with customer or add lines"),
                 ])
-                r.note("Inventory shortage proposal routed to CSR for customer confirmation.")
-                r.log(f"SKU '{sku}': shortage -> inventory exception.")
+                r.log(f"MOQ {moq} not met (got {total_qty}) -> inventory exception.")
                 return r
 
-            plan.append({"sku": sku, "qty": need, "source": source})
+        # ── Per-line sourcing ──────────────────────────────────────────────────
+        avail_rows = []
+        plan = []
+        any_split = False
 
+        for ln in lines:
+            sku = ln["sku"]
+            need = int(to_num(ln.get("qty_base"), 0) or 0)
+            atp_qty = int(to_num((self.atp.get(sku) or {}).get("atp_qty"), 0) or 0)
+
+            allowed = self._allowed_dcs_for_sku(sku, profile)
+            sources_used = []
+            remaining = need
+            for dc_id, qty_here in allowed:
+                if remaining <= 0:
+                    break
+                if qty_here <= 0:
+                    continue
+                take = min(remaining, qty_here)
+                sources_used.append((dc_id, take))
+                remaining -= take
+
+            sourced_qty = need - remaining
+
+            # SPLIT-SHIPMENT rule: if split is forbidden, try to re-source from a single DC
+            if len(sources_used) > 1 and not profile.get("split_shipment_allowed"):
+                single = next(((dc, q) for dc, q in allowed if q >= need), None)
+                if single:
+                    sources_used = [(single[0], need)]
+                    remaining = 0
+                    r.log(f"SKU '{sku}': split disallowed -> re-sourced fully from {single[0]}.")
+                else:
+                    r.fail("SPLIT_NOT_ALLOWED",
+                           f"SKU '{sku}' needs {need:g}, but no single DC has enough stock and "
+                           f"the customer's profile forbids split shipments.")
+                    r.kv("Split shipment violation", [
+                        ("SKU", sku),
+                        ("Requested", need),
+                        ("Largest single DC stock", max((q for _, q in allowed), default=0)),
+                        ("Allowed DC stocks",
+                         ", ".join(f"{dc}:{q:g}" for dc, q in allowed) or "none"),
+                        ("Would have split across",
+                         ", ".join(f"{dc}:{q:g}" for dc, q in sources_used) or "none"),
+                        ("Rule",  "split_shipment_allowed = N (single-shipment customer)"),
+                        ("Recommended action",
+                         "CSR to confirm: allow split this time, or raise customer override"),
+                    ])
+                    r.log(f"SKU '{sku}': split required but not allowed -> SPLIT_NOT_ALLOWED.")
+                    return r
+
+            if len(sources_used) > 1:
+                any_split = True
+
+            # BACKORDER rule
+            if remaining > 0:
+                if not profile.get("backorder_allowed"):
+                    r.fail("INVENTORY_SHORTAGE",
+                           f"SKU '{sku}' short by {remaining:g} and the customer's profile "
+                           f"does not allow backorders.")
+                    r.kv("Inventory shortage (no backorder allowed)", [
+                        ("SKU", sku),
+                        ("Requested", need),
+                        ("Sourced from allowed DCs", sourced_qty),
+                        ("Shortfall", remaining),
+                        ("ATP (global)", atp_qty),
+                        ("Rule", "backorder_allowed = N"),
+                        ("Recommended action", "CSR to contact customer / propose substitute"),
+                    ])
+                    r.log(f"SKU '{sku}': shortfall {remaining}, backorder disallowed -> exception.")
+                    return r
+
+                # Backorder allowed — propose partial plan
+                eta = clean((self.atp.get(sku) or {}).get("next_replenishment_date"))
+                r.fail("INVENTORY_SHORTAGE",
+                       f"SKU '{sku}': sourcing {sourced_qty:g} now, backordering {remaining:g}.")
+                r.kv("Partial fulfillment proposal", [
+                    ("SKU", sku),
+                    ("Requested", need),
+                    ("Available now",
+                     ", ".join(f"{dc} ({q:g})" for dc, q in sources_used) or "none"),
+                    ("Backordered", remaining),
+                    ("Estimated availability", eta or "TBD"),
+                    ("Max backorder window",
+                     f"{profile.get('max_backorder_days')} days (customer policy)"),
+                    ("Allocation priority", profile.get("allocation_priority")),
+                ])
+                r.note("Backorder proposal routed to CSR for customer confirmation.")
+                r.log(f"SKU '{sku}': partial plan {sourced_qty}/{need} -> inventory exception.")
+                return r
+
+            avail_rows.append([sku, f"{need:g}", f"{atp_qty:g}",
+                               ", ".join(f"{dc} ({q:g})" for dc, q in sources_used),
+                               "Available"])
+            plan.append({"sku": sku, "qty": need,
+                         "sources": [{"dc": dc, "qty": q} for dc, q in sources_used]})
+
+        # ── Success ────────────────────────────────────────────────────────────
         r.ok(f"All {len(lines)} line(s) available across the fulfillment network. "
              f"Ready for logistics validation.")
-        r.table("Availability", ["SKU", "Requested", "ATP", "Source", "Status"], avail_rows)
-        r.kv("Applied fulfillment rules", [
-            ("Customer tier", tier),
-            ("Preferred warehouse", preferred or "—"),
-            ("Restricted DC", restricted or "none"),
-            ("Split shipment", clean(pref.get("split_shipment")) or "—"),
-            ("Backorder tolerance", f"{backorder_tol} days"),
-            ("Allocation priority", to_num((self.alloc.get(tier) or {}).get("priority"), "—")),
-        ])
+        r.table("Sourcing plan", ["SKU", "Requested", "ATP", "Source DC(s)", "Status"], avail_rows)
+        if any_split:
+            r.note(f"Order will be split across multiple DCs (allowed by rule "
+                   f"'{profile.get('rule_id')}').")
         r.data["fulfillment_plan"] = plan
-        r.data["fulfillment_source"] = plan[0]["source"] if plan else preferred
+        primary = plan[0]["sources"][0]["dc"] if plan and plan[0]["sources"] \
+                  else profile.get("preferred_warehouse")
+        r.data["fulfillment_source"] = primary
+        r.data["fulfillment_profile"] = profile
+        r.data["delivery_sla_days"] = profile.get("delivery_sla_days")
         r.log("Inventory result: PASS -> proceed to logistics.")
         return r

@@ -1,0 +1,36 @@
+PURCHASE ORDER
+
+PO Number       : PO-US09-RESTRICT-01
+PO Date         : 24 June 2026
+
+BUYER DETAILS
+Customer ID     : CUST-5001
+Buyer ID        : BUY-010
+Cost Center     : CC-WEST-100
+
+SHIP TO
+Globex Los Angeles Warehouse
+800 South Hope Street, Los Angeles, CA 90001
+USA
+
+Contract Reference : CONTRACT-GLOBEX-2026-010
+Payment Terms      : Net 30
+Requested Delivery Date : 15 July 2026
+
+ORDER LINES
+--------------------------------------------------------------------------------
+Line | SKU              | Description                      | Qty     | UOM
+--------------------------------------------------------------------------------
+1    | SKU-STL-4520     | Carbon Steel Pipe 4 inch SCH40   | 500     | FT
+--------------------------------------------------------------------------------
+
+Delivery Instructions : Deliver to Dock 2. LA DC is restricted - do not source from there.
+
+NOTES
+This ship-to (ZIP 90001) is governed by fulfillment rule RULE-LA-RESTRICTED:
+preferred = DC-CHI-01, alternates = DC-DET-02, RESTRICTED = DC-LA-05.
+
+Inventory shows DC-LA-05 has 2000 FT of SKU-STL-4520 (the closest DC), but
+the customer rule excludes it (audit / contract restriction). The system
+sources from DC-CHI-01 (3000 FT) instead and PROCEEDS to logistics. The
+applied rules in the inventory stage show the restriction was honored.

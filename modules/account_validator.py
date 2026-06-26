@@ -109,8 +109,45 @@ class AccountValidator:
         self._hierarchy_rows = _read_sheet(wb, "Account_Hierarchy")
         self._shipto_rows    = _read_sheet(wb, "Ship_To_Master")
         self._rule_rows      = _read_sheet(wb, "Hierarchy_Rules")
+        # Fulfillment rule profiles (added in feat/fulfillment-rules-business-semantics)
+        # Each profile defines: preferred warehouse, alternates, restricted DCs,
+        # split-shipment flag, backorder flag, MOQ, delivery SLA, allocation priority.
+        # Hierarchy_Rules.fulfillment_rule stores the rule_id; the validator resolves
+        # the full profile and exposes it to downstream stages.
+        self._fulfillment_rule_rows = _read_sheet(wb, "Fulfillment_Rules") \
+            if "Fulfillment_Rules" in wb.sheetnames else []
         wb.close()
         self._build_indexes()
+        self._build_fulfillment_rule_index()
+
+    def _build_fulfillment_rule_index(self):
+        self.fulfillment_rule_profiles: Dict[str, dict] = {}
+        for r in self._fulfillment_rule_rows:
+            rid = _clean(r.get("rule_id"))
+            if not rid:
+                continue
+            self.fulfillment_rule_profiles[rid] = {
+                "rule_id":                rid,
+                "rule_name":              _clean(r.get("rule_name")) or rid,
+                "preferred_warehouse":    _clean(r.get("preferred_warehouse")) or "",
+                "alternate_warehouses":   [w.strip() for w in
+                    (str(r.get("alternate_warehouses") or "").split(",")) if w.strip()],
+                "restricted_warehouses":  [w.strip() for w in
+                    (str(r.get("restricted_warehouses") or "").split(",")) if w.strip()],
+                "split_shipment_allowed": (_clean(r.get("split_shipment_allowed")) or "Y").upper() == "Y",
+                "backorder_allowed":      (_clean(r.get("backorder_allowed")) or "Y").upper() == "Y",
+                "max_backorder_days":     int(float(r.get("max_backorder_days") or 0)),
+                "min_order_qty":          int(float(r.get("min_order_qty") or 0)),
+                "delivery_sla_days":      int(float(r.get("delivery_sla_days") or 0)),
+                "allocation_priority":    _clean(r.get("allocation_priority")) or "SILVER",
+                "description":            _clean(r.get("description")) or "",
+            }
+
+    def get_fulfillment_rule(self, rule_id: Optional[str]) -> Optional[dict]:
+        """Resolve a fulfillment rule ID (from applied_rules) to its full profile."""
+        if not rule_id:
+            return None
+        return self.fulfillment_rule_profiles.get(str(rule_id).strip())
 
     # ── Build lookup indexes from the flat Excel tables ─────────────────────────
     def _build_indexes(self):
