@@ -1,10 +1,33 @@
-MOCK MASTER DATA (Corporate Account Hierarchy & Ship-To Validation)
-===================================================================
+MOCK MASTER DATA (full PO-to-Fulfillment orchestration)
+=======================================================
 
-IMPORTANT: For the POC, NO real ERP, CRM, WMS, OMS, or SMTP systems are used.
-All customer-side "systems / data needed" are simulated with a local Excel
-workbook (customer-master-data.xlsx) read by modules/account_validator.py.
-Other master data (e.g. product master) will be added as separate workbooks.
+IMPORTANT: For the POC, NO real ERP, CRM, WMS, OMS, TMS, or SMTP systems are
+used. Every "systems / data needed" input is simulated with local Excel
+workbooks read by the modules in ../modules/.
+
+DOMAIN WORKBOOKS (regenerate all new ones with: python create_master_data.py)
+-----------------------------------------------------------------------------
+  customer-master-data.xlsx            (US-02)  account hierarchy & ship-to
+      -> python create_customer_master_data_excel.py
+  buyer-master-data.xlsx               (US-03)  buyer profiles, permissions, cost
+                                                centers, product visibility rules
+  product-master-data.xlsx             (US-04)  product master, attributes, UOM
+                                                conversions, substitution rules
+  compliance-master-data.xlsx          (US-05)  compliance rules, regional
+                                                restrictions, SDS repository, eligibility
+  pricing-master-data.xlsx             (US-06)  price list, contracts, volume tiers,
+                                                rebates, promos, surcharges, freight, margin
+  budget-master-data.xlsx              (US-07)  budgets, cost centers, approval matrix
+  credit-master-data.xlsx              (US-08)  credit, invoice aging, payment terms, risk
+  inventory-master-data.xlsx           (US-09)  plant/DC/in-transit stock, ATP, allocation
+  logistics-master-data.xlsx           (US-10)  carrier coverage, freight rating, SLA, warehouses
+  exception-governance-master-data.xlsx(US-11)  severity matrix, role routing, SLA thresholds
+  execution-master-data.xlsx           (US-12)  integration endpoints, templates, documents
+
+The sections below describe customer-master-data.xlsx (US-02). The other
+workbooks follow the same layout (row 1 title, row 2 headers, row 3+ data) and
+their sheets/fields are documented per story in
+../sample-data/US-XX/US-XX_Summary_for_Manager.docx.
 
 FILE: customer-master-data.xlsx  (regenerate with: python create_customer_master_data_excel.py)
 SHEETS

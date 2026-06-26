@@ -30,5 +30,7 @@ Thumbs.db
 # Office temp / lock files
 ~$*
 
-# Generated Word deliverables (kept out of the code repo)
+# Generated Word deliverables: ignore stray root-level docs, but keep the
+# per-story manager summaries that live inside sample-data/US-XX/.
 *.docx
+!sample-data/**/*.docx

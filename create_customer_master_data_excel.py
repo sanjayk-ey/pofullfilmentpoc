@@ -108,6 +108,8 @@ write_sheet(
         ["ST-NYC-003", "Acme New York Distribution Center", "55 Water Street, New York, NY", "10001", "BR-ACME-NE", "ACTIVE"],
         ["ST-LON-004", "Acme London Depot", "10 Canada Square, London", "E145AB", "BR-ACME-UK", "ACTIVE"],
         ["ST-LA-005", "Globex Los Angeles Warehouse", "800 South Hope Street, Los Angeles, CA", "90001", "BR-GLOBEX-WEST", "ACTIVE"],
+        ["ST-AK-006", "Acme Remote Site (Alaska)", "1 Industrial Rd, Ketchikan, AK", "99950", "BR-ACME-MW", "ACTIVE"],
+        ["ST-CA-007", "Acme California Project Site", "9000 Sunset Blvd, Beverly Hills, CA", "90210", "BR-ACME-MW", "ACTIVE"],
     ],
     [14, 32, 40, 10, 16, 10],
 )
