@@ -1,0 +1,35 @@
+PURCHASE ORDER
+
+PO Number       : PO-US09-SPLIT-01
+PO Date         : 24 June 2026
+
+BUYER DETAILS
+Customer ID     : CUST-1001
+Buyer ID        : BUY-001
+Cost Center     : CC-MW-100
+
+SHIP TO
+Acme Detroit Distribution Center
+1200 Woodward Avenue, Detroit, MI 48201
+USA
+
+Contract Reference : CONTRACT-ACME-2026-007
+Payment Terms      : Net 30
+Requested Delivery Date : 15 July 2026
+
+ORDER LINES
+--------------------------------------------------------------------------------
+Line | SKU              | Description                      | Qty     | UOM
+--------------------------------------------------------------------------------
+1    | SKU-VLV-2201     | Ball Valve 2 inch Full Port      | 40      | EA
+--------------------------------------------------------------------------------
+
+Delivery Instructions : Deliver to Dock 1. Single shipment required.
+
+NOTES
+This ship-to (ZIP 48201) is governed by fulfillment rule RULE-DET-NO-SPLIT:
+the customer requires a single shipment with NO split-shipment and NO backorder.
+
+Inventory shows: DC-DET-02 has 15 EA, DC-CHI-01 has 30 EA. Neither single DC
+can supply the full 40 EA, and the customer's rule forbids splitting -> the
+system raises a SPLIT_NOT_ALLOWED exception and routes it to the CSR.

@@ -36,7 +36,12 @@ class LogisticsValidator:
         self.sla = s["SLA_Rules"]
         self.warehouses = s["Warehouse_Master"]
 
-    def _sla_max(self, customer):
+    def _sla_max(self, customer, ctx):
+        # Customer-specific fulfillment rule profile takes precedence (US-02 rule)
+        sla_from_profile = to_num((ctx.get("fulfillment_profile") or {}).get("delivery_sla_days"), 0)
+        if sla_from_profile and sla_from_profile > 0:
+            return sla_from_profile
+        # Fallback to SLA_Rules in logistics master
         row = next((x for x in self.sla if clean(x.get("scope_type")) == "customer"
                     and clean(x.get("scope_id")) == customer), None)
         row = row or next((x for x in self.sla if clean(x.get("scope_type")) == "default"), None)
@@ -70,7 +75,9 @@ class LogisticsValidator:
                                      to_num(c.get("transit_days"), 99)))
         chosen = carriers[0]
         transit = to_num(chosen.get("transit_days"), 99)
-        sla_max = self._sla_max(customer)
+        sla_max = self._sla_max(customer, ctx)
+        sla_source = "fulfillment profile" if (ctx.get("fulfillment_profile") or {}).get("delivery_sla_days") \
+                     else "logistics SLA_Rules"
 
         # Freight rating (use first matching carrier zone)
         rate = next((x for x in self.rating if clean(x.get("carrier")) == clean(chosen.get("carrier"))), None)
@@ -85,7 +92,8 @@ class LogisticsValidator:
                    f"of {sla_max} days for ZIP '{zip_}'.")
             r.kv("SLA assessment", [
                 ("Carrier", clean(chosen.get("carrier"))),
-                ("Transit days", transit), ("SLA max", sla_max),
+                ("Transit days", transit),
+                ("SLA max", f"{sla_max} days (source: {sla_source})"),
                 ("Estimated delivery", eta.strftime("%d %b %Y")),
             ])
             r.note("Routed to CSR for alternate delivery proposal.")
@@ -98,7 +106,7 @@ class LogisticsValidator:
             ("Ship-to ZIP", zip_),
             ("Selected warehouse", source),
             ("Carrier", f"{clean(chosen.get('carrier'))} ({clean(chosen.get('service_level'))})"),
-            ("Transit days", f"{transit} (SLA {sla_max})"),
+            ("Transit days", f"{transit} (SLA {sla_max} from {sla_source})"),
             ("Shipment weight", f"{weight} kg"),
             ("Freight cost", f"${freight:,.2f}"),
             ("Estimated delivery (ETA)", eta.strftime("%d %b %Y")),

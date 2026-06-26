@@ -115,6 +115,9 @@ write_sheet(
 )
 
 # ── Sheet 4: Hierarchy_Rules ───────────────────────────────────────────────────
+# The `fulfillment_rule` column stores a RULE PROFILE ID. The actual structured
+# business rules (preferred warehouse, split allowed, backorder allowed, etc.)
+# are defined in the Fulfillment_Rules sheet below and looked up by this ID.
 ws4 = wb.create_sheet("Hierarchy_Rules")
 write_sheet(
     ws4,
@@ -123,25 +126,107 @@ write_sheet(
      "budget_limit", "approval_routing", "fulfillment_rule"],
     [
         # Global parents
-        ["global_parent", "GP-ACME",   "TIER-3", "GLOBAL_CATALOG",  5000000, "CORPORATE_PROCUREMENT", "GLOBAL_NETWORK"],
-        ["global_parent", "GP-GLOBEX", "TIER-1", "STANDARD_CATALOG", 2000000, "CORPORATE_PROCUREMENT", "GLOBAL_NETWORK"],
+        ["global_parent", "GP-ACME",   "TIER-3", "GLOBAL_CATALOG",  5000000, "CORPORATE_PROCUREMENT", "RULE-GLOBAL-STD"],
+        ["global_parent", "GP-GLOBEX", "TIER-1", "STANDARD_CATALOG", 2000000, "CORPORATE_PROCUREMENT", "RULE-GLOBAL-STD"],
         # Regional divisions
-        ["regional_division", "RD-ACME-NA", "TIER-2",    "", "", "REGIONAL_MANAGER",    "NA_DISTRIBUTION"],
-        ["regional_division", "RD-ACME-EU", "TIER-2-EU", "", "", "EU_REGIONAL_MANAGER", "EU_DISTRIBUTION"],
+        ["regional_division", "RD-ACME-NA", "TIER-2",    "", "", "REGIONAL_MANAGER",    "RULE-NA-STD"],
+        ["regional_division", "RD-ACME-EU", "TIER-2-EU", "", "", "EU_REGIONAL_MANAGER", "RULE-EU-STD"],
         ["regional_division", "RD-GLOBEX-NA", "TIER-1",  "", "", "REGIONAL_MANAGER",    ""],
         # Branches
-        ["branch", "BR-ACME-MW", "", "", 500000, "BRANCH_MANAGER", "NEAREST_DC"],
+        ["branch", "BR-ACME-MW", "", "", 500000, "BRANCH_MANAGER", "RULE-MW-STD"],
         ["branch", "BR-ACME-NE", "", "", 350000, "BRANCH_MANAGER", ""],
         ["branch", "BR-ACME-UK", "", "", 300000, "BRANCH_MANAGER", ""],
-        ["branch", "BR-GLOBEX-WEST", "", "", 400000, "BRANCH_MANAGER", "WEST_COAST_DC"],
-        # Ship-to
-        ["ship_to", "ST-CHI-001", "", "", "", "SITE_SUPERVISOR", "CHICAGO_DC_PRIORITY"],
-        ["ship_to", "ST-DET-002", "", "", "", "", "DETROIT_DC_PRIORITY"],
-        ["ship_to", "ST-NYC-003", "", "", "", "", "NYC_DC_PRIORITY"],
-        ["ship_to", "ST-LON-004", "", "", "", "", "UK_DEPOT_PRIORITY"],
-        ["ship_to", "ST-LA-005", "", "", "", "", "LA_DC_PRIORITY"],
+        ["branch", "BR-GLOBEX-WEST", "", "", 400000, "BRANCH_MANAGER", "RULE-WEST-STD"],
+        # Ship-to (most specific level — overrides any branch/regional default)
+        ["ship_to", "ST-CHI-001", "", "", "", "SITE_SUPERVISOR", "RULE-CHI-PRIORITY"],
+        ["ship_to", "ST-DET-002", "", "", "", "", "RULE-DET-NO-SPLIT"],
+        ["ship_to", "ST-NYC-003", "", "", "", "", "RULE-NYC-BACKORDER-OK"],
+        ["ship_to", "ST-LON-004", "", "", "", "", "RULE-EU-STD"],
+        ["ship_to", "ST-LA-005", "", "", "", "", "RULE-LA-RESTRICTED"],
+        ["ship_to", "ST-CA-007", "", "", "", "", "RULE-LARGE-MOQ"],
     ],
     [18, 16, 12, 18, 14, 22, 22],
+)
+
+# ── Sheet 5: Fulfillment_Rules ─────────────────────────────────────────────────
+# Each row defines the actual business rules behind a fulfillment_rule profile
+# referenced from Hierarchy_Rules. Validators in US-09 (inventory) and US-10
+# (logistics) read these columns to decide:
+#   - preferred_warehouse        first DC to attempt fulfillment from
+#   - alternate_warehouses       fallback DCs to try (in order)
+#   - restricted_warehouses      DCs that must NEVER be used for this customer
+#   - split_shipment_allowed     Y = order may be split across DCs
+#                                N = must ship in a single shipment
+#   - backorder_allowed          Y = partial fulfillment OK; remainder backordered
+#                                N = if not fully available, raise an exception
+#   - max_backorder_days         max days the customer will accept for backorder
+#   - min_order_qty              minimum total order quantity (lines aggregated)
+#   - delivery_sla_days          target days from order to delivery
+#   - allocation_priority        used when inventory is constrained
+ws5 = wb.create_sheet("Fulfillment_Rules")
+write_sheet(
+    ws5,
+    "FULFILLMENT RULES  (business rules referenced by hierarchy fulfillment_rule)",
+    ["rule_id", "rule_name", "preferred_warehouse", "alternate_warehouses",
+     "restricted_warehouses", "split_shipment_allowed", "backorder_allowed",
+     "max_backorder_days", "min_order_qty", "delivery_sla_days",
+     "allocation_priority", "description"],
+    [
+        ["RULE-GLOBAL-STD",       "Global standard",
+         "DC-CHI-01", "DC-DET-02,DC-LA-05", "",
+         "Y", "Y", 15, 1, 7, "SILVER",
+         "Default global rule. Ship from nearest DC; split and backorder allowed."],
+
+        ["RULE-NA-STD",           "North America standard",
+         "DC-CHI-01", "DC-DET-02", "",
+         "Y", "Y", 10, 1, 5, "SILVER",
+         "Ship from Chicago first, then Detroit. Split and backorder allowed."],
+
+        ["RULE-EU-STD",           "Europe standard",
+         "DC-LON-10", "", "",
+         "Y", "N", 0, 1, 7, "SILVER",
+         "Ship from UK depot only. Split allowed; no backorder (must be fully available)."],
+
+        ["RULE-MW-STD",           "Midwest standard",
+         "DC-CHI-01", "DC-DET-02", "",
+         "Y", "Y", 10, 1, 4, "SILVER",
+         "Ship from Chicago (preferred) or Detroit; split and short backorder allowed."],
+
+        ["RULE-WEST-STD",         "West Coast standard",
+         "DC-LA-05", "", "",
+         "Y", "Y", 7, 1, 4, "SILVER",
+         "Ship from LA DC. Split allowed; short backorder window."],
+
+        ["RULE-CHI-PRIORITY",     "Priority Chicago (GOLD)",
+         "DC-CHI-01", "DC-DET-02", "",
+         "Y", "Y", 5, 1, 2, "GOLD",
+         "Ship priority from Chicago DC. Same-day priority; minor backorder allowed."],
+
+        ["RULE-DET-NO-SPLIT",     "Detroit single-shipment",
+         "DC-DET-02", "DC-CHI-01", "",
+         "N", "N", 0, 1, 5, "SILVER",
+         "Customer requires one shipment, no split, no backorder. Full quantity must "
+         "come from a single DC or the order is held for CSR review."],
+
+        ["RULE-NYC-BACKORDER-OK", "NYC backorder allowed",
+         "DC-NYC-03", "DC-CHI-01", "",
+         "Y", "Y", 20, 1, 6, "SILVER",
+         "Customer accepts long backorder windows. Ship what's available from NYC, "
+         "backorder the rest up to 20 days."],
+
+        ["RULE-LA-RESTRICTED",    "LA DC restricted",
+         "DC-CHI-01", "DC-DET-02", "DC-LA-05",
+         "Y", "Y", 10, 1, 6, "SILVER",
+         "LA DC is restricted (customer audit failure). Must ship from Chicago/Detroit "
+         "even if LA has stock."],
+
+        ["RULE-LARGE-MOQ",        "Large minimum order quantity",
+         "DC-CHI-01", "DC-DET-02", "",
+         "Y", "Y", 7, 500, 5, "GOLD",
+         "Bulk customer. Minimum total order quantity = 500 units. Smaller orders "
+         "are rejected to protect margins."],
+    ],
+    [22, 28, 18, 22, 22, 14, 14, 14, 14, 14, 14, 48],
 )
 
 out = os.path.join(OUT_DIR, "customer-master-data.xlsx")

@@ -38,6 +38,9 @@ CASES = [
     ("US-07/scenario-approval-required.txt", "APPROVAL_REQUIRED"),
     ("US-08/scenario-credit-hold.txt", "CREDIT_HOLD"),
     ("US-09/scenario-inventory-shortage.txt", "INVENTORY_SHORTAGE"),
+    ("US-09/scenario-split-not-allowed.txt",  "SPLIT_NOT_ALLOWED"),
+    ("US-09/scenario-restricted-warehouse.txt", None),       # rule applied; no exception
+    ("US-09/scenario-min-order-qty.txt",      "MIN_ORDER_QTY_NOT_MET"),
     ("US-10/scenario-zip-not-serviceable.txt", "ZIP_NOT_SERVICEABLE"),
     ("US-11/happy-autonomous.txt", None),
     ("US-11/scenario-governed-exception.txt", "CREDIT_HOLD"),

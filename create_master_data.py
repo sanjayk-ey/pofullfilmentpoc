@@ -91,7 +91,7 @@ build_workbook("buyer-master-data.xlsx", [
         ["BUY-001", "John Miller", "john.miller@acme.com", "CUST-1001", "BR-ACME-MW", "CC-MW-100", "SENIOR_BUYER", "ACTIVE", 250000, "USD", "Y", "PUNCH-AC-001"],
         ["BUY-002", "Linda Park", "linda.park@acme.com", "CUST-1001", "BR-ACME-MW", "CC-MW-200", "JUNIOR_BUYER", "ACTIVE", 5000, "USD", "N", "PUNCH-AC-002"],
         ["BUY-003", "Mark Snow", "mark.snow@acme.com", "CUST-1002", "BR-ACME-NE", "CC-NE-100", "BUYER", "ACTIVE", 75000, "USD", "Y", "PUNCH-AC-003"],
-        ["BUY-010", "Sara Lee", "sara.lee@globex.com", "CUST-5001", "BR-GLOBEX-WEST", "CC-WEST-100", "BUYER", "ACTIVE", 120000, "USD", "N", "PUNCH-GX-010"],
+        ["BUY-010", "Sara Lee", "sara.lee@globex.com", "CUST-5001", "BR-GLOBEX-WEST", "CC-WEST-100", "BUYER", "ACTIVE", 120000, "USD", "Y", "PUNCH-GX-010"],
         ["BUY-900", "Tom Gray (suspended)", "tom.gray@acme.com", "CUST-1001", "BR-ACME-MW", "CC-MW-100", "BUYER", "SUSPENDED", 0, "USD", "N", ""],
      ],
      [12, 20, 26, 16, 16, 16, 14, 12, 14, 8, 14, 14]),
@@ -418,7 +418,7 @@ build_workbook("budget-master-data.xlsx", [
         ["BUY-001", 250000, "Y", "BR-ACME-MW", "CC-MW-100,CC-MW-200"],
         ["BUY-002", 5000, "N", "BR-ACME-MW", "CC-MW-200"],
         ["BUY-003", 75000, "Y", "BR-ACME-NE", "CC-NE-100"],
-        ["BUY-010", 120000, "N", "BR-GLOBEX-WEST", "CC-WEST-100"],
+        ["BUY-010", 120000, "Y", "BR-GLOBEX-WEST", "CC-WEST-100"],
      ],
      [12, 16, 16, 16, 22]),
 ])

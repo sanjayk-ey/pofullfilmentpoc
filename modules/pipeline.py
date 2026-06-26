@@ -19,6 +19,11 @@ from modules.inventory_validator import InventoryValidator
 from modules.logistics_validator import LogisticsValidator
 from modules.exception_governance import ExceptionGovernance
 from modules.order_execution import OrderExecution
+from modules.account_validator import AccountValidator
+
+# Singleton account validator used to resolve fulfillment rule profiles from the
+# fulfillment_rule ID stored in applied_rules.
+_ACCOUNT_VALIDATOR = AccountValidator()
 
 # Singletons (each loads its master-data workbook once)
 SEQUENTIAL_STAGES = [
@@ -66,6 +71,13 @@ def build_context(po, av):
         ctx["branch_id"] = (av.branch or {}).get("id")
         ctx["regional_division_id"] = (av.regional_division or {}).get("id")
         ctx["global_parent_id"] = (av.global_parent or {}).get("id")
+        ctx["applied_rules"] = dict(av.applied_rules or {})
+        # Resolve the fulfillment_rule profile (preferred WH, split/backorder flags,
+        # restricted DCs, MOQ, SLA, allocation priority) so US-09 and US-10 can apply it.
+        rule_id = (av.applied_rules or {}).get("fulfillment_rule")
+        profile = _ACCOUNT_VALIDATOR.get_fulfillment_rule(rule_id) if rule_id else None
+        if profile:
+            ctx["fulfillment_profile"] = profile
     return ctx
 
 

@@ -298,39 +298,58 @@ STORIES = {
                        "distribution centers, in-transit inventory, and available-to-promise supply, so that the system "
                        "can determine whether the requested B2B quantity can be fulfilled."),
         "business_value": "Improves promise accuracy, supports partial fulfillment decisions, and balances inventory across the network.",
-        "ai_resp": "Check plant/DC/in-transit stock, ATP, allocation rules, backorder tolerance, and customer fulfillment preferences.",
-        "human_resp": "Approve partial fulfillment proposals, customer communication, backorder decisions, or allocation exceptions.",
-        "systems": "ERP inventory, WMS, ATP engine, allocation rules, customer fulfillment preferences, in-transit inventory feed.",
-        "exceptions": ["Inventory shortage", "Allocation conflict", "Backorder approval", "Split fulfillment approval"],
+        "ai_resp": "Check plant/DC/in-transit stock, ATP, allocation rules, and apply the customer's Fulfillment Rule profile (preferred/alternate/restricted warehouses, split-shipment, backorder, MOQ, SLA, allocation priority).",
+        "human_resp": "Approve partial fulfillment proposals, customer communication, backorder decisions, allow split-on-this-occasion, or allocation exceptions.",
+        "systems": "ERP inventory, WMS, ATP engine, allocation rules, customer fulfillment rule profile (customer-master-data.xlsx -> Fulfillment_Rules), in-transit inventory feed.",
+        "exceptions": ["Inventory shortage (no backorder allowed)", "Inventory shortage with partial-fulfillment proposal (backorder allowed)", "Split shipment not allowed", "Minimum order quantity not met", "Allocation conflict"],
         "module": "modules/inventory_validator.py",
-        "master": "inventory-master-data.xlsx",
+        "master": "inventory-master-data.xlsx + customer-master-data.xlsx (Fulfillment_Rules)",
         "sheets": [
             ("Plant_Stock", "location_id, location_type, region, sku, on_hand_qty, uom"),
             ("DC_Stock", "location_id, location_type, region, sku, on_hand_qty, uom"),
             ("In_Transit", "sku, from_location, to_location, qty, uom, eta_date"),
             ("ATP", "sku, atp_qty, uom, next_replenishment_date, replenishment_qty"),
             ("Allocation_Rules", "customer_tier, priority, backorder_tolerance_days, notes"),
-            ("Fulfillment_Preferences", "customer_account, customer_tier, preferred_warehouse, restricted_dc, split_shipment, backorder_tolerance_days"),
+            ("Fulfillment_Preferences", "customer_account, customer_tier, preferred_warehouse, restricted_dc, split_shipment, backorder_tolerance_days (legacy override)"),
+            ("Fulfillment_Rules (in customer-master-data.xlsx)",
+             "rule_id, rule_name, preferred_warehouse, alternate_warehouses, restricted_warehouses, "
+             "split_shipment_allowed (Y/N), backorder_allowed (Y/N), max_backorder_days, "
+             "min_order_qty, delivery_sla_days, allocation_priority, description"),
         ],
-        "how": ("The agent compares requested quantity to available-to-promise and DC stock (honoring preferred and "
-                "restricted warehouses), selecting a source. When the full quantity is unavailable it proposes a partial "
-                "fulfillment plan with backorder quantity and estimated availability, applying tier-based allocation rules."),
+        "how": ("The agent resolves the customer's fulfillment rule profile (via the hierarchy in US-02 - "
+                "Hierarchy_Rules.fulfillment_rule points to a row in customer-master-data.xlsx -> Fulfillment_Rules) "
+                "and applies it explicitly: enforces minimum order quantity, walks DCs in preferred -> alternate "
+                "order while SKIPPING restricted DCs, checks whether split shipment is allowed (and re-sources from "
+                "a single DC if it is not, raising SPLIT_NOT_ALLOWED only when no single DC can fulfill), and decides "
+                "between a backorder proposal or a hard INVENTORY_SHORTAGE exception based on backorder_allowed. "
+                "Every applied rule is shown to the CSR in the stage output so the decision is fully auditable."),
         "acs": [
             ("AC-01", "Confirm inventory availability across fulfillment network",
              "Given an order has passed customer, product, pricing, approval, and credit validation\nWhen the AI agent checks inventory across plant stock, DC inventory, in-transit stock, and ATP\nThen the system should determine whether the requested quantity is available\nAnd identify the source location(s) that can fulfill the order\nAnd proceed to logistics validation",
              "Availability is confirmed against ATP/DC stock and a source is identified per line, then logistics runs."),
             ("AC-02", "Propose allocation when requested quantity is partially available",
              "Given the full requested quantity is not available\nWhen the AI agent identifies partial availability\nThen the system should propose available quantity, backordered quantity, estimated availability date, and fulfillment source\nAnd create an inventory shortage exception\nAnd route the proposal to the CSR for customer confirmation",
-             "An INVENTORY_SHORTAGE proposal shows available, backordered, and ETA (sample: scenario-inventory-shortage.txt)."),
+             "If the rule allows backorder, an INVENTORY_SHORTAGE proposal shows available, backordered, ETA, and "
+             "max backorder window. If the rule forbids backorder, the same shortage becomes a hard exception."),
             ("AC-03", "Respect customer-specific fulfillment rules",
-             "Given the customer account has fulfillment preferences or restrictions\nWhen the AI agent evaluates inventory options\nThen the system should apply rules such as preferred warehouse, restricted DC, split-shipment preference, and backorder tolerance\nAnd include the applied fulfillment rules in the decision rationale",
-             "Preferred/restricted warehouses, split-shipment, and backorder tolerance from Fulfillment_Preferences are applied and shown."),
+             "Given the customer account has fulfillment preferences or restrictions\nWhen the AI agent evaluates inventory options\nThen the system should apply rules such as preferred warehouse, restricted DC, split-shipment preference, backorder tolerance, and minimum order quantity\nAnd include the applied fulfillment rules in the decision rationale",
+             "The applied Fulfillment Rule profile (Rule ID + Rule name + every field) is displayed at the top of the "
+             "inventory stage. Preferred / alternate / restricted warehouses are honored. SPLIT_NOT_ALLOWED, "
+             "MIN_ORDER_QTY_NOT_MET, and backorder-disallowed shortages raise dedicated exceptions."),
             ("AC-04", "Handle allocation priority",
              "Given inventory is constrained and multiple customers may require the same inventory\nWhen the AI agent evaluates allocation rules\nThen the system should apply allocation priority based on customer tier, contract commitment, order urgency, and configured business rules\nAnd create an allocation exception if the requested quantity cannot be allocated",
-             "Allocation_Rules assign priority by customer tier; constrained allocations surface as exceptions."),
+             "Allocation_Rules + Fulfillment Rule's allocation_priority assign priority (GOLD/SILVER/BRONZE)."),
         ],
         "scenarios": [
-            ("Inventory shortage", "scenario-inventory-shortage.txt", "INVENTORY_SHORTAGE + partial fulfillment proposal"),
+            ("Backorder-allowed shortage", "scenario-inventory-shortage.txt",
+             "INVENTORY_SHORTAGE + partial fulfillment proposal (backorder allowed by RULE-CHI-PRIORITY)"),
+            ("Split shipment not allowed", "scenario-split-not-allowed.txt",
+             "SPLIT_NOT_ALLOWED - rule RULE-DET-NO-SPLIT forbids splitting; no single DC has enough stock"),
+            ("Restricted warehouse honored", "scenario-restricted-warehouse.txt",
+             "Clean pass; rule RULE-LA-RESTRICTED excludes DC-LA-05 even though it has stock; sourced from "
+             "DC-CHI-01 alternate. The applied-rules table proves the restriction was respected."),
+            ("Minimum order quantity not met", "scenario-min-order-qty.txt",
+             "MIN_ORDER_QTY_NOT_MET - rule RULE-LARGE-MOQ requires 500-unit minimum; order has only 100"),
         ],
     },
     "US-10": {
