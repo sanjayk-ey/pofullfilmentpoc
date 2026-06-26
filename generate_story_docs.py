@@ -225,14 +225,20 @@ STORIES = {
         ],
         "how": ("The order value is compared to the cost-center and branch available budget. If within budget and the "
                 "buyer's self-approval authority, the order is auto-approved. Otherwise the approval matrix identifies "
-                "the correct approver (branch -> regional -> global) and an approval task is created, pausing the order."),
+                "the correct approver (branch -> regional -> global) and an approval task is created, pausing the order. "
+                "When approval is required from an approver other than the CSR, the system shows a mocked notification - "
+                "'Triggered email to respective approver and awaiting approval.' - and then halts: no further stages run "
+                "until the approval is granted or rejected."),
         "acs": [
             ("AC-01", "Validate order against branch-level budget",
              "Given an order is associated with a local branch or cost center\nWhen the AI agent calculates the total order value\nThen the system should compare the order value against the available branch-level or cost-center budget\nAnd determine whether the buyer is authorized to submit without approval\nAnd proceed to credit validation if within budget and approval limits",
              "Cost-center then branch budgets are checked; within-authority orders auto-approve and proceed to credit."),
             ("AC-02", "Route order to regional approver when spend threshold is exceeded",
              "Given a local branch user submits an order above the allowed spend threshold\nWhen the AI agent evaluates the approval matrix\nThen the system should identify the correct regional or corporate approver\nAnd create an approval task with order value, budget impact, products, pricing summary, and recommended action\nAnd pause order progression until approval is granted",
-             "An APPROVAL_REQUIRED task names the approver, level, threshold range, and SLA (sample: scenario-approval-required.txt)."),
+             "An APPROVAL_REQUIRED task names the approver, level, threshold range, and SLA. Because approval is needed "
+             "from an approver other than the CSR, the system displays a mocked message 'Triggered email to respective "
+             "approver and awaiting approval.' and then stops - no further actions execute until a response is received "
+             "(sample: scenario-approval-required.txt)."),
             ("AC-03", "Block or escalate order when budget is unavailable",
              "Given the branch or cost center does not have sufficient remaining budget\nWhen the AI agent performs budget validation\nThen the system should create a budget exception\nAnd display available budget, order value, budget shortfall, and impacted account level\nAnd route the exception according to the customer's approval policy",
              "A BUDGET_EXCEEDED exception shows the shortfall and impacted level (sample: scenario-budget-exceeded.txt)."),
@@ -242,7 +248,7 @@ STORIES = {
         ],
         "scenarios": [
             ("Budget exceeded", "scenario-budget-exceeded.txt", "BUDGET_EXCEEDED (order > cost-center & branch budget)"),
-            ("Approval required", "scenario-approval-required.txt", "APPROVAL_REQUIRED (order > buyer self-approval limit)"),
+            ("Approval required", "scenario-approval-required.txt", "APPROVAL_REQUIRED -> mocked approver email sent, process halted"),
         ],
     },
     "US-08": {
