@@ -21,6 +21,8 @@ SD = os.path.join(os.path.dirname(__file__), "sample-data")
 CASES = [
     ("US-01/sample-po-text.txt",          None),
     ("US-01/sample-po-happy-path.xlsx",   None),   # Excel path — buyer/cost-center round-trip
+    ("US-01/sample-po-comprehensive.txt", None),   # Comprehensive text PO — full 12-stage pass
+    ("US-01/sample-po-comprehensive.xlsx", None),  # Comprehensive Excel PO — full 12-stage pass
     ("US-03/happy-path.txt", None),
     ("US-03/scenario-unauthorized-buyer.txt", "UNAUTHORIZED_BUYER"),
     ("US-03/scenario-restricted-product.txt", "RESTRICTED_PRODUCT"),
