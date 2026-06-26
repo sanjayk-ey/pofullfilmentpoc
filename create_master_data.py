@@ -512,6 +512,7 @@ build_workbook("inventory-master-data.xlsx", [
         ["DC-CHI-01", "DC", "Midwest", "SKU-FLG-3010", 400, "EA"],
         ["DC-CHI-01", "DC", "Midwest", "SKU-VLV-2201", 30, "EA"],
         ["DC-CHI-01", "DC", "Midwest", "SKU-GSK-1150", 600, "EA"],
+        ["DC-CHI-01", "DC", "Midwest", "SKU-PMP-7700", 8, "EA"],
         ["DC-DET-02", "DC", "Midwest", "SKU-STL-4520", 1200, "FT"],
         ["DC-DET-02", "DC", "Midwest", "SKU-VLV-2201", 15, "EA"],
         ["DC-LA-05", "DC", "West", "SKU-STL-4520", 2000, "FT"],
