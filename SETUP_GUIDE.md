@@ -93,11 +93,11 @@ Installation takes 1-3 minutes depending on internet speed.
 
 ```
 python create_sample_excel.py
-python create_master_data_excel.py
+python create_customer_master_data_excel.py
 ```
 
 The first creates sample PO Excel files in `sample-data/`.
-The second creates the master data workbook `mock-data/master-data.xlsx`
+The second creates the customer master workbook `mock-data/customer-master-data.xlsx`
 (customer master, account hierarchy, ship-to master, ERP/CRM records) used by
 the account-hierarchy validation.
 
@@ -247,10 +247,10 @@ po-fullfiment-poc/
 │   ├── duplicate_checker.py      ← Duplicate PO detection (JSON store)
 │   └── account_validator.py      ← Account hierarchy & ship-to validation (Excel master data)
 │
-├── create_master_data_excel.py  ← Script to create the master-data.xlsx workbook
+├── create_customer_master_data_excel.py  ← Script to create customer-master-data.xlsx
 │
 ├── mock-data/
-│   ├── master-data.xlsx          ← Mock customer/hierarchy/ship-to/rules master
+│   ├── customer-master-data.xlsx ← Mock customer/hierarchy/ship-to/rules master
 │   └── README.txt                ← Master data structure and test scenarios
 │
 ├── sample-data/
@@ -284,7 +284,7 @@ po-fullfiment-poc/
 ## Technical Notes
 
 - **No external API required** — extraction works entirely with rule-based patterns
-- **No real integrations** — customer/hierarchy/ship-to data is mocked in `mock-data/master-data.xlsx`
+- **No real integrations** — customer/hierarchy/ship-to data is mocked in `mock-data/customer-master-data.xlsx`
 - **No database** — duplicate PO log stored in `data/submitted_pos.json`
 - **Single user** — designed for one user at a time on local machine
 - **File type restriction** — only .xlsx and .xls files accepted for upload
@@ -301,7 +301,7 @@ po-fullfiment-poc/
 | Excel file shows parsing error | Ensure the file is a real Excel format, not a renamed CSV |
 | Duplicate not detected | Check `data/submitted_pos.json` — use the sidebar "Clear submitted PO logs" button to reset |
 | Account validation skipped | It runs only after a clean extraction (no missing fields, not a duplicate) |
-| Master data not found | Run `python create_master_data_excel.py` to (re)generate `mock-data/master-data.xlsx` |
+| Master data not found | Run `python create_customer_master_data_excel.py` to (re)generate `mock-data/customer-master-data.xlsx` |
 
 ---
 

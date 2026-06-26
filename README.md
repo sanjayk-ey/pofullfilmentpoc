@@ -22,13 +22,13 @@ WMS, OMS, SMTP); all master data is mocked in a local Excel workbook.
 
 - **Backend:** Python (rule-based extraction and validation — no external API keys required)
 - **Frontend:** Streamlit (chat-style UI)
-- **Mock master data:** Excel workbook (`mock-data/master-data.xlsx`)
+- **Mock master data:** Excel workbooks under `mock-data/` (e.g. `customer-master-data.xlsx`)
 
 ## Quick start
 
 ```bash
 pip install -r requirements.txt
-python create_master_data_excel.py      # generates mock-data/master-data.xlsx
+python create_customer_master_data_excel.py   # generates mock-data/customer-master-data.xlsx
 python -m streamlit run app.py
 ```
 
@@ -41,7 +41,7 @@ po-fullfiment-poc/
 ├── app.py                       # Streamlit application
 ├── requirements.txt
 ├── create_sample_excel.py       # generates sample PO Excel files
-├── create_master_data_excel.py  # generates the mock master-data.xlsx
+├── create_customer_master_data_excel.py  # generates mock-data/customer-master-data.xlsx
 ├── test_validation.py           # internal test harness (extract -> validate)
 ├── modules/
 │   ├── extractor.py             # rule-based PO field extraction

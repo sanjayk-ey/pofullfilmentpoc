@@ -2,10 +2,11 @@ MOCK MASTER DATA (Corporate Account Hierarchy & Ship-To Validation)
 ===================================================================
 
 IMPORTANT: For the POC, NO real ERP, CRM, WMS, OMS, or SMTP systems are used.
-All "systems / data needed" are simulated with a single local Excel
-workbook (master-data.xlsx) read by modules/account_validator.py.
+All customer-side "systems / data needed" are simulated with a local Excel
+workbook (customer-master-data.xlsx) read by modules/account_validator.py.
+Other master data (e.g. product master) will be added as separate workbooks.
 
-FILE: master-data.xlsx  (regenerate with: python create_master_data_excel.py)
+FILE: customer-master-data.xlsx  (regenerate with: python create_customer_master_data_excel.py)
 SHEETS
 ------
 1. Customer_Master
