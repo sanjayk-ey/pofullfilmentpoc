@@ -57,21 +57,21 @@ TEST SCENARIOS  (sample PO files in ../sample-data/)
 HAPPY PATH      : CUST-1001 + ZIP 60639  -> resolves Chicago Warehouse under
                   Midwest Branch / North America / Acme Global. Rules applied
                   from ship-to level. Proceeds to buyer authorization.
-                  File: sample-po-text.txt
+                  File: US-01/sample-po-text.txt
 
 UNMATCHED CUST  : CUST-9999 (not in customer master) -> "Unmatched customer"
                   exception.
-                  File: scenario-unmatched-customer.txt
+                  File: US-02/scenario-unmatched-customer.txt
 
 DUPLICATE CUST  : CUST-7000 (two master records) -> "Duplicate customer"
                   exception; both candidate records shown.
-                  File: scenario-duplicate-customer.txt
+                  File: US-02/scenario-duplicate-customer.txt
 
 INVALID SHIP-TO : CUST-1001 + ZIP 99999 (ZIP not in any ship-to master record)
                   -> "Invalid ship-to" exception; possible ship-tos for the
                   customer are listed.
-                  File: scenario-invalid-shipto.txt
+                  File: US-02/scenario-invalid-shipto.txt
 
 HIERARCHY       : CUST-1001 (Acme) + ZIP 90001 (Globex LA — exists but belongs
   MISMATCH        to a different parent) -> "Hierarchy mismatch" exception.
-                  File: scenario-hierarchy-mismatch.txt
+                  File: US-02/scenario-hierarchy-mismatch.txt

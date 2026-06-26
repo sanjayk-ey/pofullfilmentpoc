@@ -1,5 +1,5 @@
 """
-Run this once to generate the sample Excel PO files in sample-data/.
+Run this once to generate the sample Excel PO files in sample-data/US-01/.
   python create_sample_excel.py
 """
 import openpyxl
@@ -7,7 +7,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils  import get_column_letter
 import os
 
-OUT_DIR = os.path.join(os.path.dirname(__file__), "sample-data")
+OUT_DIR = os.path.join(os.path.dirname(__file__), "sample-data", "US-01")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # ── Style helpers ─────────────────────────────────────────────────────────────
@@ -209,4 +209,4 @@ def make_missing_fields():
 if __name__ == "__main__":
     make_happy_path()
     make_missing_fields()
-    print("\nAll sample Excel files created in sample-data/")
+    print("\nAll sample Excel files created in sample-data/US-01/")

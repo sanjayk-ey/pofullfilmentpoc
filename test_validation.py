@@ -47,11 +47,11 @@ from modules.extractor import POExtractor
 ex = POExtractor()
 
 sample_files = [
-    ("sample-data/sample-po-text.txt",                    "PASS"),
-    ("sample-data/scenario-unmatched-customer.txt",       "UNMATCHED_CUSTOMER"),
-    ("sample-data/scenario-duplicate-customer.txt",       "DUPLICATE_CUSTOMER"),
-    ("sample-data/scenario-invalid-shipto.txt",           "INVALID_SHIP_TO"),
-    ("sample-data/scenario-hierarchy-mismatch.txt",       "HIERARCHY_MISMATCH"),
+    ("sample-data/US-01/sample-po-text.txt",                    "PASS"),
+    ("sample-data/US-02/scenario-unmatched-customer.txt",       "UNMATCHED_CUSTOMER"),
+    ("sample-data/US-02/scenario-duplicate-customer.txt",       "DUPLICATE_CUSTOMER"),
+    ("sample-data/US-02/scenario-invalid-shipto.txt",           "INVALID_SHIP_TO"),
+    ("sample-data/US-02/scenario-hierarchy-mismatch.txt",       "HIERARCHY_MISMATCH"),
 ]
 
 passed = 0

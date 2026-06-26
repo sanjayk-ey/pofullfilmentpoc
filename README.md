@@ -49,7 +49,7 @@ po-fullfiment-poc/
 │   ├── duplicate_checker.py     # duplicate PO detection
 │   └── account_validator.py     # account hierarchy & ship-to validation
 ├── mock-data/                   # mock master data (Excel) + README
-└── sample-data/                 # sample POs and exception scenarios
+└── sample-data/                 # sample POs grouped per capability (US-01/, US-02/, ...)
 ```
 
 See [`SETUP_GUIDE.md`](SETUP_GUIDE.md) for full setup, demo scenarios, and troubleshooting.

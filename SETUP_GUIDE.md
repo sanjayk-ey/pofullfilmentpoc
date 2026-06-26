@@ -96,7 +96,7 @@ python create_sample_excel.py
 python create_customer_master_data_excel.py
 ```
 
-The first creates sample PO Excel files in `sample-data/`.
+The first creates sample PO Excel files in `sample-data/US-01/`.
 The second creates the customer master workbook `mock-data/customer-master-data.xlsx`
 (customer master, account hierarchy, ship-to master, ERP/CRM records) used by
 the account-hierarchy validation.
@@ -182,13 +182,20 @@ ship-to, or hierarchy mismatch — each with the detail needed to resolve it.
 
 ## Sample Data Files
 
-All sample files are in the `sample-data/` folder:
+Sample files are organized per capability under `sample-data/`:
+
+**`sample-data/US-01/`** — PO intake & data extraction:
 
 | File | Purpose |
 |------|---------|
 | `sample-po-happy-path.xlsx` | All fields complete — processes with no exceptions |
 | `sample-po-missing-fields.xlsx` | Intentionally missing Customer ID, ZIP, Delivery Date — triggers a missing-field exception |
 | `sample-po-text.txt` | Copy and paste this text into the chat box for a happy-path text demo |
+
+**`sample-data/US-02/`** — account hierarchy & ship-to validation:
+
+| File | Purpose |
+|------|---------|
 | `scenario-unmatched-customer.txt` | Customer not in master — triggers unmatched-customer exception |
 | `scenario-duplicate-customer.txt` | Customer matches two records — triggers duplicate-customer exception |
 | `scenario-invalid-shipto.txt` | Ship-to ZIP not registered — triggers invalid ship-to exception |
@@ -200,28 +207,28 @@ All sample files are in the `sample-data/` folder:
 
 ### Demo 1: Happy Path — Excel Upload
 1. Click **➕**
-2. Upload `sample-po-happy-path.xlsx`
+2. Upload `sample-data/US-01/sample-po-happy-path.xlsx`
 3. Watch the AI process step by step
 4. Result: All fields extracted, confidence scores shown, order proceeds
 
 ### Demo 2: Missing Fields Exception
 1. Click **➕**
-2. Upload `sample-po-missing-fields.xlsx`
+2. Upload `sample-data/US-01/sample-po-missing-fields.xlsx`
 3. Watch AI processing
 4. Result: Yellow warning showing which fields are missing
 
 ### Demo 3: Duplicate PO Exception
-1. Upload `sample-po-happy-path.xlsx` (first time — succeeds)
+1. Upload `sample-data/US-01/sample-po-happy-path.xlsx` (first time — succeeds)
 2. Upload the same file again immediately
 3. Result: Red error showing duplicate PO detected with original submission details
 
 ### Demo 4: Text Paste (Happy Path + Account Validation)
-1. Open `sample-data/sample-po-text.txt`, copy all text
+1. Open `sample-data/US-01/sample-po-text.txt`, copy all text
 2. Paste into the chat input box, press Enter
 3. Watch extraction, then account hierarchy validation with applied rules
 
 ### Demo 5: Account Hierarchy Exceptions
-Paste the text of any of these files to trigger the matching exception:
+Paste the text of any of these files (in `sample-data/US-02/`) to trigger the matching exception:
 - `scenario-unmatched-customer.txt`
 - `scenario-duplicate-customer.txt`
 - `scenario-invalid-shipto.txt`
@@ -254,10 +261,12 @@ po-fullfiment-poc/
 │   └── README.txt                ← Master data structure and test scenarios
 │
 ├── sample-data/
-│   ├── sample-po-happy-path.xlsx ← Sample Excel PO (all fields present)
-│   ├── sample-po-missing-fields.xlsx ← Sample Excel PO (missing fields)
-│   ├── sample-po-text.txt        ← Happy-path text PO for copy-paste testing
-│   └── scenario-*.txt            ← Account hierarchy exception scenarios
+│   ├── US-01/                    ← PO intake & extraction samples
+│   │   ├── sample-po-happy-path.xlsx
+│   │   ├── sample-po-missing-fields.xlsx
+│   │   └── sample-po-text.txt
+│   └── US-02/                    ← Account hierarchy & ship-to scenarios
+│       └── scenario-*.txt
 │
 └── data/
     └── submitted_pos.json        ← Auto-created — stores submitted PO log
