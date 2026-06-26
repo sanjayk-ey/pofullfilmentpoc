@@ -312,6 +312,26 @@ def render_stage_result(res):
         elif sec["type"] == "note":
             st.markdown(f"_{sec['text']}_")
 
+    # ── Approval-required: mocked email notification + hard stop banner ─────────
+    if res.exception_type == "APPROVAL_REQUIRED":
+        approver  = res.data.get("approval_email_sent_to", "the approver")
+        role      = res.data.get("approval_email_role", "")
+        role_disp = f" ({role})" if role else ""
+        st.info(
+            f"📧 **Triggered email to respective approver and awaiting approval.**\n\n"
+            f"A notification has been sent to **{approver}{role_disp}**. "
+            f"The order will resume automatically once the approver responds."
+        )
+        st.markdown(
+            "<div style='background:#1E293B; border-left:4px solid #F59E0B; "
+            "padding:12px 16px; border-radius:6px; margin-top:8px;'>"
+            "⏸ <b>Process halted</b> — no further actions will be executed until "
+            "approval is granted or rejected."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        st.write("")
+
     if res.audit_trail:
         with st.expander("🧾 View audit trail"):
             for line in res.audit_trail:

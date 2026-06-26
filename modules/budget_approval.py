@@ -102,18 +102,26 @@ class BudgetApprovalValidator:
             r.log("No approver in matrix -> missing approver exception.")
             return r
 
+        approver_name = clean(approver.get("approver_name"))
+        approver_role = clean(approver.get("approver_role"))
+
         r.fail("APPROVAL_REQUIRED",
                f"Order ${amount:,.2f} exceeds the buyer's self-approval limit "
-               f"(${self_limit:,.2f}). An approval task has been created.")
+               f"(${self_limit:,.2f}). An approval task has been created and routed "
+               f"to {approver_name} ({approver_role}).")
         r.kv("Approval task", [
-            ("Order value", f"${amount:,.2f}"),
-            ("Approver role", clean(approver.get("approver_role"))),
-            ("Approver", clean(approver.get("approver_name"))),
-            ("Approval level", f"{clean(approver.get('level_type'))} ({clean(approver.get('level_id'))})"),
-            ("Threshold range", f"${to_num(approver.get('min_amount')):,} - ${to_num(approver.get('max_amount')):,}"),
-            ("SLA", f"{to_num(approver.get('sla_hours'))} hours"),
+            ("Order value",      f"${amount:,.2f}"),
+            ("Approver role",    approver_role),
+            ("Approver",         approver_name),
+            ("Approval level",   f"{clean(approver.get('level_type'))} ({clean(approver.get('level_id'))})"),
+            ("Threshold range",  f"${to_num(approver.get('min_amount')):,} – "
+                                 f"${to_num(approver.get('max_amount')):,}"),
+            ("SLA",              f"{to_num(approver.get('sla_hours'))} hours"),
         ])
-        r.note("Order progression paused until approval is granted.")
-        r.data["approval_status"] = "PENDING_APPROVAL"
-        r.log(f"Approval required -> routed to {clean(approver.get('approver_role'))}.")
+        # Mocked email notification — stored so the UI can render it prominently
+        r.data["approval_email_sent_to"] = approver_name
+        r.data["approval_email_role"]    = approver_role
+        r.data["approval_status"]        = "PENDING_APPROVAL"
+        r.log(f"Approval required -> routed to {approver_role} ({approver_name}).")
+        r.log("Mock email notification triggered to approver. Process halted pending response.")
         return r
