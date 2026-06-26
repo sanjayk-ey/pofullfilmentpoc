@@ -62,10 +62,12 @@ def make_happy_path():
         ("PO Date",                 "24 June 2026"),
         ("Customer ID",             "CUST-1001"),
         ("Company Name",            "Acme Industrial Supplies Ltd"),
+        ("Buyer ID",                "BUY-001"),
+        ("Cost Center",             "CC-MW-100"),
         ("Contact Person",          "John Miller"),
         ("Contract Reference",      "CONTRACT-ACME-2026-007"),
         ("Payment Terms",           "Net 30"),
-        ("Ship To",                 "Acme Industrial – Chicago Warehouse, 4500 West Diversey Ave, Chicago IL 60639"),
+        ("Ship To",                 "Acme Industrial - Chicago Warehouse, 4500 West Diversey Ave, Chicago IL 60639"),
         ("ZIP",                     "60639"),
         ("Delivery Date",           "15 July 2026"),
         ("Delivery Instructions",   "Deliver to Dock 3. Forklift required. Call 312-555-0199 before arrival."),
@@ -101,9 +103,9 @@ def make_happy_path():
     row += 1
 
     lines = [
-        (1, "SKU-STL-4520", "Carbon Steel Pipe 4 inch SCH40",     500, "FT",  10.80,  5400.00),
-        (2, "SKU-FLG-3010", "Stainless Steel Flange 3 inch 150LB", 80, "EA",  76.00,  6080.00),
-        (3, "SKU-VLV-2201", "Ball Valve 2 inch Full Port CS",       25, "EA", 185.00,  4625.00),
+        (1, "SKU-STL-4520", "Carbon Steel Pipe 4 inch SCH40",     200, "FT",  10.80,  2160.00),
+        (2, "SKU-FLG-3010", "Stainless Steel Flange 3 inch 150LB", 80, "EA",  39.50,  3160.00),
+        (3, "SKU-VLV-2201", "Ball Valve 2 inch Full Port CS",       25, "EA",  80.00,  2000.00),
     ]
 
     for line_data in lines:
@@ -120,7 +122,7 @@ def make_happy_path():
         row += 1
 
     # Total row
-    total = sum(l[6] for l in lines)
+    total = round(sum(l[6] for l in lines), 2)
     ws.merge_cells(f"A{row}:F{row}")
     tc = ws.cell(row=row, column=1, value="ORDER TOTAL")
     tc.font = Font(bold=True, size=11); tc.fill=fill(YELLOW)

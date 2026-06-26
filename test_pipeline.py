@@ -2,12 +2,14 @@
 test_pipeline.py
 End-to-end regression harness for the full orchestration pipeline.
 
-For every sample PO it runs: extraction -> account validation -> decision
-pipeline, and asserts the expected outcome (clean pass, or the exact exception
-type at the expected stage). Run:  python test_pipeline.py
+For every sample PO (text and Excel) it runs:
+  extraction -> account validation -> decision pipeline
+and asserts the expected outcome (clean pass, or the exact exception type at
+the expected stage). Run:  python test_pipeline.py
 """
 import os
 from modules.extractor import POExtractor
+from modules.excel_parser import parse_excel
 from modules.account_validator import AccountValidator
 from modules.pipeline import build_context, run_orchestration
 
@@ -17,7 +19,8 @@ SD = os.path.join(os.path.dirname(__file__), "sample-data")
 
 # (path, expected_outcome)  expected = None means full clean pass
 CASES = [
-    ("US-01/sample-po-text.txt", None),
+    ("US-01/sample-po-text.txt",          None),
+    ("US-01/sample-po-happy-path.xlsx",   None),   # Excel path — buyer/cost-center round-trip
     ("US-03/happy-path.txt", None),
     ("US-03/scenario-unauthorized-buyer.txt", "UNAUTHORIZED_BUYER"),
     ("US-03/scenario-restricted-product.txt", "RESTRICTED_PRODUCT"),
@@ -42,8 +45,13 @@ CASES = [
 
 
 def run_file(path):
-    with open(os.path.join(SD, path), encoding="utf-8") as f:
-        text = f.read()
+    full = os.path.join(SD, path)
+    if path.lower().endswith((".xlsx", ".xls")):
+        with open(full, "rb") as f:
+            text = parse_excel(f.read())
+    else:
+        with open(full, encoding="utf-8") as f:
+            text = f.read()
     po = EXTRACTOR.extract_from_text(text)
     if po.missing_fields:
         return f"INTAKE_MISSING:{po.missing_fields}", []
