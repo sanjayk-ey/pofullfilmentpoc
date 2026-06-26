@@ -111,6 +111,17 @@ class BudgetApprovalValidator:
         approver_name = clean(approver.get("approver_name"))
         approver_role = clean(approver.get("approver_role"))
 
+        # Trigger the MOCK email notification to the approver (no real network call)
+        from modules.mock_integrations import send_email
+        approver_email = f"{(approver_name or 'approver').lower().replace(' ', '.')}@company.example.com"
+        smtp = send_email(
+            to=approver_email,
+            subject=f"Approval required for PO {clean(ctx.get('po_number'))} (${amount:,.2f})",
+            body=(f"An order requires your approval. Order value ${amount:,.2f} exceeds "
+                  f"the buyer's self-approval limit (${self_limit:,.2f})."),
+            reference=clean(ctx.get("po_number")),
+        )
+
         r.fail("APPROVAL_REQUIRED",
                f"Order ${amount:,.2f} exceeds the buyer's self-approval limit "
                f"(${self_limit:,.2f}). An approval task has been created and routed "
@@ -119,15 +130,20 @@ class BudgetApprovalValidator:
             ("Order value",      f"${amount:,.2f}"),
             ("Approver role",    approver_role),
             ("Approver",         approver_name),
+            ("Approver email",   approver_email),
             ("Approval level",   f"{clean(approver.get('level_type'))} ({clean(approver.get('level_id'))})"),
             ("Threshold range",  f"${to_num(approver.get('min_amount')):,} – "
                                  f"${to_num(approver.get('max_amount')):,}"),
             ("SLA",              f"{to_num(approver.get('sla_hours'))} hours"),
+            ("Mock email status", smtp.message),
+            ("Mock email message ID", smtp.record_id or "—"),
         ])
-        # Mocked email notification — stored so the UI can render it prominently
+        # UI hooks (render_stage_result picks these up to show the email/halt panel)
         r.data["approval_email_sent_to"] = approver_name
         r.data["approval_email_role"]    = approver_role
+        r.data["approval_email_address"] = approver_email
+        r.data["approval_email_message_id"] = smtp.record_id
         r.data["approval_status"]        = "PENDING_APPROVAL"
         r.log(f"Approval required -> routed to {approver_role} ({approver_name}).")
-        r.log("Mock email notification triggered to approver. Process halted pending response.")
+        r.log(smtp.message)
         return r
