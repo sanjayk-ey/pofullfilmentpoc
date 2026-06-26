@@ -62,6 +62,9 @@ class BudgetApprovalValidator:
             br_avail = to_num(br.get("available_amount"))
             if br_avail is None or amount > br_avail:
                 shortfall = amount - (cc_avail if cc_avail is not None else 0)
+                approver = self._find_approver(amount, branch_id, regional_id, global_id)
+                approver_name = clean((approver or {}).get("approver_name")) or "Budget Approver"
+                approver_role = clean((approver or {}).get("approver_role")) or "APPROVER"
                 r.fail("BUDGET_EXCEEDED",
                        f"Order value ${amount:,.2f} exceeds available budget.")
                 r.kv("Budget shortfall", [
@@ -71,7 +74,10 @@ class BudgetApprovalValidator:
                     ("Shortfall", f"${shortfall:,.2f}"),
                 ])
                 r.note("Routed according to the customer's approval policy.")
+                r.data["approval_email_sent_to"] = approver_name
+                r.data["approval_email_role"] = approver_role
                 r.log("Budget exceeded -> budget exception.")
+                r.log(f"Mock email notification triggered to {approver_role} ({approver_name}). Process halted pending response.")
                 return r
 
         # ── Buyer self-approval authority ───────────────────────────────────

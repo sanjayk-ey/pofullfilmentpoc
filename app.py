@@ -312,9 +312,9 @@ def render_stage_result(res):
         elif sec["type"] == "note":
             st.markdown(f"_{sec['text']}_")
 
-    # ── Approval-required: mocked email notification + hard stop banner ─────────
-    if res.exception_type == "APPROVAL_REQUIRED":
-        approver  = res.data.get("approval_email_sent_to", "the approver")
+    # ── Non-CSR approval: mocked email notification + hard stop banner ──────────
+    if res.data.get("approval_email_sent_to"):
+        approver  = res.data["approval_email_sent_to"]
         role      = res.data.get("approval_email_role", "")
         role_disp = f" ({role})" if role else ""
         st.info(

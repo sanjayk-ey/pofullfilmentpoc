@@ -78,7 +78,10 @@ class ComplianceValidator:
                                             ("Ship-to region", f"{region_name} ({region})"),
                                             ("Reason", cond or "Regional restriction")])
                 r.note("Order line blocked from fulfillment. Routed to compliance approver.")
+                r.data["approval_email_sent_to"] = "Compliance Approver"
+                r.data["approval_email_role"] = "COMPLIANCE_APPROVER"
                 r.log(f"SKU '{sku}' restricted in {region} -> compliance exception.")
+                r.log("Mock email notification triggered to compliance approver. Process halted pending response.")
                 return r
 
             elig_rows.append([sku, family, f"{region_name} ({region})", "Eligible", cond or "None"])
@@ -90,7 +93,10 @@ class ComplianceValidator:
                     r.fail("MISSING_SDS",
                            f"SKU '{sku}' is hazardous and requires a Safety Data Sheet, "
                            f"but no SDS document is available.")
+                    r.data["approval_email_sent_to"] = "Compliance Approver"
+                    r.data["approval_email_role"] = "COMPLIANCE_APPROVER"
                     r.log(f"SKU '{sku}' hazardous, SDS missing -> compliance exception.")
+                    r.log("Mock email notification triggered to compliance approver. Process halted pending response.")
                     return r
                 attachments.append([sku, clean(doc.get("sds_document_id")),
                                     clean(doc.get("sds_version")), clean(doc.get("hazard_class")),

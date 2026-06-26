@@ -82,7 +82,10 @@ class CreditValidator:
                 r.table("Overdue invoices", ["Invoice", "Amount", "Due date", "Days overdue"],
                         [[clean(i.get("invoice_no")), f"${to_num(i.get('amount')):,.2f}",
                           clean(i.get("due_date")), to_num(i.get("days_overdue"))] for i in overdue])
+            r.data["approval_email_sent_to"] = "Finance Team"
+            r.data["approval_email_role"] = "FINANCE"
             r.log("Credit hold -> credit exception.")
+            r.log("Mock email notification triggered to finance. Process halted pending response.")
             return r
 
         r.ok(f"Credit check passed. Customer within policy. Payment terms {terms_code}. "

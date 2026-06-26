@@ -140,6 +140,7 @@ class PricingEngine:
 
             max_disc = to_num((self.margin.get(family) or {}).get("max_discount_pct"), 100)
             if eff_from_list > max_disc:
+                approver_role = clean((self.margin.get(family) or {}).get("approver_role")) or "PRICING_APPROVER"
                 r.fail("PRICING_EXCEPTION",
                        f"Effective discount {eff_from_list}% on SKU '{sku}' exceeds the "
                        f"{family} policy limit of {max_disc}%.")
@@ -150,9 +151,12 @@ class PricingEngine:
                     ("Net unit price", f"${unit_net:,.2f}"),
                     ("Effective discount vs list", f"{eff_from_list}%"),
                     ("Policy max discount", f"{max_disc}%"),
-                    ("Recommended action", f"Route to {clean((self.margin.get(family) or {}).get('approver_role')) or 'pricing approver'}"),
+                    ("Recommended action", f"Route to {approver_role}"),
                 ])
+                r.data["approval_email_sent_to"] = approver_role
+                r.data["approval_email_role"] = approver_role
                 r.log(f"SKU '{sku}' discount {eff_from_list}%>{max_disc}% -> pricing exception.")
+                r.log("Mock email notification triggered to pricing approver. Process halted pending response.")
                 return r
 
             breakdown.append([sku, f"${list_price:,.2f}", base_src, f"${base:,.2f}",
