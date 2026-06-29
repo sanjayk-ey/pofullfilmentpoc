@@ -34,3 +34,4 @@ Thumbs.db
 # per-story manager summaries that live inside sample-data/US-XX/.
 *.docx
 !sample-data/**/*.docx
+!docs/*.docx
