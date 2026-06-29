@@ -1,21 +1,21 @@
 PURCHASE ORDER
 
-PO Number       : PO-2026-DUPLICATE
+PO Number       : PO-2026-10021
 PO Date         : 24 June 2026
 
 BUYER DETAILS
 Customer ID     : CUST-7000
-Company Name    : Initech Manufacturing
+Company Name    : Midtown Building Supply
 Contact Person  : Peter Gibbons
-Email           : peter@initech.com
+Email           : peter.gibbons@midtownbuilding.com
 
 SHIP TO
-Initech Plant
-500 Factory Lane
+Midtown Building Supply - Receiving
+500 Commerce Lane
 Chicago, IL 60639
 USA
 
-Contract Reference : CONTRACT-IN-2026-009
+Contract Reference : CONTRACT-MT-2026-009
 Payment Terms      : Net 45
 Requested Delivery Date : 20 July 2026
 
@@ -23,11 +23,8 @@ ORDER LINES
 -----------------------------------------------------------------------
 Line | SKU          | Description                   | Quantity | UOM
 -----------------------------------------------------------------------
-1    | SKU-FLG-3010 | Stainless Steel Flange 3 inch |   40     | EA
-2    | SKU-VLV-2201 | Ball Valve 2 inch Full Port   |   10     | EA
+1    | SKU-DRN-3010 | Pop-Up Drain Assembly         |   40     | EA
+2    | SKU-VLV-2201 | Pressure-Balancing Shower Valve|  10     | EA
 -----------------------------------------------------------------------
 
 Delivery Instructions : Deliver to receiving dock.
-
-Scenario: Customer account CUST-7000 matches two records in the customer master.
-Expected result: DUPLICATE CUSTOMER exception (both records shown).

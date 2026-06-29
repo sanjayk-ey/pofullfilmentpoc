@@ -58,19 +58,19 @@ def make_happy_path():
 
     # ── Header metadata ────────────────────────────────────────────────────────
     header_fields = [
-        ("PO Number",               "PO-2026-EXCEL-001"),
+        ("PO Number",               "PO-2026-10010"),
         ("PO Date",                 "24 June 2026"),
         ("Customer ID",             "CUST-1001"),
-        ("Company Name",            "Acme Industrial Supplies Ltd"),
+        ("Company Name",            "Great Lakes Plumbing Supply Co"),
         ("Buyer ID",                "BUY-001"),
         ("Cost Center",             "CC-MW-100"),
         ("Contact Person",          "John Miller"),
-        ("Contract Reference",      "CONTRACT-ACME-2026-007"),
+        ("Contract Reference",      "CONTRACT-GLP-2026-007"),
         ("Payment Terms",           "Net 30"),
-        ("Ship To",                 "Acme Industrial - Chicago Warehouse, 4500 West Diversey Ave, Chicago IL 60639"),
+        ("Ship To",                 "Great Lakes Plumbing - Chicago DC, 4500 West Diversey Ave, Chicago IL 60639"),
         ("ZIP",                     "60639"),
         ("Delivery Date",           "15 July 2026"),
-        ("Delivery Instructions",   "Deliver to Dock 3. Forklift required. Call 312-555-0199 before arrival."),
+        ("Delivery Instructions",   "Deliver to receiving dock. Pallet jack required. Call 312-555-0199 before arrival."),
     ]
 
     for label, value in header_fields:
@@ -103,9 +103,9 @@ def make_happy_path():
     row += 1
 
     lines = [
-        (1, "SKU-STL-4520", "Carbon Steel Pipe 4 inch SCH40",     200, "FT",  10.80,  2160.00),
-        (2, "SKU-FLG-3010", "Stainless Steel Flange 3 inch 150LB", 80, "EA",  39.50,  3160.00),
-        (3, "SKU-VLV-2201", "Ball Valve 2 inch Full Port CS",       25, "EA",  80.00,  2000.00),
+        (1, "SKU-CTG-4520", "Ceramic Disc Faucet Cartridge",      200, "EA",  10.80,  2160.00),
+        (2, "SKU-DRN-3010", "Pop-Up Drain Assembly, Brushed Nickel", 80, "EA", 39.50,  3160.00),
+        (3, "SKU-VLV-2201", "Pressure-Balancing Shower Valve",     25, "EA",  80.00,  2000.00),
     ]
 
     for line_data in lines:
@@ -155,7 +155,7 @@ def make_missing_fields():
 
     row = 1
     ws.merge_cells(f"A{row}:G{row}")
-    c = ws.cell(row=row, column=1, value="PURCHASE ORDER — INCOMPLETE (Demo)")
+    c = ws.cell(row=row, column=1, value="PURCHASE ORDER — INCOMPLETE")
     c.font = Font(bold=True, size=16, color="FFFFFF")
     c.fill = fill("991B1B")
     c.alignment = Alignment(horizontal="center", vertical="center")
@@ -164,13 +164,13 @@ def make_missing_fields():
 
     # Missing: Customer ID, Delivery Date, ZIP
     header_fields = [
-        ("PO Number",          "PO-2026-EXCEL-002"),
+        ("PO Number",          "PO-2026-10011"),
         ("PO Date",            "24 June 2026"),
         ("Customer ID",        ""),                    # ← MISSING
-        ("Company Name",       "Delta Energy Services"),
+        ("Company Name",       "Riverside Mechanical Contractors"),
         ("Contract Reference", ""),                    # ← MISSING
         ("Payment Terms",      ""),                    # ← MISSING
-        ("Ship To",            "Delta Energy, Remote Site, Texas"),
+        ("Ship To",            "Riverside Mechanical, Project Site, TX"),
         ("ZIP",                ""),                    # ← MISSING
         ("Delivery Date",      ""),                    # ← MISSING
         ("Delivery Instructions", "Call before delivery"),
@@ -199,7 +199,7 @@ def make_missing_fields():
     row += 1
 
     # One line with missing UOM
-    for ci, val in enumerate([1, "SKU-PMP-6601", "Centrifugal Pump 6 inch", 5, "", 4200.00, 21000.00], 1):
+    for ci, val in enumerate([1, "SKU-SHS-6601", "Digital Shower Controller", 5, "", 4200.00, 21000.00], 1):
         c = ws.cell(row=row, column=ci, value=val if val != "" else "— MISSING —")
         c.font = Font(size=11, color="991B1B" if val == "" else "000000")
         c.border = thin_border()
@@ -235,7 +235,7 @@ def make_comprehensive():
     row = 1
 
     ws.merge_cells(f"A{row}:G{row}")
-    c = ws.cell(row=row, column=1, value="PURCHASE  ORDER  —  Comprehensive Happy-Path Sample")
+    c = ws.cell(row=row, column=1, value="PURCHASE  ORDER")
     c.font      = Font(bold=True, size=18, color="FFFFFF")
     c.fill      = fill(BLUE)
     c.alignment = Alignment(horizontal="center", vertical="center")
@@ -271,7 +271,7 @@ def make_comprehensive():
 
     # ── PO HEADER ──────────────────────────────────────────────────────────────
     section("PO HEADER")
-    kv("PO Number",               "PO-2026-FULL-EXCEL-001")
+    kv("PO Number",               "PO-2026-10012")
     kv("PO Date",                 "24 June 2026")
     kv("Document Type",           "Standard B2B Purchase Order")
     kv("Currency",                "USD")
@@ -280,24 +280,24 @@ def make_comprehensive():
     # ── CUSTOMER / BUYER ──────────────────────────────────────────────────────
     section("CUSTOMER  /  BUYER  DETAILS")
     kv("Customer ID",             "CUST-1001")
-    kv("Customer Account Name",   "Acme Industrial Supplies Ltd")
-    kv("ERP Customer ID",         "ERP-AC-7781")
-    kv("CRM Account ID",          "CRM-ACME-001")
-    kv("Global Parent",           "Acme Global Holdings")
-    kv("Regional Division",       "Acme North America")
-    kv("Local Branch",            "Acme Midwest Branch (BR-ACME-MW)")
+    kv("Customer Account Name",   "Great Lakes Plumbing Supply Co")
+    kv("ERP Customer ID",         "ERP-GL-7781")
+    kv("CRM Account ID",          "CRM-GLP-001")
+    kv("Global Parent",           "Continental Building Products Group")
+    kv("Regional Division",       "Continental North America")
+    kv("Local Branch",            "Great Lakes Midwest Branch (BR-GLP-MW)")
     kv("Buyer ID",                "BUY-001")
     kv("Buyer Name",              "John Miller")
     kv("Buyer Role",              "Senior Buyer")
-    kv("Buyer Email",             "john.miller@acme.com")
+    kv("Buyer Email",             "john.miller@glps.com")
     kv("Buyer Phone",             "+1-312-555-0192")
     kv("Cost Center",             "CC-MW-100")
     kv("Department",              "Midwest Operations - Procurement")
-    kv("Punchout ID",             "PUNCH-AC-001")
+    kv("Punchout ID",             "PUNCH-GL-001")
 
     # ── SHIP TO ────────────────────────────────────────────────────────────────
     section("SHIP  TO")
-    kv("Ship-To Name",            "Acme Chicago Warehouse")
+    kv("Ship-To Name",            "Great Lakes Plumbing - Chicago DC")
     kv("Ship-To ID",              "ST-CHI-001")
     kv("Address Line 1",          "4500 West Diversey Avenue")
     kv("Address Line 2",          "Dock 3 - Receiving")
@@ -308,14 +308,14 @@ def make_comprehensive():
 
     # ── COMMERCIAL TERMS ──────────────────────────────────────────────────────
     section("COMMERCIAL  TERMS")
-    kv("Contract Reference",      "CONTRACT-ACME-2026-007")
+    kv("Contract Reference",      "CONTRACT-GLP-2026-007")
     kv("Pricing Tier",            "TIER-2")
     kv("Payment Terms",           "Net 30")
     kv("Incoterms",               "DAP (Delivered at Place)")
     kv("Freight Terms",           "Prepaid and Charged")
     kv("Requested Delivery Date", "15 July 2026")
     kv("Required by Site",        "16 July 2026 09:00 CT")
-    kv("Preferred Carrier",       "ExpressCo (Express) / FastFreight (Ground)")
+    kv("Preferred Carrier",       "PrimeExpress (Express) / Midwest Freight (Ground)")
     kv("Preferred Warehouse",     "DC-CHI-01 (Chicago Distribution Center)")
 
     # ── ORDER LINES ───────────────────────────────────────────────────────────
@@ -331,11 +331,11 @@ def make_comprehensive():
     row += 1
 
     lines = [
-        (1, "SKU-STL-4520", "Carbon Steel Pipe 4 inch SCH40",       250, "FT", 12.50,  3125.00),
-        (2, "SKU-FLG-3010", "Stainless Steel Flange 3 inch 150LB",   60, "EA", 45.00,  2700.00),
-        (3, "SKU-VLV-2201", "Ball Valve 2 inch Full Port CS",        20, "EA", 88.00,  1760.00),
-        (4, "SKU-PMP-7700", "Centrifugal Pump 5 HP",                  2, "EA", 1450.00, 2900.00),
-        (5, "SKU-GSK-1150", "Spiral Wound Gasket 3 inch Class 150",  200, "EA", 6.25,   1250.00),
+        (1, "SKU-CTG-4520", "Ceramic Disc Faucet Cartridge",        250, "EA", 12.50,  3125.00),
+        (2, "SKU-DRN-3010", "Pop-Up Drain Assembly, Brushed Nickel", 60, "EA", 45.00,  2700.00),
+        (3, "SKU-VLV-2201", "Pressure-Balancing Shower Valve",       20, "EA", 88.00,  1760.00),
+        (4, "SKU-SHS-7700", "Digital Shower Interface System",        2, "EA", 1450.00, 2900.00),
+        (5, "SKU-SEL-1150", "Tank-to-Bowl Gasket Kit",              200, "EA", 6.25,   1250.00),
     ]
 
     for line_data in lines:
@@ -367,17 +367,17 @@ def make_comprehensive():
     # ── DELIVERY / COMPLIANCE / APPROVALS ─────────────────────────────────────
     section("DELIVERY  &  LOGISTICS  INSTRUCTIONS")
     kv("Delivery Instructions",
-       "Deliver to Dock 3. Forklift required on site. Call warehouse manager "
+       "Deliver to Dock 3. Pallet jack required on site. Call warehouse manager "
        "312-555-0199 before arrival. Provide bill of lading + packing list at gate.")
     kv("Special Instructions",
-       "Blanket order against CONTRACT-ACME-2026-007. Partial shipments allowed. "
+       "Blanket order against CONTRACT-GLP-2026-007. Partial shipments allowed. "
        "Backorders not required.")
 
     section("COMPLIANCE  /  DOCUMENTATION")
     kv("Hazardous Materials",     "None on this order")
     kv("SDS Required",            "Not applicable (all SKUs non-hazardous)")
-    kv("Country of Origin",       "USA / Germany (per line)")
-    kv("Quality Certificates",    "Standard MTR with shipment")
+    kv("Country of Origin",       "USA")
+    kv("Quality Certificates",    "Standard compliance certificate with shipment")
 
     section("APPROVALS  &  NOTES")
     kv("Submitted By",            "John Miller (Senior Buyer)", soft=True)

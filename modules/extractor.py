@@ -178,7 +178,15 @@ class POExtractor:
         return aliases.get(u, u)
 
     def _find_zip_near_keyword(self, text: str) -> Tuple[Optional[str], float]:
-        """Find ZIP that appears near shipping keywords."""
+        """Find ZIP, preferring an explicitly labeled field, then a ship-to block."""
+        # Highest priority: an explicit ZIP / postal-code label (e.g. "Ship-To ZIP: 60639").
+        # This avoids mistaking a 5-digit run inside a PO number for a ZIP code.
+        m = re.search(
+            r'(?:Ship[\-\s]*To\s*)?(?:ZIP|Zip\s*Code|Postal\s*Code)\s*[:\-]\s*(\d{5}(?:[\-]\d{4})?)\b',
+            text, re.IGNORECASE)
+        if m:
+            return m.group(1), 1.0
+
         ship_sections = re.findall(
             r'(?:Ship\s+To|Deliver\s+To|Delivery\s+Address|Ship\s*To\s*:).{0,400}',
             text, re.IGNORECASE | re.DOTALL)

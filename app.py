@@ -543,7 +543,7 @@ if not st.session_state.welcomed:
         "role": "assistant",
         "type": "welcome",
         "text": (
-            "👋 **Hello! I am your PO Fulfillment AI Agent.**\n\n"
+            "👋 **Hello! I am your order assistant.**\n\n"
             "I can automatically read and extract all key information from a "
             "Purchase Order — customer account, SKUs, quantities, delivery date, "
             "ship-to location, contract reference, and more.\n\n"
@@ -564,14 +564,14 @@ with st.sidebar:
         st.session_state.welcomed    = False
         st.session_state.show_upload = False
         st.rerun()
-    if st.button("🔄 Clear submitted PO logs", use_container_width=True):
+    if st.button("🔄 Clear created orders log", use_container_width=True):
         dup.reset_store()
-        st.success("Submitted PO logs cleared.")
+        st.success("Created orders log cleared.")
     st.markdown("---")
     st.caption("Version 1.0")
 
 # ─── Page header ───────────────────────────────────────────────────────────────
-st.markdown("## 🤖 PO Fulfillment AI Agent")
+st.markdown("## 🤖 Order Assistant")
 st.markdown("---")
 
 # ─── Chat message history ─────────────────────────────────────────────────────
