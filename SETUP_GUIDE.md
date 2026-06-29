@@ -353,7 +353,7 @@ Sample files are organized per story under `sample-data/`:
 
 ### Demo 7: Compliance Restriction
 1. Paste `sample-data/US-05/scenario-restricted-region.txt`
-2. Result: Chemical blocked for California + email to compliance approver
+2. Result: VOC-restricted finish blocked for California + email to compliance approver
 
 ### Demo 8: Inventory Shortage — Partial Fulfillment
 1. Paste `sample-data/US-09/scenario-inventory-shortage.txt`

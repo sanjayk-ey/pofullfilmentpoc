@@ -12,8 +12,8 @@ BASE = os.path.join(os.path.dirname(__file__), "sample-data")
 
 
 def po_text(po_number, customer, buyer, cost_center, ship_name, ship_city_line,
-            lines, contract="CONTRACT-ACME-2026-007", date="15 July 2026",
-            instr="Deliver to Dock 3. Forklift required on site."):
+            lines, contract="CONTRACT-GLP-2026-007", date="15 July 2026",
+            instr="Deliver to receiving dock. Pallet jack required on site."):
     rows = "\n".join(
         f"{i:<4} | {sku:<16} | {desc:<32} | {qty:<7} | {uom}"
         for i, (sku, desc, qty, uom) in enumerate(lines, 1)
@@ -48,117 +48,117 @@ Delivery Instructions : {instr}
 """
 
 
-CHI = ("Acme Chicago Warehouse", "4500 West Diversey Avenue, Chicago, IL 60639")
-NYC = ("Acme New York Distribution Center", "55 Water Street, New York, NY 10001")
-AK  = ("Acme Remote Site (Alaska)", "1 Industrial Rd, Ketchikan, AK 99950")
-CA  = ("Acme California Project Site", "9000 Sunset Blvd, Beverly Hills, CA 90210")
+CHI = ("Great Lakes Plumbing - Chicago DC", "4500 West Diversey Avenue, Chicago, IL 60639")
+NYC = ("Eastern Kitchen & Bath - New York DC", "55 Water Street, New York, NY 10001")
+AK  = ("Great Lakes - Ketchikan Project Site", "1 Industrial Rd, Ketchikan, AK 99950")
+CA  = ("Great Lakes - Beverly Hills Showroom Project", "9000 Sunset Blvd, Beverly Hills, CA 90210")
 
 HAPPY_LINES = [
-    ("SKU-STL-4520", "Carbon Steel Pipe 4 inch SCH40", 200, "FT"),
-    ("SKU-FLG-3010", "Stainless Steel Flange 3 inch", 80, "EA"),
-    ("SKU-VLV-2201", "Ball Valve 2 inch Full Port", 25, "EA"),
+    ("SKU-CTG-4520", "Ceramic Disc Faucet Cartridge", 200, "EA"),
+    ("SKU-DRN-3010", "Pop-Up Drain Assembly", 80, "EA"),
+    ("SKU-VLV-2201", "Pressure-Balancing Shower Valve", 25, "EA"),
 ]
 
 # (relative folder, filename, kwargs)
 SAMPLES = [
     # US-03 Buyer Authorization
     ("US-03", "happy-path.txt",
-     dict(po_number="PO-US03-HAPPY", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10030", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-STL-4520", "Carbon Steel Pipe", 200, "FT")])),
+          lines=[("SKU-CTG-4520", "Ceramic Disc Faucet Cartridge", 200, "EA")])),
     ("US-03", "scenario-unauthorized-buyer.txt",
-     dict(po_number="PO-US03-UNAUTH", customer="CUST-1001", buyer="BUY-900",
+     dict(po_number="PO-2026-10031", customer="CUST-1001", buyer="BUY-900",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-STL-4520", "Carbon Steel Pipe", 200, "FT")])),
+          lines=[("SKU-CTG-4520", "Ceramic Disc Faucet Cartridge", 200, "EA")])),
     ("US-03", "scenario-restricted-product.txt",
-     dict(po_number="PO-US03-RESTRICT", customer="CUST-1001", buyer="BUY-002",
+     dict(po_number="PO-2026-10032", customer="CUST-1001", buyer="BUY-002",
           cost_center="CC-MW-200", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-VLV-2201", "Ball Valve 2 inch", 10, "EA")])),
+          lines=[("SKU-VLV-2201", "Pressure-Balancing Shower Valve", 10, "EA")])),
     ("US-03", "scenario-invalid-cost-center.txt",
-     dict(po_number="PO-US03-BADCC", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10033", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-OLD-900", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-STL-4520", "Carbon Steel Pipe", 200, "FT")])),
+          lines=[("SKU-CTG-4520", "Ceramic Disc Faucet Cartridge", 200, "EA")])),
 
     # US-04 Product Matching / UOM
     ("US-04", "scenario-obsolete-sku.txt",
-     dict(po_number="PO-US04-OBS", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10040", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-OBS-1000", "Legacy Carbon Pipe", 100, "FT")])),
+          lines=[("SKU-CTG-1000", "Legacy 2-Handle Faucet Cartridge", 100, "EA")])),
     ("US-04", "scenario-invalid-uom.txt",
-     dict(po_number="PO-US04-UOM", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10041", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-STL-4520", "Carbon Steel Pipe", 100, "KG")])),
+          lines=[("SKU-CTG-4520", "Ceramic Disc Faucet Cartridge", 100, "KG")])),
     ("US-04", "scenario-unknown-sku.txt",
-     dict(po_number="PO-US04-UNK", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10042", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-UNKNOWN-9999", "Mystery Pipe Fitting", 50, "EA")])),
+          lines=[("SKU-CTG-0000", "Unlisted Fixture Trim Kit", 50, "EA")])),
 
     # US-05 Compliance / SDS
     ("US-05", "scenario-restricted-region.txt",
-     dict(po_number="PO-US05-REGION", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10050", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CA[0], ship_city_line=CA[1],
-          lines=[("SKU-CHM-9100", "Industrial Solvent Drum", 20, "GAL")])),
+          lines=[("SKU-FIN-9100", "Enameled Cast Iron Touch-Up Finish", 20, "GAL")])),
     ("US-05", "scenario-missing-sds.txt",
-     dict(po_number="PO-US05-SDS", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10051", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-CHM-9200", "Aerosol Degreaser", 15, "GAL")])),
+          lines=[("SKU-FIN-9200", "Cast Iron Touch-Up Aerosol", 15, "GAL")])),
 
     # US-06 Pricing
     ("US-06", "scenario-pricing-exception.txt",
-     dict(po_number="PO-US06-PRICE", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10060", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-STL-4520", "Carbon Steel Pipe", 2000, "FT")])),
+          lines=[("SKU-CTG-4520", "Ceramic Disc Faucet Cartridge", 2000, "EA")])),
     ("US-06", "happy-path.txt",
-     dict(po_number="PO-US06-HAPPY", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10061", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
           lines=HAPPY_LINES)),
 
     # US-07 Budget / Approval
     ("US-07", "scenario-budget-exceeded.txt",
-     dict(po_number="PO-US07-BUDGET", customer="CUST-1002", buyer="BUY-003",
+     dict(po_number="PO-2026-10070", customer="CUST-1002", buyer="BUY-003",
           cost_center="CC-NE-100", ship_name=NYC[0], ship_city_line=NYC[1],
-          lines=[("SKU-VLV-2201", "Ball Valve 2 inch", 1400, "EA")])),
+          lines=[("SKU-VLV-2201", "Pressure-Balancing Shower Valve", 1400, "EA")])),
     ("US-07", "scenario-approval-required.txt",
-     dict(po_number="PO-US07-APPROVE", customer="CUST-1001", buyer="BUY-002",
+     dict(po_number="PO-2026-10071", customer="CUST-1001", buyer="BUY-002",
           cost_center="CC-MW-200", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-STL-4520", "Carbon Steel Pipe", 200, "FT"),
-                 ("SKU-FLG-3010", "Stainless Steel Flange", 80, "EA")])),
+          lines=[("SKU-CTG-4520", "Ceramic Disc Faucet Cartridge", 200, "EA"),
+                 ("SKU-DRN-3010", "Pop-Up Drain Assembly", 80, "EA")])),
 
     # US-08 Credit
     ("US-08", "scenario-credit-hold.txt",
-     dict(po_number="PO-US08-CREDIT", customer="CUST-1002", buyer="BUY-003",
+     dict(po_number="PO-2026-10080", customer="CUST-1002", buyer="BUY-003",
           cost_center="CC-NE-100", ship_name=NYC[0], ship_city_line=NYC[1],
-          lines=[("SKU-STL-4520", "Carbon Steel Pipe", 200, "FT")])),
+          lines=[("SKU-CTG-4520", "Ceramic Disc Faucet Cartridge", 200, "EA")])),
 
     # US-09 Inventory
     ("US-09", "scenario-inventory-shortage.txt",
-     dict(po_number="PO-US09-INV", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10090", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
-          lines=[("SKU-PMP-7700", "Centrifugal Pump 5HP", 10, "EA")])),
+          lines=[("SKU-SHS-7700", "Digital Shower Interface System", 10, "EA")])),
 
     # US-10 Logistics
     ("US-10", "scenario-zip-not-serviceable.txt",
-     dict(po_number="PO-US10-ZIP", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10100", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=AK[0], ship_city_line=AK[1],
-          lines=[("SKU-STL-4520", "Carbon Steel Pipe", 200, "FT")])),
+          lines=[("SKU-CTG-4520", "Ceramic Disc Faucet Cartridge", 200, "EA")])),
 
     # US-11 Exception Governance
     ("US-11", "happy-autonomous.txt",
-     dict(po_number="PO-US11-AUTO", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10110", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
           lines=HAPPY_LINES)),
     ("US-11", "scenario-governed-exception.txt",
-     dict(po_number="PO-US11-GOV", customer="CUST-1002", buyer="BUY-003",
+     dict(po_number="PO-2026-10111", customer="CUST-1002", buyer="BUY-003",
           cost_center="CC-NE-100", ship_name=NYC[0], ship_city_line=NYC[1],
-          lines=[("SKU-STL-4520", "Carbon Steel Pipe", 200, "FT")])),
+          lines=[("SKU-CTG-4520", "Ceramic Disc Faucet Cartridge", 200, "EA")])),
 
     # US-12 Execution
     ("US-12", "happy-path.txt",
-     dict(po_number="PO-US12-HAPPY", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10120", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
           lines=HAPPY_LINES)),
     ("US-12", "scenario-execution-failure.txt",
-     dict(po_number="PO-2026-FAIL-001", customer="CUST-1001", buyer="BUY-001",
+     dict(po_number="PO-2026-10121-FAIL", customer="CUST-1001", buyer="BUY-001",
           cost_center="CC-MW-100", ship_name=CHI[0], ship_city_line=CHI[1],
           lines=HAPPY_LINES)),
 ]
