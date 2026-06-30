@@ -116,8 +116,9 @@ class PricingEngine:
         r.log(f"Pricing started for {len(lines)} line(s), price date {on_date}.")
 
         breakdown = []
+        waterfall = []          # price_waterfall_lines (business reference schema)
         subtotal = 0.0
-        for ln in lines:
+        for li, ln in enumerate(lines, 1):
             sku = ln["sku"]; family = ln.get("family"); qty = ln.get("qty_base") or 0
             list_price = to_num(ln.get("list_price")) or to_num((self.price_list.get(sku) or {}).get("list_price"))
             if list_price is None:
@@ -138,6 +139,38 @@ class PricingEngine:
             line_total = round(unit_net * (qty or 0), 2)
             subtotal += line_total
 
+            # ── Build the price waterfall for this line (cumulative build-up) ──
+            order_line_id = f"OL-{li:05d}"
+            seq = 0
+
+            def _wf(ctype, label, amount, resulting):
+                nonlocal seq
+                seq += 1
+                waterfall.append({
+                    "waterfall_id": f"WF-{li:03d}-{seq:02d}",
+                    "order_line_id": order_line_id,
+                    "component_sequence": seq,
+                    "component_type": ctype,
+                    "component_label": label,
+                    "amount_or_pct": round(amount, 4),
+                    "resulting_unit_price": round(resulting, 4),
+                })
+
+            _wf("list", "List price", list_price, list_price)
+            if contract:
+                _wf("contract", f"Contract price ({contract[2]})", base, base)
+            cum = 0.0
+            if tier_pct:
+                cum += tier_pct
+                _wf("volume", f"Volume tier discount ({tier_id})", tier_pct, base * (1 - cum / 100.0))
+            if promo_pct:
+                cum += promo_pct
+                _wf("promo", f"Promotional discount ({promo_id})", promo_pct, base * (1 - cum / 100.0))
+            if rebate_pct:
+                cum += rebate_pct
+                _wf("rebate", "Customer rebate accrual", rebate_pct, base * (1 - cum / 100.0))
+            _wf("net", "Net unit price", unit_net, unit_net)
+
             max_disc = to_num((self.margin.get(family) or {}).get("max_discount_pct"), 100)
             if eff_from_list > max_disc:
                 approver_role = clean((self.margin.get(family) or {}).get("approver_role")) or "PRICING_APPROVER"
@@ -153,6 +186,12 @@ class PricingEngine:
                     ("Policy max discount", f"{max_disc}%"),
                     ("Recommended action", f"Route to {approver_role}"),
                 ])
+                r.table("Price waterfall (per-line build-up)",
+                        ["Order line", "Seq", "Component", "Label", "Amount / %", "Resulting unit price"],
+                        [[w["order_line_id"], w["component_sequence"], w["component_type"],
+                          w["component_label"], f'{w["amount_or_pct"]:g}',
+                          f'${w["resulting_unit_price"]:,.4f}'] for w in waterfall])
+                r.data["price_waterfall_lines"] = waterfall
                 r.data["approval_email_sent_to"] = approver_role
                 r.data["approval_email_role"] = approver_role
                 r.log(f"SKU '{sku}' discount {eff_from_list}%>{max_disc}% -> pricing exception.")
@@ -193,6 +232,11 @@ class PricingEngine:
         r.table("Line pricing breakdown",
                 ["SKU", "List", "Base source", "Base", "Disc% (tier/promo/rebate)", "Net unit", "Qty", "Line total"],
                 breakdown)
+        r.table("Price waterfall (per-line build-up)",
+                ["Order line", "Seq", "Component", "Label", "Amount / %", "Resulting unit price"],
+                [[w["order_line_id"], w["component_sequence"], w["component_type"],
+                  w["component_label"], f'{w["amount_or_pct"]:g}',
+                  f'${w["resulting_unit_price"]:,.4f}'] for w in waterfall])
         if surcharge_rows:
             r.table("Surcharges", ["Type", "Rate", "Amount", "Reason"], surcharge_rows)
         r.kv("Order totals", [
@@ -207,5 +251,6 @@ class PricingEngine:
                 r.log(n)
         r.data["order_total"] = order_total
         r.data["pricing_subtotal"] = round(subtotal, 2)
+        r.data["price_waterfall_lines"] = waterfall
         r.log(f"Pricing result: PASS -> order total ${order_total:,.2f}.")
         return r
