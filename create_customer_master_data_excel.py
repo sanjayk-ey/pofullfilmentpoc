@@ -68,16 +68,17 @@ write_sheet(
     ws1,
     "CUSTOMER MASTER  (includes ERP customer records + CRM / account records)",
     ["customer_account", "company_name", "status", "branch_id",
-     "erp_customer_id", "crm_account_id"],
+     "erp_customer_id", "crm_account_id", "parent_account_id", "hierarchy_level",
+     "customer_tier", "default_currency"],
     [
-        ["CUST-1001", "Great Lakes Plumbing Supply Co",  "ACTIVE", "BR-GLP-MW", "ERP-GL-7781", "CRM-GLP-001"],
-        ["CUST-1002", "Eastern Kitchen & Bath Distributors", "ACTIVE", "BR-GLP-NE", "ERP-GL-7782", "CRM-GLP-002"],
-        ["CUST-2001", "Continental Canada Distribution", "ACTIVE", "BR-GLP-CA", "ERP-GL-7790", "CRM-GLP-010"],
-        ["CUST-5001", "Pacific Coast Bath & Kitchen",    "ACTIVE", "BR-PCBK-WEST", "ERP-PC-3310", "CRM-PCBK-001"],
-        ["CUST-7000", "Midtown Building Supply",         "ACTIVE", "BR-GLP-MW", "ERP-MT-9001", "CRM-MT-001"],
-        ["CUST-7000", "Midtown Building Supply (Legacy)","ACTIVE", "BR-GLP-NE", "ERP-MT-9002", "CRM-MT-002"],
+        ["CUST-1001", "Great Lakes Plumbing Supply Co",  "ACTIVE", "BR-GLP-MW", "ERP-GL-7781", "CRM-GLP-001", "GP-CONT", "branch", "Strategic", "USD"],
+        ["CUST-1002", "Eastern Kitchen & Bath Distributors", "ACTIVE", "BR-GLP-NE", "ERP-GL-7782", "CRM-GLP-002", "GP-CONT", "branch", "Preferred", "USD"],
+        ["CUST-2001", "Continental Canada Distribution", "ACTIVE", "BR-GLP-CA", "ERP-GL-7790", "CRM-GLP-010", "GP-CONT", "branch", "Preferred", "CAD"],
+        ["CUST-5001", "Pacific Coast Bath & Kitchen",    "ACTIVE", "BR-PCBK-WEST", "ERP-PC-3310", "CRM-PCBK-001", "GP-WSH", "branch", "Standard", "USD"],
+        ["CUST-7000", "Midtown Building Supply",         "ACTIVE", "BR-GLP-MW", "ERP-MT-9001", "CRM-MT-001", "GP-CONT", "branch", "Standard", "USD"],
+        ["CUST-7000", "Midtown Building Supply (Legacy)","ACTIVE", "BR-GLP-NE", "ERP-MT-9002", "CRM-MT-002", "GP-CONT", "branch", "Standard", "USD"],
     ],
-    [18, 32, 10, 16, 16, 18],
+    [18, 32, 10, 16, 16, 18, 16, 14, 12, 14],
 )
 
 # ── Sheet 2: Account_Hierarchy ─────────────────────────────────────────────────
@@ -101,17 +102,19 @@ ws3 = wb.create_sheet("Ship_To_Master")
 write_sheet(
     ws3,
     "SHIP-TO MASTER  (ship-to locations matched by ZIP)",
-    ["ship_to_id", "name", "address", "zip", "branch_id", "status"],
+    ["ship_to_id", "name", "address", "zip", "branch_id", "status",
+     "customer_account", "city", "state", "country", "is_primary",
+     "preferred_warehouse_id", "split_shipment_allowed", "backorder_tolerance_days"],
     [
-        ["ST-CHI-001", "Great Lakes Plumbing - Chicago DC", "4500 West Diversey Avenue, Chicago, IL", "60639", "BR-GLP-MW", "ACTIVE"],
-        ["ST-DET-002", "Great Lakes Plumbing - Detroit Branch", "1200 Woodward Avenue, Detroit, MI", "48201", "BR-GLP-MW", "ACTIVE"],
-        ["ST-NYC-003", "Eastern Kitchen & Bath - New York DC", "55 Water Street, New York, NY", "10001", "BR-GLP-NE", "ACTIVE"],
-        ["ST-LON-004", "Continental Canada - Toronto Depot", "120 Bremner Boulevard, Toronto, ON", "M5J2N1", "BR-GLP-CA", "ACTIVE"],
-        ["ST-LA-005", "Pacific Coast - Los Angeles DC", "800 South Hope Street, Los Angeles, CA", "90001", "BR-PCBK-WEST", "ACTIVE"],
-        ["ST-AK-006", "Great Lakes - Ketchikan Project Site", "1 Industrial Rd, Ketchikan, AK", "99950", "BR-GLP-MW", "ACTIVE"],
-        ["ST-CA-007", "Great Lakes - Beverly Hills Showroom Project", "9000 Sunset Blvd, Beverly Hills, CA", "90210", "BR-GLP-MW", "ACTIVE"],
+        ["ST-CHI-001", "Great Lakes Plumbing - Chicago DC", "4500 West Diversey Avenue, Chicago, IL", "60639", "BR-GLP-MW", "ACTIVE", "CUST-1001", "Chicago", "IL", "US", "Y", "DC-CHI-01", "N", 0],
+        ["ST-DET-002", "Great Lakes Plumbing - Detroit Branch", "1200 Woodward Avenue, Detroit, MI", "48201", "BR-GLP-MW", "ACTIVE", "CUST-1001", "Detroit", "MI", "US", "N", "DC-DET-02", "Y", 2],
+        ["ST-NYC-003", "Eastern Kitchen & Bath - New York DC", "55 Water Street, New York, NY", "10001", "BR-GLP-NE", "ACTIVE", "CUST-1002", "New York", "NY", "US", "Y", "DC-CHI-01", "Y", 3],
+        ["ST-LON-004", "Continental Canada - Toronto Depot", "120 Bremner Boulevard, Toronto, ON", "M5J2N1", "BR-GLP-CA", "ACTIVE", "CUST-2001", "Toronto", "ON", "CA", "Y", "DC-DET-02", "Y", 5],
+        ["ST-LA-005", "Pacific Coast - Los Angeles DC", "800 South Hope Street, Los Angeles, CA", "90001", "BR-PCBK-WEST", "ACTIVE", "CUST-5001", "Los Angeles", "CA", "US", "Y", "DC-LA-05", "Y", 2],
+        ["ST-AK-006", "Great Lakes - Ketchikan Project Site", "1 Industrial Rd, Ketchikan, AK", "99950", "BR-GLP-MW", "ACTIVE", "CUST-1001", "Ketchikan", "AK", "US", "N", "DC-LA-05", "Y", 7],
+        ["ST-CA-007", "Great Lakes - Beverly Hills Showroom Project", "9000 Sunset Blvd, Beverly Hills, CA", "90210", "BR-GLP-MW", "ACTIVE", "CUST-1001", "Beverly Hills", "CA", "US", "N", "DC-LA-05", "N", 0],
     ],
-    [14, 32, 40, 10, 16, 10],
+    [14, 32, 40, 10, 16, 10, 16, 14, 8, 9, 10, 20, 18, 20],
 )
 
 # ── Sheet 4: Hierarchy_Rules ───────────────────────────────────────────────────
