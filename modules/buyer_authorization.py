@@ -24,6 +24,10 @@ def _csv_set(v):
 class BuyerAuthorizationValidator:
     stage_key = "buyer_authorization"
     title = "Buyer Authorization & Product Visibility"
+    # Folded under the "Customer Validation" decision layer (rendered as a
+    # nested sub-check, not a separate top-level layer heading).
+    subcheck = True
+    parent_layer = "Customer Validation"
     icon = "🔐"
     steps = [
         (0.30, "🔐", "Validating buyer profile, role, and status..."),
@@ -138,5 +142,7 @@ class BuyerAuthorizationValidator:
         ])
         r.data["buyer_max_order_value"] = profile.get("max_order_value")
         r.data["buyer_can_self_approve"] = yes(profile.get("can_self_approve"))
+        r.data["buyer_email"] = clean(profile.get("email"))
+        r.data["buyer_name"] = clean(profile.get("buyer_name"))
         r.log("Authorization result: PASS -> proceed to product validation.")
         return r

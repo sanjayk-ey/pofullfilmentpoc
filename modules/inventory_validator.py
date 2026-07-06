@@ -27,7 +27,7 @@ from modules.xlsx_util import load_sheets, clean, to_num
 
 class InventoryValidator:
     stage_key = "inventory"
-    title = "Inventory Availability & ATP"
+    title = "Inventory Checks"
     icon = "📦"
     steps = [
         (0.30, "🏭", "Checking plant and distribution center stock..."),
@@ -41,13 +41,17 @@ class InventoryValidator:
                         ["Plant_Stock", "DC_Stock", "In_Transit", "ATP",
                          "Allocation_Rules", "Fulfillment_Preferences"])
         self.atp = {clean(r.get("sku")): r for r in s["ATP"] if clean(r.get("sku"))}
-        # DC stock indexed (sku, location) -> qty
+        # DC stock indexed (sku, location) -> qty.  We track on-hand and the
+        # quantity already reserved/committed to other demand, so unreserved
+        # (allocatable) stock = on_hand - reserved.
         self.dc_stock = {}
+        self.dc_reserved = {}
         for d in s["DC_Stock"]:
             sku = clean(d.get("sku"))
             loc = clean(d.get("location_id"))
             if sku and loc:
                 self.dc_stock[(sku, loc)] = to_num(d.get("on_hand_qty"), 0) or 0
+                self.dc_reserved[(sku, loc)] = to_num(d.get("quantity_reserved"), 0) or 0
         self.alloc = {clean(r.get("customer_tier")): r for r in s["Allocation_Rules"]
                       if clean(r.get("customer_tier"))}
         self.prefs = {clean(r.get("customer_account")): r for r in s["Fulfillment_Preferences"]
@@ -108,7 +112,7 @@ class InventoryValidator:
               f"Applying fulfillment profile '{profile.get('rule_id')}' "
               f"({profile.get('rule_name')}).")
 
-        # Show the resolved fulfillment profile up front so the demo is obvious
+        # Show the resolved fulfillment profile up front so the applied rules are clear
         r.kv("Applied fulfillment rules (profile)", [
             ("Rule ID",                   profile.get("rule_id")),
             ("Rule name",                 profile.get("rule_name")),
@@ -124,6 +128,12 @@ class InventoryValidator:
         ])
         if profile.get("description"):
             r.note(profile["description"])
+
+        # Publish the preferred warehouse as the fulfillment source up-front so
+        # that even if this stage raises a shortage/allocation exception that a
+        # CSR later overrides, the final confirmation still shows a real DC
+        # instead of "DEFAULT". The success path refines this to the actual DC.
+        r.data["fulfillment_source"] = clean(profile.get("preferred_warehouse")) or ""
 
         # ── Min order quantity check ──────────────────────────────────────────
         moq = int(profile.get("min_order_qty") or 0)
@@ -190,6 +200,40 @@ class InventoryValidator:
                          "CSR to confirm: allow split this time, or raise customer override"),
                     ])
                     r.log(f"SKU '{sku}': split required but not allowed -> SPLIT_NOT_ALLOWED.")
+                    return r
+
+            # ── ALLOCATION PRIORITY (US-09 AC-04) ───────────────────────────────
+            # On-hand can cover the line, but part of that stock is already
+            # reserved/committed to higher-priority demand. If the unreserved
+            # (allocatable) quantity cannot satisfy this order, raise an
+            # allocation conflict rather than touching reserved stock.
+            if remaining <= 0:
+                total_onhand = sum(q for _, q in allowed)
+                total_unreserved = sum(
+                    max(0, self.dc_stock.get((sku, dc), 0) - self.dc_reserved.get((sku, dc), 0))
+                    for dc, _ in allowed)
+                if need > total_unreserved and total_onhand >= need:
+                    reserved_total = total_onhand - total_unreserved
+                    r.fail("ALLOCATION_CONFLICT",
+                           f"SKU '{sku}': {need:g} requested, but only {total_unreserved:g} "
+                           f"unreserved units are allocatable ({reserved_total:g} reserved for "
+                           f"higher-priority demand).")
+                    r.kv("Allocation conflict", [
+                        ("SKU", sku),
+                        ("Requested", need),
+                        ("On-hand (all allowed DCs)", total_onhand),
+                        ("Reserved / committed", reserved_total),
+                        ("Unreserved (allocatable)", total_unreserved),
+                        ("Allocation shortfall", need - total_unreserved),
+                        ("This order's allocation priority", profile.get("allocation_priority")),
+                        ("Reserved by DC",
+                         ", ".join(f"{dc}:{self.dc_reserved.get((sku, dc), 0):g}"
+                                   for dc, _ in allowed) or "none"),
+                        ("Recommended action",
+                         "CSR / planner to re-prioritise allocation or confirm backorder"),
+                    ])
+                    r.log(f"SKU '{sku}': need {need} > unreserved {total_unreserved} "
+                          f"-> ALLOCATION_CONFLICT.")
                     return r
 
             if len(sources_used) > 1:

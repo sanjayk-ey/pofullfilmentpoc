@@ -19,6 +19,7 @@ def _load() -> list:
 
 
 def _save(records: list):
+    os.makedirs(os.path.dirname(STORE_FILE), exist_ok=True)
     with open(STORE_FILE, "w") as f:
         json.dump(records, f, indent=2)
 

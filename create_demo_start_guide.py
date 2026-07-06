@@ -111,7 +111,8 @@ def main():
     p = doc.add_paragraph()
     p.add_run("B) Upload Excel:  ").bold = True
     p.add_run("Click the + (plus) button near the chat box, then choose a PO Excel (.xlsx) file. "
-              "Only Excel files are accepted.")
+              "Only Excel files are accepted. Ready-to-use Excel copies of the two demo POs "
+              "live at demo/Happy-Flow-PO.xlsx and demo/CSR-Approval-PO.xlsx.")
 
     # ---- What you will see ----
     h("What you will see on screen")
@@ -119,30 +120,39 @@ def main():
     bullet("GREEN / a tick means the step is fine and it moves on.")
     bullet("An AMBER / RED box means it found a problem. It explains the problem in simple words "
            "and says who should handle it. This is the correct behaviour for the 'problem' demos.")
-    bullet("For approvals or pricing problems, it shows a sample email being sent to the right "
-           "manager. No real email is sent — it is only for show.")
+    bullet("For approvals or pricing problems, it shows the email being sent to the right "
+           "manager, and the process pauses until that manager responds.")
     bullet("When everything passes, it creates the order and shows confirmation messages.")
 
     # ---- Suggested running order ----
-    h("Suggested demo flow (a good story to tell)", BLUE)
-    doc.add_paragraph("Run these in order for the smoothest demo:")
+    h("Suggested demo flow (only TWO PO files)", BLUE)
+    doc.add_paragraph(
+        "The whole demo now uses just two purchase-order files. Run them in this order:")
     flow = [
-        ("1. The happy path", "sample-data/US-01/sample-po-comprehensive.txt",
-         "Show a complete PO sailing through all 12 checks and creating an order."),
-        ("2. Missing information", "sample-data/US-01/sample-po-missing-fields.xlsx",
-         "Show the agent catching missing fields and asking for them."),
-        ("3. Wrong ship-to", "sample-data/US-02/scenario-invalid-shipto.txt",
-         "Show the agent confirming the delivery address belongs to the customer."),
-        ("4. Pricing build-up", "sample-data/US-06/happy-path.txt",
-         "Show the price waterfall — how the final price is built step by step."),
-        ("5. Needs approval", "sample-data/US-07/scenario-approval-required.txt",
-         "Show the agent routing a big order to a manager (sample email)."),
-        ("6. Credit hold", "sample-data/US-08/scenario-credit-hold.txt",
-         "Show the agent stopping an order that is over the credit limit."),
-        ("7. Out of stock", "sample-data/US-09/scenario-inventory-shortage.txt",
-         "Show the agent spotting not enough stock."),
-        ("8. Order created", "sample-data/US-12/happy-path.txt",
-         "Finish by showing the order being created in the downstream systems."),
+        ("1. The happy path", "demo/Happy-Flow-PO.txt  (or .xlsx)",
+         "A clean order that contains only the mandatory fields. Show the agent "
+         "reading it, resolving the customer and buyer from the company name and "
+         "email, and running every check straight through to a created order with "
+         "no human input needed. Every optional header field (contact person, "
+         "contract reference, delivery instructions) is backfilled from master "
+         "data — the PO card marks these with a small 'from master data' badge. "
+         "During pricing the agent internally calculates BOTH the freight / "
+         "shipping charge and the state sales tax and displays them in the "
+         "'Order totals' block."),
+        ("2. The interactive CSR-approval PO", "demo/CSR-Approval-PO.txt  (or .xlsx)",
+         "One order that deliberately contains problems, so you can show the agent "
+         "thinking and asking the CSR to decide at every human-in-the-loop gate. In "
+         "sequence it will: (a) ask which registered buyer to use when the email is "
+         "unknown; (b) recommend a substitute for a discontinued product and ask for "
+         "approval; (c) identify a product from its description when the customer used "
+         "their own code; (d) identify a product when the SKU is missing entirely; "
+         "(e) ask for a quantity when a line has zero; (f) convert a non-standard unit "
+         "of measure (cases to each) and show the maths; (g) confirm a partial ship-to "
+         "(a location name only) against the address book; then the decision-layer "
+         "gates — (h) a Pricing & Promo discount exception, (i) a Credit hold, "
+         "(j) an Inventory shortage, and (k) an unserviceable delivery ZIP. For each "
+         "one the CSR can Approve, Reject, or Escalate — or type a correction. Approve "
+         "each in turn and the order completes."),
     ]
     for title, fpath, why in flow:
         p = doc.add_paragraph()
@@ -152,8 +162,13 @@ def main():
         b.add_run(why)
 
     doc.add_paragraph(
+        "Tip: the agent works deliberately at a steady pace and shows what it is "
+        "checking internally (like an assistant thinking) so the audience can follow "
+        "each decision.")
+
+    doc.add_paragraph(
         "For the full list of every test and its expected result, see the Excel file "
-        "'Unit_Test_Plan_US01-US12.xlsx' in the docs folder.", style="Intense Quote"
+        "'Unit_Test_Plan_Interactive_Demo.xlsx' in the docs folder.", style="Intense Quote"
     )
 
     # ---- If something goes wrong ----

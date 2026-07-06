@@ -1,25 +1,212 @@
 """
 create_unit_test_plan.py
-Generates docs/Unit_Test_Plan_US01-US12.xlsx — a business-friendly unit-testing
-workbook covering every demo scenario (US-01 .. US-12). Written in plain language
-so a non-technical business user can run each test during the demo.
+Generates docs/Unit_Test_Plan_Interactive_Demo.xlsx — a business-friendly test
+plan for the interactive, human-in-the-loop demo built around just TWO PO files:
+
+    demo/Happy-Flow-PO.txt    -> the clean "everything works" flow
+    demo/CSR-Approval-PO.txt  -> one PO that exercises every interactive CSR
+                                 decision (unknown buyer, missing/wrong/obsolete
+                                 SKU, zero qty, UOM conversion, partial ship-to,
+                                 and the Pricing / Credit / Inventory / Logistics
+                                 decision-layer gates)
+
+The Pass/Fail column is filled by actually RUNNING the headless checks in
+test_pipeline.py, so the numbers reflect real results.
 
 Run:  python create_unit_test_plan.py
 """
 import os
+import io
+import contextlib
+
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+import test_pipeline as T
+
 OUT_DIR = os.path.join(os.path.dirname(__file__), "docs")
 os.makedirs(OUT_DIR, exist_ok=True)
 
-NAVY = "1F2A44"
-BLUE = "2563EB"
-LBLUE = "EAF1FB"
-GREEN = "1E7D44"
-AMBER = "B45309"
-GREY = "F3F4F6"
+NAVY = "1F2A44"; BLUE = "2563EB"; GREEN = "1E7D44"; RED = "B91C1C"; GREY = "F3F4F6"
+
+# Business-friendly scenarios. `check` maps to the exact check name(s) recorded by
+# test_pipeline so Pass/Fail is real.
+ROWS = [
+    ("T-01", "PO-1 happy path", "US-01 AC-01",
+     "Clean PO with only the mandatory fields (PO#, PO date, buyer company + email, "
+     "ship-to, delivery date, and line SKU/description/qty).",
+     "Agent reads the PO, resolves the customer and buyer from the company name + "
+     "email, and confirms all mandatory fields are present.",
+     "PO card shows every field; no CSR decision needed.",
+     ["happy: no missing mandatory fields", "happy: buyer_email is buyer (not vendor)"]),
+
+    ("T-02", "PO-1 happy path", "US-02..US-12",
+     "The clean PO runs end to end through all decision stages.",
+     "Agent runs customer, buyer, product, compliance, pricing, budget, credit, "
+     "inventory, logistics and execution — pausing for nothing.",
+     "All stages green; order created and customer confirmation sent.",
+     ["PO-1 happy path -> clean pass"]),
+
+    ("T-03", "PO-2 exceptions", "US-01 AC-02",
+     "Optional fields only mandatory ones required — a line gives description + qty "
+     "with NO SKU.",
+     "Agent does NOT reject; it identifies the product from the description against "
+     "the catalog and asks the CSR to confirm / enter the SKU.",
+     "CSR sees the recommended SKU with match confidence and Approve / Enter / "
+     "Escalate options.",
+     ["missing SKU identified by description", "PO-2 raised >=4 intake issues"]),
+
+    ("T-04", "PO-2 exceptions", "US-04 (label independence)",
+     "A line uses a non-catalog product code (customer's own label).",
+     "Agent ignores the label and matches by description to the correct catalog SKU.",
+     "CSR sees the identified SKU and approves it.",
+     ["wrong SKU code identified by description"]),
+
+    ("T-05", "PO-2 exceptions", "US-04 AC-04",
+     "A line contains an obsolete / discontinued SKU.",
+     "Agent finds the approved successor and shows compatibility, price impact and "
+     "availability impact, and requires CSR approval before substituting.",
+     "CSR sees the substitution recommendation and Approve / Reject / Escalate.",
+     ["obsolete SKU -> substitute recommendation",
+      "substitution has impacts (price/availability/compat)"]),
+
+    ("T-06", "PO-1 happy path", "US-04 AC-02 (base UOM)",
+     "PO omits UOM entirely on every line (as in the new demo PO format).",
+     "Agent looks up the product's base UOM in Product Master and uses it — no "
+     "CSR question needed for clear quantities. The Matched-products table "
+     "hides the Converted / Conversion-logic columns when no numeric "
+     "conversion is happening (so the happy-flow view stays clean); the "
+     "inference is captured in the stage's audit trail.",
+     "Matched-products table shows only SKU / Description / Family / "
+     "Requested; audit trail records 'inferred from Product Master'.",
+     ["missing UOM defaults to base UOM (no error)",
+      "missing UOM audit trail records 'inferred from Product Master'",
+      "no-conversion case hides Converted / Conversion logic columns"]),
+
+    ("T-07", "PO-2 exceptions", "US-04 AC-02 (ambiguous qty)",
+     "A line has a small qty for a product that ships in a case pack "
+     "(e.g. qty=2 of a 24-pack cartridge).",
+     "Agent recognises the ambiguity, presents 'individual pieces' vs "
+     "'full packs' with the conversion maths (2 CASE = 48 EA), and asks CSR "
+     "to confirm.",
+     "CSR sees two explicit choices with converted-qty and conversion logic, "
+     "plus Reject / Escalate.",
+     ["UOM ambiguity detected for small qty vs pack size",
+      "UOM ambiguity offers pack conversion 2 CASE = 48 EA"]),
+
+    ("T-08", "internal", "US-04 AC-02 (approved rules)",
+     "Approved conversion rules cover multiple product families "
+     "(CARTRIDGE, VALVE, DRAIN, SEAL, FINISH) and universal (KG, DOZ, GR).",
+     "Agent picks the family-specific rule when it exists and falls back to "
+     "the universal ALL rule otherwise; shows original qty × factor = base qty.",
+     "Pack conversions per family (CASE→EA×24 for CARTRIDGE, PALLET→EA×48 for "
+     "VALVE, etc.) all round-trip correctly.",
+     ["CASE->EA conversion produces 48 EA",
+      "PALLET->EA conversion produces 48 EA (VALVE family)"]),
+
+    ("T-09", "PO-2 exceptions", "US-02 AC-02",
+     "Ship-to is given as a factory / location name only (partial address).",
+     "Agent matches it to a registered ship-to for the customer and asks the CSR to "
+     "confirm, or to type a different address.",
+     "CSR sees the matched location (with ZIP) and Approve / Enter / Escalate.",
+     ["partial ship-to name -> confirmation to 60639"]),
+
+    ("T-10", "PO-2 exceptions", "US-11 AC-02",
+     "After the CSR approves every recommendation, the order should complete.",
+     "Agent resumes the pipeline from where it paused once each decision is made.",
+     "All remaining stages pass; order created.",
+     ["PO-2 after CSR approvals -> clean pass"]),
+
+    ("T-11", "PO-1 happy path", "US-01 (master-data fallback)",
+     "PO omits the optional Contact Person and Contract Reference header "
+     "fields (customer sends only the mandatory ones). Delivery instructions "
+     "belong to the specific PO transaction — the agent must NOT backfill "
+     "them from master data.",
+     "Agent backfills Contact Person from Buyer_Profiles (by email) and "
+     "Contract Reference from the customer's ACTIVE Contracts row. Each "
+     "backfilled value is tagged with a 'from master data' badge in the "
+     "PO card and shown at 100% confidence (trusted source). Delivery "
+     "instructions stay empty unless the PO itself carries them.",
+     "PO card shows the two backfilled values with a blue chip and 100% "
+     "confidence bars; Delivery Instructions shows 'not available' when "
+     "the PO doesn't include them.",
+     ["PO-1 contact person backfilled from Buyer_Profiles",
+      "PO-1 contract reference backfilled from active Contracts",
+      "PO-1 backfilled contact person shows 100% confidence",
+      "PO-1 backfilled contract reference shows 100% confidence",
+      "PO-1 delivery instructions NOT backfilled (per PO-only rule)"]),
+
+    ("T-12", "PO-1 happy path", "US-06 (tax + shipping)",
+     "The pricing engine must internally calculate BOTH tax and shipping and "
+     "show them on-screen (customer PO does not include either).",
+     "Agent looks up the Freight_Terms row for the customer (or the default) "
+     "and computes base + per-KG shipping; then looks up the ship-to state "
+     "in Tax_Rates and applies the correct sales-tax % on subtotal + "
+     "surcharges. Both values appear in the 'Tax & shipping (AI-calculated)' "
+     "table and roll up into the order total.",
+     "'Order totals' shows: Subtotal, Surcharges, Freight/shipping, Sales "
+     "tax (X% — State), Order total.",
+     ["tax amount computed and > 0",
+      "Illinois tax rate applied (~8.75%)",
+      "freight amount computed and > 0",
+      "pricing stage exposes 'Tax & shipping' table"]),
+
+    ("T-13", "PO-1 & PO-2 (Excel)", "US-01 (Excel intake)",
+     "Both demo POs are also delivered as .xlsx workbooks (real customers "
+     "often send POs from Excel or as an Excel export from their ERP).",
+     "Agent detects the workbook, parses the key-value header block plus the "
+     "line-items table, and pushes the reconstructed PO through the same "
+     "pipeline as the text version. Happy-Flow-PO completes end-to-end; "
+     "CSR-Approval-PO raises the same interactive intake exceptions.",
+     "CSR uploads the .xlsx and sees identical downstream behaviour.",
+     ["Happy-Flow-PO.xlsx extracted",
+      "Happy-Flow-PO.xlsx order lines = 3",
+      "CSR-Approval-PO.xlsx extracted",
+      "CSR-Approval-PO.xlsx order lines = 7",
+      "Happy-Flow-PO.xlsx end-to-end clean pass"]),
+
+    ("T-14", "PO with unknown buyer", "US-03 (interactive buyer resolution)",
+     "The PO's buyer email is not in the Buyer Profiles master (typo / new "
+     "employee not yet onboarded / customer-side email change).",
+     "Agent detects that the email does not resolve, looks up the buyers "
+     "already registered against this customer account, and presents them "
+     "as a picker with 'Pick this buyer' buttons. CSR can also type a "
+     "different buyer name / email or escalate before the authorization "
+     "stage runs.",
+     "CSR sees a buyer table (Buyer / Email / Role / Customer / Cost "
+     "Center), individual 'Pick this buyer' buttons, a free-text entry "
+     "field, plus Reject / Escalate.",
+     ["unknown buyer email raises UNRESOLVED_BUYER",
+      "UNRESOLVED_BUYER lists buyers for the customer"]),
+
+    ("T-15", "PO with zero quantity", "US-01 (interactive qty correction)",
+     "One order line has quantity = 0 (customer left the field blank in "
+     "their form / accidental clear).",
+     "Agent does NOT hard-block intake. It raises INVALID_QUANTITY for that "
+     "specific line, showing the SKU and the current (invalid) quantity, "
+     "and asks the CSR to type the correct positive quantity before the "
+     "pipeline resumes.",
+     "CSR sees a small line-context table plus a 'Type the correct quantity' "
+     "field with Use my entry / Reject / Escalate.",
+     ["zero-qty line does NOT hard-block intake",
+      "zero quantity raises INVALID_QUANTITY intake issue",
+      "INVALID_QUANTITY targets the correct line"]),
+
+    ("T-16", "PO-2 exceptions", "US-04 (manual override on substitution)",
+     "The AI recommends an approved substitute for an obsolete SKU, but the "
+     "CSR wants to force a completely different SKU instead.",
+     "Substitution card now offers a 'Use my entry' text field alongside "
+     "Approve. Whatever the CSR types replaces the substitute; the audit "
+     "trail records the manual override.",
+     "CSR sees the substitution card with the extra text field and the "
+     "'✍️ Use my entry' button.",
+     ["SUBSTITUTE_SKU includes 'enter' manual-entry action"]),
+]
+
+HEADERS = ["Test ID", "PO file", "AC", "Scenario (plain words)", "What the agent does",
+           "What the CSR sees / does", "Result (auto)", "Pass / Fail (auto)", "Tester sign-off"]
+WIDTHS = [8, 20, 22, 40, 44, 40, 16, 14, 16]
 
 
 def _border():
@@ -27,194 +214,7 @@ def _border():
     return Border(left=s, right=s, top=s, bottom=s)
 
 
-# How a tester loads each kind of file
-LOAD_TXT = "Open the .txt file, select all text, copy it, paste into the chat box at the bottom, press Enter."
-LOAD_XLSX = "Click the + (plus) button, then upload the Excel (.xlsx) file."
-
-# ── Test rows ────────────────────────────────────────────────────────────────
-# (Test ID, User Story, Area, Scenario in plain words, input file,
-#  how to load, what it checks, expected result in plain words)
-ROWS = [
-    # ---- US-01 : PO intake & extraction ----
-    ("T-01", "US-01", "PO Intake & Data Extraction", "Normal text PO is read correctly",
-     "sample-data/US-01/sample-po-text.txt", LOAD_TXT,
-     "The agent reads a pasted PO and pulls out all the key fields (PO number, customer, items, quantities, ship-to ZIP, delivery date).",
-     "All fields are extracted and shown with high confidence. No missing-field warning. The PO moves forward."),
-
-    ("T-02", "US-01", "PO Intake & Data Extraction", "Normal Excel PO is read correctly",
-     "sample-data/US-01/sample-po-happy-path.xlsx", LOAD_XLSX,
-     "The agent reads an uploaded Excel PO and extracts the same fields, including buyer and cost center.",
-     "All fields extracted correctly from Excel. No missing-field warning. The PO moves forward."),
-
-    ("T-03", "US-01", "PO Intake & Data Extraction", "PO with missing required fields is flagged",
-     "sample-data/US-01/sample-po-missing-fields.xlsx", LOAD_XLSX,
-     "The agent should notice when required fields (like delivery date or unit of measure) are missing.",
-     "The agent clearly lists the missing fields (Requested Delivery Date and Unit of Measure) and asks for them. It does NOT proceed."),
-
-    ("T-04", "US-01", "PO Intake & Data Extraction", "Full PO passes all 12 steps (text)",
-     "sample-data/US-01/sample-po-comprehensive.txt", LOAD_TXT,
-     "A complete, clean PO should pass every one of the 12 checks end-to-end.",
-     "All 12 steps show green / pass. A sales order is created at the end."),
-
-    ("T-05", "US-01", "PO Intake & Data Extraction", "Full PO passes all 12 steps (Excel)",
-     "sample-data/US-01/sample-po-comprehensive.xlsx", LOAD_XLSX,
-     "Same complete PO but uploaded as Excel — should also pass every check.",
-     "All 12 steps show green / pass. A sales order is created at the end."),
-
-    # ---- US-02 : Account hierarchy & ship-to ----
-    ("T-06", "US-02", "Account Hierarchy & Ship-To", "Customer account cannot be found",
-     "sample-data/US-02/scenario-unmatched-customer.txt", LOAD_TXT,
-     "The agent checks the customer account against the customer master list.",
-     "Stops with 'Unmatched Customer'. The agent explains the account was not found and routes it for review."),
-
-    ("T-07", "US-02", "Account Hierarchy & Ship-To", "Ship-to address does not belong to the customer",
-     "sample-data/US-02/scenario-invalid-shipto.txt", LOAD_TXT,
-     "The agent confirms the ship-to ZIP belongs to the customer's account hierarchy.",
-     "Stops with 'Invalid Ship-To'. The agent explains the ship-to is not valid for this customer."),
-
-    ("T-08", "US-02", "Account Hierarchy & Ship-To", "Ship-to belongs to a different branch (mismatch)",
-     "sample-data/US-02/scenario-hierarchy-mismatch.txt", LOAD_TXT,
-     "The agent checks that the ship-to sits under the correct branch / division in the hierarchy.",
-     "Stops with 'Hierarchy Mismatch'. The agent explains the ship-to is under a different branch."),
-
-    ("T-09", "US-02", "Account Hierarchy & Ship-To", "Two customer records match (duplicate)",
-     "sample-data/US-02/scenario-duplicate-customer.txt", LOAD_TXT,
-     "The agent detects when the same customer name maps to more than one account record.",
-     "Stops with 'Duplicate Customer'. The agent asks a human to confirm which account is correct."),
-
-    # ---- US-03 : Buyer authorization ----
-    ("T-10", "US-03", "Buyer Authorization", "Authorized buyer — clean pass",
-     "sample-data/US-03/happy-path.txt", LOAD_TXT,
-     "An approved buyer ordering allowed products on a valid cost center should pass.",
-     "Buyer is authorized. The PO continues to the next checks."),
-
-    ("T-11", "US-03", "Buyer Authorization", "Buyer is not allowed to place this order",
-     "sample-data/US-03/scenario-unauthorized-buyer.txt", LOAD_TXT,
-     "The agent checks whether the buyer is active and within their ordering rights.",
-     "Stops with 'Unauthorized Buyer'. The agent explains the buyer is not permitted."),
-
-    ("T-12", "US-03", "Buyer Authorization", "Buyer ordered a product they are not allowed to buy",
-     "sample-data/US-03/scenario-restricted-product.txt", LOAD_TXT,
-     "The agent checks the product is within the buyer's allowed product families.",
-     "Stops with 'Restricted Product'. The agent explains the product is not allowed for this buyer."),
-
-    ("T-13", "US-03", "Buyer Authorization", "Cost center is invalid or inactive",
-     "sample-data/US-03/scenario-invalid-cost-center.txt", LOAD_TXT,
-     "The agent confirms the cost center on the PO is valid and active.",
-     "Stops with 'Invalid Cost Center'. The agent explains the cost center cannot be used."),
-
-    # ---- US-04 : Product matching & UOM ----
-    ("T-14", "US-04", "Product Matching & UOM", "Obsolete product is replaced by its successor",
-     "sample-data/US-04/scenario-obsolete-sku.txt", LOAD_TXT,
-     "The agent checks product status and suggests the approved replacement for obsolete items.",
-     "Stops with 'Obsolete SKU'. The agent recommends the approved substitute product."),
-
-    ("T-15", "US-04", "Product Matching & UOM", "Unit of measure cannot be converted",
-     "sample-data/US-04/scenario-invalid-uom.txt", LOAD_TXT,
-     "The agent checks the ordered unit of measure can be converted to the base unit.",
-     "Stops with 'Invalid UOM'. The agent explains the unit of measure is not supported."),
-
-    ("T-16", "US-04", "Product Matching & UOM", "Product code is unknown",
-     "sample-data/US-04/scenario-unknown-sku.txt", LOAD_TXT,
-     "The agent checks the product code exists in the product master.",
-     "Stops with a product configuration exception. The agent explains the SKU was not found."),
-
-    # ---- US-05 : Compliance ----
-    ("T-17", "US-05", "Compliance & Documentation", "Product is restricted in the destination region",
-     "sample-data/US-05/scenario-restricted-region.txt", LOAD_TXT,
-     "The agent checks regional rules (e.g. VOC-restricted finish into California).",
-     "Stops with 'Compliance Restriction'. The agent explains the product cannot ship to that region."),
-
-    ("T-18", "US-05", "Compliance & Documentation", "Required safety document (SDS) is missing",
-     "sample-data/US-05/scenario-missing-sds.txt", LOAD_TXT,
-     "The agent checks that required compliance documents are on file.",
-     "Stops with 'Missing SDS'. The agent explains the safety data sheet is required."),
-
-    # ---- US-06 : Pricing ----
-    ("T-19", "US-06", "Pricing Engine", "Correct price is built step by step (price waterfall)",
-     "sample-data/US-06/happy-path.txt", LOAD_TXT,
-     "The agent builds the final price from list price -> contract -> volume -> promo -> rebate, and shows each step.",
-     "Pass. A 'Price waterfall' table shows each step and the final net unit price. Order total is calculated."),
-
-    ("T-20", "US-06", "Pricing Engine", "Discount is too deep and breaks the margin rule",
-     "sample-data/US-06/scenario-pricing-exception.txt", LOAD_TXT,
-     "The agent checks the final discount does not break the margin policy.",
-     "Stops with 'Pricing Exception'. A mock email is sent to the pricing approver and the process pauses."),
-
-    # ---- US-07 : Budget & approval ----
-    ("T-21", "US-07", "Budget & Approval", "Order needs manager approval",
-     "sample-data/US-07/scenario-approval-required.txt", LOAD_TXT,
-     "The agent checks if the order value is over the buyer's self-approval limit.",
-     "Stops with 'Approval Required'. A mock approval email is sent to the right manager and the process pauses."),
-
-    ("T-22", "US-07", "Budget & Approval", "Order is over the available budget",
-     "sample-data/US-07/scenario-budget-exceeded.txt", LOAD_TXT,
-     "The agent checks the order against the remaining budget for the cost center.",
-     "Stops with 'Budget Exceeded'. The agent explains there is not enough budget."),
-
-    # ---- US-08 : Credit ----
-    ("T-23", "US-08", "Credit Check", "Customer is over their credit limit",
-     "sample-data/US-08/scenario-credit-hold.txt", LOAD_TXT,
-     "The agent checks available credit and overdue invoices before confirming.",
-     "Stops with 'Credit Hold'. The agent explains the order is on credit hold."),
-
-    # ---- US-09 : Inventory & allocation ----
-    ("T-24", "US-09", "Inventory & Allocation", "Not enough stock to fulfil the order",
-     "sample-data/US-09/scenario-inventory-shortage.txt", LOAD_TXT,
-     "The agent checks available stock across the distribution centers.",
-     "Stops with 'Inventory Shortage'. The agent explains stock is not enough and shows the gap."),
-
-    ("T-25", "US-09", "Inventory & Allocation", "Order cannot be split but stock is in two places",
-     "sample-data/US-09/scenario-split-not-allowed.txt", LOAD_TXT,
-     "The agent respects the customer rule that does not allow split shipments.",
-     "Stops with 'Split Not Allowed'. The agent explains a single-location fulfilment is not possible."),
-
-    ("T-26", "US-09", "Inventory & Allocation", "Customer fulfilment rule is applied (clean pass)",
-     "sample-data/US-09/scenario-restricted-warehouse.txt", LOAD_TXT,
-     "The agent applies the customer's preferred / restricted warehouse rule.",
-     "Pass. The agent applies the rule and allocates from the allowed warehouse."),
-
-    ("T-27", "US-09", "Inventory & Allocation", "Order is below the minimum order quantity",
-     "sample-data/US-09/scenario-min-order-qty.txt", LOAD_TXT,
-     "The agent checks the order meets the minimum order quantity.",
-     "Stops with 'Minimum Order Qty Not Met'. The agent explains the minimum quantity rule."),
-
-    # ---- US-10 : Logistics ----
-    ("T-28", "US-10", "Logistics & Serviceability", "Delivery ZIP cannot be serviced by any carrier",
-     "sample-data/US-10/scenario-zip-not-serviceable.txt", LOAD_TXT,
-     "The agent checks a carrier can deliver to the ship-to ZIP within the SLA.",
-     "Stops with 'ZIP Not Serviceable'. The agent explains no carrier covers that ZIP."),
-
-    # ---- US-11 : Exception governance ----
-    ("T-29", "US-11", "Exception Governance", "Clean order runs fully autonomously",
-     "sample-data/US-11/happy-autonomous.txt", LOAD_TXT,
-     "When everything is fine, the agent should complete with no human involvement.",
-     "All steps pass automatically. No human routing needed. Order is created."),
-
-    ("T-30", "US-11", "Exception Governance", "A problem is routed to the right team",
-     "sample-data/US-11/scenario-governed-exception.txt", LOAD_TXT,
-     "When a problem is found, the agent routes it to the correct role with a recommendation.",
-     "Stops with 'Credit Hold' and routes to the right team with an AI recommendation."),
-
-    # ---- US-12 : Order execution ----
-    ("T-31", "US-12", "Order Execution", "Order is created in downstream systems (happy path)",
-     "sample-data/US-12/happy-path.txt", LOAD_TXT,
-     "After all checks pass, the agent creates the order in ERP / OMS and notifies systems (mocked).",
-     "Pass. Mock messages confirm the order was created in ERP/OMS/WMS/TMS and a confirmation email is sent."),
-
-    ("T-32", "US-12", "Order Execution", "A downstream system fails during order creation",
-     "sample-data/US-12/scenario-execution-failure.txt", LOAD_TXT,
-     "The agent handles a failure from a downstream system gracefully.",
-     "Stops with 'Execution Failure'. The agent explains which system failed and routes for follow-up."),
-]
-
-HEADERS = ["Test ID", "User Story", "Area", "Scenario (plain words)", "Input file to use",
-           "How to load it", "What this test checks", "What you should see (expected result)",
-           "Pass / Fail", "Tester notes"]
-WIDTHS = [9, 11, 26, 34, 40, 46, 50, 56, 12, 24]
-
-
-def banner(ws, text, ncols, height=26, fill=NAVY, size=14):
+def banner(ws, text, ncols, height=28, fill=NAVY, size=14):
     ws.merge_cells(start_row=ws.max_row, start_column=1, end_row=ws.max_row, end_column=ncols)
     c = ws.cell(row=ws.max_row, column=1, value=text)
     c.font = Font(bold=True, size=size, color="FFFFFF")
@@ -223,57 +223,86 @@ def banner(ws, text, ncols, height=26, fill=NAVY, size=14):
     ws.row_dimensions[ws.max_row].height = height
 
 
+def run_checks():
+    """Run the headless checks and return {check_name: ok}."""
+    T._results.clear()
+    with contextlib.redirect_stdout(io.StringIO()):
+        from modules import duplicate_checker as dup
+        dup.reset_store()
+        T.test_extraction()
+        T.test_intake_resolution()
+        T.test_uom_conversion()
+        T.test_end_to_end()
+        T.test_master_data_backfill()
+        T.test_tax_and_shipping()
+        T.test_excel_pos()
+        T.test_buyer_and_quantity_issues()
+    return {name: ok for name, ok, _ in T._results}
+
+
 def main():
+    results = run_checks()
+    total_checks = len(results)
+    passed_checks = sum(1 for v in results.values() if v)
+
+    row_status = []
+    for r in ROWS:
+        checks = r[6]
+        ok = all(results.get(c, False) for c in checks)
+        row_status.append(ok)
+    n_pass = sum(row_status)
+
     wb = openpyxl.Workbook()
 
-    # ── Tab 1: How to test ──────────────────────────────────────────────
+    # ── Tab 1: How To Test ──────────────────────────────────────────────
     ws = wb.active
     ws.title = "How To Test"
     ws.sheet_view.showGridLines = False
-    ws.append([""]); banner(ws, "PO FULFILMENT AI — UNIT TEST PLAN (US-01 to US-12)", 2, 30, NAVY, 16)
+    ws.append([""]); banner(ws, "PO FULFILMENT AI — INTERACTIVE DEMO TEST PLAN", 2, 30, NAVY, 16)
     intro = [
         "",
-        "This workbook lists every test we run on the AI agent. It is written in simple language so anyone",
-        "on the business team can run a test during the demo and confirm the result.",
+        f"LATEST AUTOMATED RUN:  {passed_checks} of {total_checks} underlying checks PASSED  "
+        f"({n_pass} of {len(ROWS)} business test cases green).",
         "",
-        "HOW TO START THE DEMO APP",
-        "1. Open the app (your engineer will start it, or follow the Demo Start Guide).",
-        "2. The app opens in your web browser — it looks like a chat window.",
+        "THE DEMO USES ONLY TWO PO FILES",
+        "  • demo/Happy-Flow-PO.txt    — the clean 'everything works' order.",
+        "  • demo/CSR-Approval-PO.txt  — one order that triggers every CSR decision.",
         "",
-        "TWO WAYS TO SEND A PO TO THE AGENT",
-        "A) TEXT PO  ->  Open the .txt file, copy all the text, paste it into the chat box at the bottom, press Enter.",
-        "B) EXCEL PO ->  Click the + (plus) button near the chat box, then upload the .xlsx file.",
+        "HOW TO SEND A PO TO THE AGENT",
+        "  Open the .txt file, copy all the text, paste it into the chat box, and press Enter.",
         "",
-        "HOW TO READ THE RESULT",
-        "- GREEN / PASS means that step is fine and the agent moves on.",
-        "- An EXCEPTION (amber/red) means the agent found a problem, explains it in plain words, and",
-        "  routes it to the right person. This is expected behaviour for the 'problem' scenarios below.",
-        "- For approval / pricing problems, the agent shows a MOCK email being sent — no real email goes out.",
+        "WHAT MAKES THIS DEMO DIFFERENT",
+        "  The agent no longer just stops on a problem. When something is missing, wrong,",
+        "  obsolete, partial, or needs conversion, it THINKS out loud, checks the master data,",
+        "  proposes the best fix, and asks the CSR to Approve, Reject, or Escalate — or to type",
+        "  a correction. Approve resumes the order; Reject stops it; Escalate routes it to the",
+        "  right team.",
         "",
-        "WHAT TO DO FOR EACH TEST",
-        "1. Go to the 'Test Cases' tab.",
-        "2. Pick a row. Open the file in the 'Input file to use' column.",
-        "3. Follow 'How to load it'.",
-        "4. Compare what you see to 'What you should see'.",
-        "5. Write Pass or Fail in the 'Pass / Fail' column.",
+        "ONLY THESE FIELDS ARE MANDATORY (everything else is optional / looked up):",
+        "  PO Number · PO Date · Buyer Company + Buyer Email · Ship-To (full, partial or name)",
+        "  · Requested Delivery Date · per line: SKU, Description, Quantity  (UOM is optional).",
         "",
-        "TIP: Tests T-04 and T-05 are the 'everything works' demos — great to show first.",
+        "HOW TO RUN EACH TEST",
+        "  1. Go to the 'Test Cases' tab.  2. Load the listed PO file.  3. Follow the scenario.",
+        "  4. Compare what you see to 'What the CSR sees / does'.  5. Sign off in the last column.",
     ]
     for line in intro:
-        ws.append([line])
-        if line.isupper() and line.strip():
-            ws.cell(row=ws.max_row, column=1).font = Font(bold=True, size=11, color=BLUE)
+        ws.append([line]); c = ws.cell(row=ws.max_row, column=1)
+        if line.startswith("LATEST AUTOMATED"):
+            c.font = Font(bold=True, size=12, color=GREEN if passed_checks == total_checks else RED)
+        elif line.strip().isupper() or line.strip().startswith("ONLY THESE"):
+            c.font = Font(bold=True, size=11, color=BLUE)
         else:
-            ws.cell(row=ws.max_row, column=1).font = Font(size=11)
-    ws.column_dimensions["A"].width = 110
+            c.font = Font(size=11)
+    ws.column_dimensions["A"].width = 108
 
     # ── Tab 2: Test Cases ───────────────────────────────────────────────
     ws2 = wb.create_sheet("Test Cases")
     ws2.sheet_view.showGridLines = False
     ws2.append([""])
-    banner(ws2, "TEST CASES  —  run each row and mark Pass / Fail", len(HEADERS), 28, NAVY, 14)
-    ws2.append(HEADERS)
-    hr = ws2.max_row
+    banner(ws2, f"TEST CASES  —  {n_pass}/{len(ROWS)} green in the latest automated run",
+            len(HEADERS), 28, NAVY, 14)
+    ws2.append(HEADERS); hr = ws2.max_row
     for ci, h in enumerate(HEADERS, 1):
         cell = ws2.cell(row=hr, column=ci, value=h)
         cell.font = Font(bold=True, size=10, color="FFFFFF")
@@ -282,15 +311,13 @@ def main():
         cell.border = _border()
     ws2.row_dimensions[hr].height = 32
 
-    story_fill = {}
-    palette = ["EAF1FB", "FFF7ED"]
-    for r in ROWS:
-        ws2.append(list(r) + ["", ""])
+    palette = {"PO-1 happy path": "EAF1FB", "PO-2 exceptions": "FFF7ED"}
+    for r, ok in zip(ROWS, row_status):
+        tid, pofile, ac, scenario, agent, csr, checks = r
+        ws2.append([tid, pofile, ac, scenario, agent, csr,
+                    "PASS" if ok else "FAIL", "PASS" if ok else "FAIL", ""])
         ri = ws2.max_row
-        us = r[1]
-        if us not in story_fill:
-            story_fill[us] = palette[len(story_fill) % 2]
-        fill = story_fill[us]
+        fill = palette.get(pofile, "FFFFFF")
         for ci in range(1, len(HEADERS) + 1):
             cell = ws2.cell(row=ri, column=ci)
             cell.font = Font(size=10)
@@ -298,42 +325,19 @@ def main():
             cell.alignment = Alignment(vertical="top", wrap_text=True)
             cell.border = _border()
         ws2.cell(row=ri, column=1).font = Font(size=10, bold=True)
-        ws2.cell(row=ri, column=2).font = Font(size=10, bold=True, color=NAVY)
-
+        for col in (7, 8):
+            pf = ws2.cell(row=ri, column=col)
+            pf.font = Font(size=10, bold=True, color="FFFFFF")
+            pf.fill = PatternFill("solid", fgColor=GREEN if ok else RED)
+            pf.alignment = Alignment(horizontal="center", vertical="center")
     for ci, w in enumerate(WIDTHS, 1):
         ws2.column_dimensions[get_column_letter(ci)].width = w
     ws2.freeze_panes = "A4"
 
-    # ── Tab 3: Summary ──────────────────────────────────────────────────
-    ws3 = wb.create_sheet("Summary")
-    ws3.sheet_view.showGridLines = False
-    ws3.append([""]); banner(ws3, "COVERAGE SUMMARY", 3, 26, NAVY, 14)
-    ws3.append(["User Story", "Area", "Number of tests"])
-    for ci in range(1, 4):
-        c = ws3.cell(row=ws3.max_row, column=ci)
-        c.font = Font(bold=True, color="FFFFFF"); c.fill = PatternFill("solid", fgColor=BLUE)
-        c.alignment = Alignment(horizontal="center"); c.border = _border()
-    areas = {}
-    for r in ROWS:
-        areas.setdefault(r[1], [r[2], 0])
-        areas[r[1]][1] += 1
-    for us in sorted(areas):
-        ws3.append([us, areas[us][0], areas[us][1]])
-        for ci in range(1, 4):
-            c = ws3.cell(row=ws3.max_row, column=ci)
-            c.font = Font(size=10); c.border = _border()
-            c.alignment = Alignment(vertical="center")
-    ws3.append(["TOTAL", "", len(ROWS)])
-    for ci in range(1, 4):
-        c = ws3.cell(row=ws3.max_row, column=ci)
-        c.font = Font(bold=True); c.fill = PatternFill("solid", fgColor=GREY); c.border = _border()
-    ws3.column_dimensions["A"].width = 14
-    ws3.column_dimensions["B"].width = 30
-    ws3.column_dimensions["C"].width = 16
-
-    out = os.path.join(OUT_DIR, "Unit_Test_Plan_US01-US12.xlsx")
+    out = os.path.join(OUT_DIR, "Unit_Test_Plan_Interactive_Demo.xlsx")
     wb.save(out)
-    print("Created:", out, f"({len(ROWS)} test cases)")
+    print(f"Created: {out}  ({len(ROWS)} business cases, {n_pass} green; "
+          f"{passed_checks}/{total_checks} underlying checks passed)")
 
 
 if __name__ == "__main__":

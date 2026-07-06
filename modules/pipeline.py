@@ -42,6 +42,7 @@ EXECUTION = OrderExecution()
 # Minimal ZIP -> region (state) resolver for compliance checks
 _REGION_PREFIX = {"606": "IL", "600": "IL", "601": "IL", "100": "NY", "104": "NY",
                   "482": "MI", "481": "MI", "900": "CA", "901": "CA", "902": "CA",
+                  "752": "TX", "750": "TX", "751": "TX",
                   "E14": "UK", "E1": "UK"}
 
 
@@ -57,7 +58,13 @@ def build_context(po, av):
         "customer_account": po.customer_account,
         "contract_reference": po.contract_reference,
         "ship_to_zip": po.ship_to_zip,
+        "ship_to_name": getattr(po, "ship_to_name", None),
+        "ship_to_address": getattr(po, "ship_to_address", None),
+        "delivery_instructions": getattr(po, "delivery_instructions", None),
         "requested_delivery_date": po.requested_delivery_date,
+        "company_name": getattr(po, "company_name", None),
+        "contact_person": getattr(po, "contact_person", None),
+        "buyer_email": getattr(po, "buyer_email", None),
         "buyer_id": getattr(po, "buyer_id", None),
         "cost_center": getattr(po, "cost_center", None),
         "region": region_for_zip(po.ship_to_zip),
@@ -72,6 +79,11 @@ def build_context(po, av):
         ctx["regional_division_id"] = (av.regional_division or {}).get("id")
         ctx["global_parent_id"] = (av.global_parent or {}).get("id")
         ctx["applied_rules"] = dict(av.applied_rules or {})
+        # Customer standing + buying history for the Customer Validation and
+        # Product Match decision layers.
+        ctx["customer_tier"] = (av.customer or {}).get("customer_tier")
+        ctx["customer_class"] = (av.customer or {}).get("customer_class")
+        ctx["buying_history"] = av.buying_history
         # Resolve the fulfillment_rule profile (preferred WH, split/backorder flags,
         # restricted DCs, MOQ, SLA, allocation priority) so US-09 and US-10 can apply it.
         rule_id = (av.applied_rules or {}).get("fulfillment_rule")

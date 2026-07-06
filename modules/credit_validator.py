@@ -17,7 +17,7 @@ from modules.xlsx_util import load_sheets, clean, to_num, yes
 
 class CreditValidator:
     stage_key = "credit"
-    title = "Credit, Payment Terms & Financial Risk"
+    title = "Credit"
     icon = "🏦"
     steps = [
         (0.30, "🏦", "Checking credit limit and available credit..."),
@@ -52,6 +52,11 @@ class CreditValidator:
         status = clean(cm.get("credit_status"))
         terms_code = clean(cm.get("payment_terms"))
         terms = self.terms.get(terms_code, {})
+        # Publish payment terms to the shared context on EVERY path (pass or
+        # credit-hold) so a CSR override still carries real terms into the final
+        # order confirmation instead of showing a blank "— ()".
+        r.data["payment_terms"] = terms_code or ""
+        r.data["payment_terms_desc"] = clean(terms.get("description"))
         overdue = [i for i in self.aging if clean(i.get("customer_account")) == customer
                    and to_num(i.get("days_overdue"), 0) > 0]
         overdue_amt = sum(to_num(i.get("amount"), 0) for i in overdue)
@@ -68,24 +73,26 @@ class CreditValidator:
             reasons.append("flagged on the fraud/risk watchlist")
 
         if reasons:
-            r.fail("CREDIT_HOLD", "Order placed on credit hold: " + "; ".join(reasons) + ".")
-            r.kv("Credit assessment", [
+            # Interactive CSR gate (human-in-the-loop): "Customer exceeded credit
+            # limit. Approve override or send to Finance?" The CSR approves the
+            # override to continue, or escalates to the Finance / Credit team.
+            r.fail("CREDIT_HOLD",
+                   "Order placed on credit hold: " + "; ".join(reasons) +
+                   ". Approve override or send to Finance?")
+            r.kv("Credit hold — CSR approval required", [
                 ("Credit limit", f"${limit:,.2f}"),
                 ("Available credit", f"${available:,.2f}"),
                 ("Order value", f"${amount:,.2f}"),
                 ("Overdue invoices", f"${overdue_amt:,.2f}"),
                 ("Payment terms", f"{terms_code} - {clean(terms.get('description'))}"),
                 ("Risk rating", clean(cm.get("risk_rating"))),
-                ("Recommended action", "Route to finance for review / payment / override"),
             ])
             if overdue:
                 r.table("Overdue invoices", ["Invoice", "Amount", "Due date", "Days overdue"],
                         [[clean(i.get("invoice_no")), f"${to_num(i.get('amount')):,.2f}",
                           clean(i.get("due_date")), to_num(i.get("days_overdue"))] for i in overdue])
-            r.data["approval_email_sent_to"] = "Finance Team"
-            r.data["approval_email_role"] = "FINANCE"
-            r.log("Credit hold -> credit exception.")
-            r.log("Mock email notification triggered to finance. Process halted pending response.")
+            r.log("Credit hold -> paused for CSR approval "
+                  "(Approve override / Reject / Escalate to Finance / Credit Team).")
             return r
 
         r.ok(f"Credit check passed. Customer within policy. Payment terms {terms_code}. "

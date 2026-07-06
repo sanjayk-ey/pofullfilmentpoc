@@ -177,18 +177,33 @@ build_workbook("product-master-data.xlsx", [
      [16, 18, 18, 10, 14]),
 
     ("UOM_Conversions",
-     "UOM CONVERSIONS  (approved conversion factors)",
+     "UOM CONVERSIONS  (approved conversion factors — modelled on Sample_data.xlsx uom_conversions)",
      ["conversion_id", "from_uom", "to_uom", "factor", "product_family", "rounding_rule", "material_change_threshold_pct", "notes"],
      [
-        ["UOM-1001", "CASE", "EA", 24, "CARTRIDGE", "exact", 0, "1 case = 24 cartridges"],
-        ["UOM-1002", "EA", "CASE", 0.0416667, "CARTRIDGE", "round_up", 2, "each to case"],
-        ["UOM-1003", "L", "GAL", 0.264172, "FINISH", "round_half_up", 5, "litres to US gallons"],
-        ["UOM-1004", "GAL", "L", 3.78541, "FINISH", "round_half_up", 5, "US gallons to litres"],
-        ["UOM-1005", "BOX", "EA", 12, "SEAL", "exact", 0, "1 box = 12 each"],
-        ["UOM-1006", "PR", "EA", 2, "DRAIN", "exact", 0, "1 pair = 2 each"],
-        ["UOM-1007", "KG", "LB", 2.20462, "ALL", "round_half_up", 5, "kilograms to pounds"],
+        # Cartridge pack sizes
+        ["UOM-1001", "CASE",   "EA",   24,        "CARTRIDGE", "exact",         0, "1 case = 24 cartridges"],
+        ["UOM-1002", "EA",     "CASE", 0.0416667, "CARTRIDGE", "round_up",      2, "each to case"],
+        # Finish products: US gallons ↔ litres (Sample_data ref: rounding_half_up @ 5%)
+        ["UOM-1003", "L",      "GAL",  0.264172,  "FINISH",    "round_half_up", 5, "litres to US gallons"],
+        ["UOM-1004", "GAL",    "L",    3.78541,   "FINISH",    "round_half_up", 5, "US gallons to litres"],
+        # Seal-kit box pack
+        ["UOM-1005", "BOX",    "EA",   12,        "SEAL",      "exact",         0, "1 box = 12 each"],
+        ["UOM-1006", "CASE",   "EA",   12,        "SEAL",      "exact",         0, "1 case = 12 each (seal kits)"],
+        # Drain pair / case
+        ["UOM-1007", "PR",     "EA",   2,         "DRAIN",     "exact",         0, "1 pair = 2 each"],
+        ["UOM-1008", "CASE",   "EA",   6,         "DRAIN",     "exact",         0, "1 case = 6 drain assemblies"],
+        # Valve case / pallet
+        ["UOM-1009", "CASE",   "EA",   4,         "VALVE",     "exact",         0, "1 case = 4 valves"],
+        ["UOM-1010", "PALLET", "EA",   48,        "VALVE",     "exact",         0, "1 pallet = 48 valves (12 cases)"],
+        # Universal weight and dozen conversions (apply to all families)
+        ["UOM-1011", "KG",     "LB",   2.20462,   "ALL",       "round_half_up", 5, "kilograms to pounds"],
+        ["UOM-1012", "LB",     "KG",   0.453592,  "ALL",       "round_half_up", 5, "pounds to kilograms"],
+        ["UOM-1013", "DOZ",    "EA",   12,        "ALL",       "exact",         0, "1 dozen = 12 each"],
+        ["UOM-1014", "GR",     "EA",   144,       "ALL",       "exact",         0, "1 gross = 144 each"],
+        # Aerosol pack: 12 cans per case
+        ["UOM-1015", "CASE",   "EA",   12,        "FINISH",    "exact",         0, "1 case = 12 aerosol cans"],
      ],
-     [13, 10, 10, 12, 16, 14, 16, 24]),
+     [13, 10, 10, 12, 16, 14, 16, 32]),
 
     ("Substitution_Rules",
      "SUBSTITUTION RULES  (approved substitutes for obsolete / inactive SKUs)",
@@ -289,7 +304,11 @@ build_workbook("pricing-master-data.xlsx", [
      ["contract_reference", "customer_account", "scope_type", "scope_id",
       "contract_price", "currency", "valid_from", "valid_to", "status", "margin_floor_pct"],
      [
-        ["CONTRACT-GLP-2026-007", "CUST-1001", "sku", "SKU-CTG-4520", 10.80, "USD", "2026-01-01", "2026-12-31", "ACTIVE", 18],
+        # Aggressive negotiated price on the flagship digital shower system: the
+        # 20.7% contract discount + 1% loyalty rebate = 21.5% effective discount
+        # exceeds the SHOWERSYS 10% policy, so it becomes the CSR margin-approval
+        # gate on a marquee (Kohler-type) finished product.
+        ["CONTRACT-GLP-2026-007", "CUST-1001", "sku", "SKU-SHS-7700", 1150.00, "USD", "2026-01-01", "2026-12-31", "ACTIVE", 22],
         ["CONTRACT-GLP-2026-007", "CUST-1001", "sku", "SKU-DRN-3010", 39.50, "USD", "2026-01-01", "2026-12-31", "ACTIVE", 20],
         ["CONTRACT-GLP-2026-007", "CUST-1001", "family", "VALVE", 80.00, "USD", "2026-01-01", "2026-12-31", "ACTIVE", 22],
         ["CONTRACT-GLP-2025-099", "CUST-1001", "sku", "SKU-SHS-7700", 1300.00, "USD", "2025-01-01", "2025-12-31", "EXPIRED", 15],
@@ -340,13 +359,29 @@ build_workbook("pricing-master-data.xlsx", [
 
     ("Freight_Terms",
      "FREIGHT TERMS  (incoterms and freight responsibility)",
-     ["scope_type", "scope_id", "incoterm", "freight_payer", "base_freight", "notes"],
+     ["scope_type", "scope_id", "incoterm", "freight_payer", "base_freight",
+      "min_freight", "per_kg_rate", "notes"],
      [
-        ["customer", "CUST-1001", "FOB Destination", "SELLER", 150.00, "Prepaid & add"],
-        ["customer", "CUST-5001", "FOB Origin", "BUYER", 0.00, "Collect"],
-        ["default", "ALL", "FOB Destination", "SELLER", 200.00, "Default freight"],
+        ["customer", "CUST-1001", "FOB Destination", "SELLER", 150.00, 150.00, 0.85, "Prepaid & add; billed per KG above minimum"],
+        ["customer", "CUST-5001", "FOB Origin",      "BUYER",    0.00,   0.00, 0.00, "Collect — buyer arranges carrier"],
+        ["default",  "ALL",       "FOB Destination", "SELLER",  200.00, 200.00, 1.00, "Default freight; billed per KG above minimum"],
      ],
-     [12, 16, 16, 14, 12, 18]),
+     [12, 16, 16, 14, 12, 12, 12, 40]),
+
+    ("Tax_Rates",
+     "SALES TAX RATES  (state-level sales tax applied by the AI at pricing)",
+     ["region_code", "region_name", "tax_type", "tax_pct", "notes"],
+     [
+        ["IL", "Illinois",       "SALES_TAX", 8.75,  "6.25% state + ~2.5% local (Chicago typical)"],
+        ["CA", "California",     "SALES_TAX", 9.50,  "7.25% state + ~2.25% local (LA typical)"],
+        ["NY", "New York",       "SALES_TAX", 8.875, "4% state + 4.875% local (NYC)"],
+        ["MI", "Michigan",       "SALES_TAX", 6.00,  "6% state (no local sales tax)"],
+        ["TX", "Texas",          "SALES_TAX", 8.25,  "6.25% state + ~2% local"],
+        ["FL", "Florida",        "SALES_TAX", 7.00,  "6% state + ~1% local"],
+        ["UK", "United Kingdom", "VAT",       20.00, "Standard VAT rate"],
+        ["ALL","Default",        "SALES_TAX", 6.00,  "Fallback when ship-to state is unknown"],
+     ],
+     [12, 18, 12, 10, 40]),
 
     ("Margin_Policy",
      "MARGIN POLICY  (minimum margin / max discount per family)",
@@ -447,7 +482,11 @@ build_workbook("credit-master-data.xlsx", [
      ["customer_account", "credit_limit", "available_credit", "currency",
       "payment_terms", "credit_status", "risk_rating"],
      [
-        ["CUST-1001", 1000000, 650000, "USD", "NET30", "GOOD", "LOW"],
+        # available_credit is deliberately set below a large order value so a
+        # big PO (e.g. the CSR demo order ~ $40K) trips a CREDIT_HOLD while a
+        # normal small order stays within the remaining line. Small everyday
+        # orders (happy-flow demo ~ $3K) still clear credit automatically.
+        ["CUST-1001", 1000000, 30000, "USD", "NET30", "GOOD", "LOW"],
         ["CUST-1002", 500000, 20000, "USD", "NET45", "WATCH", "MEDIUM"],
         ["CUST-2001", 400000, 250000, "USD", "NET30", "GOOD", "LOW"],
         ["CUST-5001", 800000, 500000, "USD", "NET60", "GOOD", "LOW"],
@@ -531,6 +570,8 @@ build_workbook("inventory-master-data.xlsx", [
         ["DC-DET-02", "DC", "Midwest", "SKU-CTG-4520", 1200, "EA", 60, 2, "2026-06-28"],
         ["DC-DET-02", "DC", "Midwest", "SKU-VLV-2201", 15, "EA", 2, 3, "2026-06-30"],
         ["DC-LA-05", "DC", "West", "SKU-CTG-4520", 2000, "EA", 80, 4, "2026-07-01"],
+        ["DC-LA-05", "DC", "West", "SKU-DRN-3010", 200, "EA", 20, 4, "2026-07-01"],
+        ["DC-LA-05", "DC", "West", "SKU-SEL-1150", 300, "EA", 15, 4, "2026-07-01"],
      ],
      [12, 14, 12, 14, 12, 8, 16, 14, 18]),
 
@@ -587,12 +628,15 @@ build_workbook("logistics-master-data.xlsx", [
      "CARRIER COVERAGE  (serviceable ZIP prefixes per carrier)",
      ["carrier", "zip_prefix", "serviceable", "service_level", "transit_days"],
      [
-        ["Midwest Freight", "606", "Y", "GROUND", 2],
-        ["Midwest Freight", "482", "Y", "GROUND", 3],
-        ["Midwest Freight", "100", "Y", "GROUND", 3],
-        ["Midwest Freight", "900", "Y", "GROUND", 4],
-        ["PrimeExpress", "606", "Y", "EXPRESS", 1],
-        ["PrimeExpress", "100", "Y", "EXPRESS", 1],
+        ["FedEx Freight", "606", "Y", "GROUND", 2],
+        ["FedEx Freight", "482", "Y", "GROUND", 3],
+        ["FedEx Freight", "100", "Y", "GROUND", 3],
+        ["FedEx Freight", "752", "Y", "GROUND", 3],
+        ["FedEx Freight", "900", "Y", "GROUND", 4],
+        ["FedEx Freight", "902", "Y", "GROUND", 4],
+        ["FedEx Express", "606", "Y", "EXPRESS", 1],
+        ["FedEx Express", "100", "Y", "EXPRESS", 1],
+        ["FedEx Express", "752", "Y", "EXPRESS", 2],
         ["RegionalCarrier", "999", "N", "GROUND", 0],
      ],
      [16, 10, 12, 14, 12]),
@@ -601,10 +645,11 @@ build_workbook("logistics-master-data.xlsx", [
      "FREIGHT RATING  (rate by carrier, zone, weight band)",
      ["carrier", "zone", "weight_min", "weight_max", "base_rate", "per_kg_rate"],
      [
-        ["Midwest Freight", "Z1", 0, 100, 50, 0.80],
-        ["Midwest Freight", "Z2", 0, 100, 75, 1.10],
-        ["Midwest Freight", "Z3", 0, 100, 110, 1.50],
-        ["PrimeExpress", "Z1", 0, 100, 120, 2.00],
+        ["FedEx Freight", "Z1", 0, 100, 50, 0.80],
+        ["FedEx Freight", "Z2", 0, 100, 75, 1.10],
+        ["FedEx Freight", "Z3", 0, 100, 110, 1.50],
+        ["FedEx Express", "Z1", 0, 100, 120, 2.00],
+        ["FedEx Express", "Z2", 0, 100, 150, 2.50],
      ],
      [16, 8, 12, 12, 12, 12]),
 
@@ -623,9 +668,9 @@ build_workbook("logistics-master-data.xlsx", [
      ["warehouse_id", "name", "zip", "region", "capacity", "cutoff_time", "carriers",
       "supports_hazmat", "priority_rank"],
      [
-        ["DC-CHI-01", "Chicago DC", "60639", "Midwest", "HIGH", "16:00", "Midwest Freight,PrimeExpress", "N", 1],
-        ["DC-DET-02", "Detroit DC", "48201", "Midwest", "MEDIUM", "15:00", "Midwest Freight", "Y", 2],
-        ["DC-LA-05", "Los Angeles DC", "90001", "West", "HIGH", "17:00", "Midwest Freight", "Y", 3],
+        ["DC-CHI-01", "Chicago DC", "60639", "Midwest", "HIGH", "16:00", "FedEx Freight,FedEx Express", "N", 1],
+        ["DC-DET-02", "Detroit DC", "48201", "Midwest", "MEDIUM", "15:00", "FedEx Freight", "Y", 2],
+        ["DC-LA-05", "Los Angeles DC", "90001", "West", "HIGH", "17:00", "FedEx Freight", "Y", 3],
      ],
      [14, 16, 10, 12, 10, 12, 24, 14, 12]),
 

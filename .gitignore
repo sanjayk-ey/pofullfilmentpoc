@@ -35,3 +35,6 @@ Thumbs.db
 *.docx
 !sample-data/**/*.docx
 !docs/*.docx
+_browser_artifacts/
+streamlit.log
+streamlit.err.log

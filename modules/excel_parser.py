@@ -29,13 +29,36 @@ HEADER_ALIASES = {
     "po no":                  "po_number",
     "po#":                    "po_number",
     "order number":           "po_number",
+    "po date":                "po_date",
+    "order date":             "po_date",
+    "purchase order date":    "po_date",
+    "email":                  "buyer_email",
+    "buyer email":            "buyer_email",
+    "buyer email id":         "buyer_email",
+    "e-mail":                 "buyer_email",
+    "contact email":          "buyer_email",
+    "ship to name":           "ship_to_name",
+    "ship-to name":           "ship_to_name",
+    "deliver to name":        "ship_to_name",
+    "location name":          "ship_to_name",
     "customer id":            "customer_account",
     "customer no":            "customer_account",
     "customer account":       "customer_account",
     "account id":             "customer_account",
     "account number":         "customer_account",
     "company name":           "company_name",
-    "buyer":                  "company_name",
+    "customer account name":  "company_name",
+    "customer name":          "company_name",
+    "bill to":                "company_name",
+    "bill-to":                "company_name",
+    "sold to":                "company_name",
+    "contact person":         "contact_person",
+    "buyer name":             "contact_person",
+    "contact":                "contact_person",
+    "attn":                   "contact_person",
+    "attention":              "contact_person",
+    "ordered by":             "contact_person",
+    "requisitioner":          "contact_person",
     "contract reference":     "contract_reference",
     "contract no":            "contract_reference",
     "contract number":        "contract_reference",
@@ -158,17 +181,20 @@ def _build_text(header: dict, lines: list) -> str:
     parts = ["PURCHASE ORDER (Excel Import)"]
     parts.append("")
 
-    # Header fields
+    # Header fields (order chosen so the text output mirrors a standard PO).
+    # Ship-to is emitted as a single labeled block so the downstream extractor
+    # sees "Ship To:\n<name>\n<address lines>" — mirroring how a real PO reads.
     field_display = [
         ("po_number",               "PO Number"),
-        ("customer_account",        "Customer ID"),
-        ("company_name",            "Company"),
+        ("po_date",                 "PO Date"),
+        ("company_name",            "Company Name"),
+        ("buyer_email",             "Email"),
+        ("customer_account",        "Customer Account No."),
+        ("contact_person",          "Contact Person"),
         ("buyer_id",                "Buyer ID"),
         ("cost_center",             "Cost Center"),
         ("contract_reference",      "Contract Reference"),
-        ("ship_to_address",         "Ship To"),
-        ("ship_to_zip",             "ZIP"),
-        ("requested_delivery_date", "Delivery Date"),
+        ("requested_delivery_date", "Requested Delivery Date"),
         ("payment_terms",           "Payment Terms"),
         ("delivery_instructions",   "Delivery Instructions"),
     ]
@@ -176,6 +202,24 @@ def _build_text(header: dict, lines: list) -> str:
         val = header.get(key)
         if val:
             parts.append(f"{label}: {val}")
+
+    # Emit the ship-to as a single "Ship To:" block (name first, then address
+    # lines, then optional explicit ZIP).
+    ship_name    = header.get("ship_to_name")
+    ship_address = header.get("ship_to_address")
+    ship_zip     = header.get("ship_to_zip")
+    if ship_name or ship_address or ship_zip:
+        parts.append("")
+        parts.append("Ship To:")
+        if ship_name:
+            parts.append(ship_name)
+        if ship_address:
+            # `ship_address` may contain multiple newline-separated lines
+            for l in str(ship_address).splitlines():
+                if l.strip():
+                    parts.append(l.strip())
+        if ship_zip:
+            parts.append(f"ZIP: {ship_zip}")
 
     if lines:
         parts.append("")

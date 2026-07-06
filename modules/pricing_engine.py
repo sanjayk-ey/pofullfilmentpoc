@@ -30,13 +30,14 @@ def _as_date(v, default=None):
 
 class PricingEngine:
     stage_key = "pricing"
-    title = "Enterprise B2B Pricing Engine"
+    title = "Pricing and Promo"
     icon = "💲"
     steps = [
         (0.30, "📋", "Loading price list and negotiated contracts..."),
         (0.30, "📅", "Applying date-bound contract pricing..."),
         (0.30, "📊", "Applying volume tiers, promotions, and rebates..."),
         (0.25, "🚚", "Adding location surcharges and freight terms..."),
+        (0.25, "💵", "Calculating sales tax for the ship-to state..."),
         (0.25, "🧮", "Checking margin / discount policy..."),
     ]
 
@@ -44,7 +45,7 @@ class PricingEngine:
         s = load_sheets("pricing-master-data.xlsx",
                         ["Price_List", "Contracts", "Volume_Tiers", "Rebates",
                          "Promotions", "Surcharges", "Freight_Terms", "Margin_Policy",
-                         "Raw_Material_Index"])
+                         "Raw_Material_Index", "Tax_Rates"])
         self.price_list = {clean(r.get("sku")): r for r in s["Price_List"] if clean(r.get("sku"))}
         self.contracts = s["Contracts"]
         self.tiers = s["Volume_Tiers"]
@@ -53,6 +54,17 @@ class PricingEngine:
         self.surcharges = s["Surcharges"]
         self.freight = s["Freight_Terms"]
         self.margin = {clean(r.get("product_family")): r for r in s["Margin_Policy"] if clean(r.get("product_family"))}
+        # Tax rates keyed by state / region code (with ALL as the fallback).
+        self.tax_rates = {}
+        for r in s["Tax_Rates"]:
+            code = (clean(r.get("region_code")) or "").upper()
+            if code:
+                self.tax_rates[code] = {
+                    "region_name": clean(r.get("region_name")),
+                    "tax_type": clean(r.get("tax_type")) or "SALES_TAX",
+                    "tax_pct": to_num(r.get("tax_pct"), 0),
+                    "notes": clean(r.get("notes")),
+                }
 
     def _contract_price(self, customer, sku, family, on_date, notes):
         best = None  # (specificity, price, reference)
@@ -118,6 +130,12 @@ class PricingEngine:
         breakdown = []
         waterfall = []          # price_waterfall_lines (business reference schema)
         subtotal = 0.0
+        # First policy breach (if any). We no longer early-return on a breach:
+        # the whole order is still priced so the order total, surcharges, freight
+        # and tax are always available downstream (e.g. after a CSR override the
+        # customer confirmation still shows the correct total). The breach is
+        # raised as a PRICING_EXCEPTION at the end.
+        breach = None
         for li, ln in enumerate(lines, 1):
             sku = ln["sku"]; family = ln.get("family"); qty = ln.get("qty_base") or 0
             list_price = to_num(ln.get("list_price")) or to_num((self.price_list.get(sku) or {}).get("list_price"))
@@ -171,32 +189,23 @@ class PricingEngine:
                 _wf("rebate", "Customer rebate accrual", rebate_pct, base * (1 - cum / 100.0))
             _wf("net", "Net unit price", unit_net, unit_net)
 
-            max_disc = to_num((self.margin.get(family) or {}).get("max_discount_pct"), 100)
-            if eff_from_list > max_disc:
-                approver_role = clean((self.margin.get(family) or {}).get("approver_role")) or "PRICING_APPROVER"
-                r.fail("PRICING_EXCEPTION",
-                       f"Effective discount {eff_from_list}% on SKU '{sku}' exceeds the "
-                       f"{family} policy limit of {max_disc}%.")
-                r.kv("Pricing breach", [
-                    ("SKU", sku), ("List price", f"${list_price:,.2f}"),
-                    ("Base price", f"${base:,.2f} ({base_src})"),
-                    ("Total discount", f"{disc}% (tier {tier_pct}% + promo {promo_pct}% + rebate {rebate_pct}%)"),
-                    ("Net unit price", f"${unit_net:,.2f}"),
-                    ("Effective discount vs list", f"{eff_from_list}%"),
-                    ("Policy max discount", f"{max_disc}%"),
-                    ("Recommended action", f"Route to {approver_role}"),
-                ])
-                r.table("Price waterfall (per-line build-up)",
-                        ["Order line", "Seq", "Component", "Label", "Amount / %", "Resulting unit price"],
-                        [[w["order_line_id"], w["component_sequence"], w["component_type"],
-                          w["component_label"], f'{w["amount_or_pct"]:g}',
-                          f'${w["resulting_unit_price"]:,.4f}'] for w in waterfall])
-                r.data["price_waterfall_lines"] = waterfall
-                r.data["approval_email_sent_to"] = approver_role
-                r.data["approval_email_role"] = approver_role
-                r.log(f"SKU '{sku}' discount {eff_from_list}%>{max_disc}% -> pricing exception.")
-                r.log("Mock email notification triggered to pricing approver. Process halted pending response.")
-                return r
+            margin_row = self.margin.get(family) or {}
+            max_disc = to_num(margin_row.get("max_discount_pct"), 100)
+            min_margin = to_num(margin_row.get("min_margin_pct"), 0)
+            if eff_from_list > max_disc and breach is None:
+                approver_role = clean(margin_row.get("approver_role")) or "PRICING_APPROVER"
+                # Margin impact = the dollar value of the discount granted
+                # BEYOND policy on this line (what approving the exception costs).
+                excess_pct = round(eff_from_list - max_disc, 2)
+                margin_impact = round((excess_pct / 100.0) * list_price * (qty or 0), 2)
+                breach = {
+                    "sku": sku, "family": family, "list_price": list_price,
+                    "base": base, "base_src": base_src, "disc": disc,
+                    "tier_pct": tier_pct, "promo_pct": promo_pct, "rebate_pct": rebate_pct,
+                    "unit_net": unit_net, "eff_from_list": eff_from_list,
+                    "max_disc": max_disc, "min_margin": min_margin,
+                    "margin_impact": margin_impact, "approver_role": approver_role,
+                }
 
             breakdown.append([sku, f"${list_price:,.2f}", base_src, f"${base:,.2f}",
                               f"{tier_pct}/{promo_pct}/{rebate_pct}", f"${unit_net:,.2f}",
@@ -217,40 +226,121 @@ class PricingEngine:
                                    f"{amt}%" if amt_type == "PCT" else f"${amt:,.2f}",
                                    f"${val:,.2f}", clean(sc.get("reason"))])
 
-        # Freight terms
-        freight_amt = 0.0; incoterm = "-"
+        # Freight / shipping terms
+        freight_amt = 0.0; incoterm = "-"; freight_source = "—"
         cust_freight = next((f for f in self.freight if clean(f.get("scope_type")) == "customer"
                              and clean(f.get("scope_id")) == customer), None)
         ft = cust_freight or next((f for f in self.freight if clean(f.get("scope_type")) == "default"), None)
         if ft:
-            freight_amt = to_num(ft.get("base_freight"), 0) or 0
+            base_freight = to_num(ft.get("base_freight"), 0) or 0
+            min_freight  = to_num(ft.get("min_freight"),  0) or 0
+            per_kg       = to_num(ft.get("per_kg_rate"), 0) or 0
+            weight_lookup = ctx.get("resolved_lines") or []
+            total_weight = sum(to_num(l.get("weight_kg"), 0) or 0
+                               for l in weight_lookup) if weight_lookup else 0
+            calc = base_freight + (per_kg * total_weight)
+            freight_amt = round(max(calc, min_freight), 2)
             incoterm = clean(ft.get("incoterm"))
+            freight_source = (f"{clean(ft.get('scope_type'))} "
+                              f"{clean(ft.get('scope_id')) or ''}").strip()
 
-        order_total = round(subtotal + surcharge_total + freight_amt, 2)
+        # Sales tax (state-level) — applied to (subtotal + surcharges); freight
+        # is typically non-taxable so we exclude it from the tax base.
+        region = (ctx.get("region") or "ALL").upper()
+        tax_row = self.tax_rates.get(region) or self.tax_rates.get("ALL", {})
+        tax_pct = to_num(tax_row.get("tax_pct"), 0) or 0
+        tax_base = round(subtotal + surcharge_total, 2)
+        tax_amt = round(tax_base * tax_pct / 100.0, 2)
+        tax_label = f"{tax_row.get('tax_type') or 'SALES_TAX'} — {tax_row.get('region_name') or region}"
 
-        r.ok(f"Final price calculated. Order total ${order_total:,.2f}. Ready for budget and approval validation.")
-        r.table("Line pricing breakdown",
-                ["SKU", "List", "Base source", "Base", "Disc% (tier/promo/rebate)", "Net unit", "Qty", "Line total"],
-                breakdown)
-        r.table("Price waterfall (per-line build-up)",
-                ["Order line", "Seq", "Component", "Label", "Amount / %", "Resulting unit price"],
-                [[w["order_line_id"], w["component_sequence"], w["component_type"],
-                  w["component_label"], f'{w["amount_or_pct"]:g}',
-                  f'${w["resulting_unit_price"]:,.4f}'] for w in waterfall])
-        if surcharge_rows:
-            r.table("Surcharges", ["Type", "Rate", "Amount", "Reason"], surcharge_rows)
-        r.kv("Order totals", [
-            ("Subtotal", f"${subtotal:,.2f}"),
-            ("Surcharges", f"${surcharge_total:,.2f}"),
-            ("Freight", f"${freight_amt:,.2f} ({incoterm})"),
-            ("Order total", f"${order_total:,.2f}"),
-        ])
+        order_total = round(subtotal + surcharge_total + freight_amt + tax_amt, 2)
+
+        # ── Totals are ALWAYS published to ctx (even on a policy breach) so a CSR
+        #    override still yields a correct order total downstream. ──────────────
+        r.data["order_total"] = order_total
+        r.data["pricing_subtotal"] = round(subtotal, 2)
+        r.data["pricing_surcharges"] = round(surcharge_total, 2)
+        r.data["pricing_freight"]  = freight_amt
+        r.data["pricing_incoterm"] = incoterm
+        r.data["pricing_tax_pct"]  = tax_pct
+        r.data["pricing_tax_amt"]  = tax_amt
+        r.data["pricing_tax_region"] = region
+        r.data["price_waterfall_lines"] = waterfall
+
+        def _emit_common_tables():
+            r.table("Line pricing breakdown",
+                    ["SKU", "List", "Base source", "Base", "Disc% (tier/promo/rebate)", "Net unit", "Qty", "Line total"],
+                    breakdown)
+            r.table("Price waterfall (per-line build-up)",
+                    ["Order line", "Seq", "Component", "Label", "Amount / %", "Resulting unit price"],
+                    [[w["order_line_id"], w["component_sequence"], w["component_type"],
+                      w["component_label"], f'{w["amount_or_pct"]:g}',
+                      f'${w["resulting_unit_price"]:,.4f}'] for w in waterfall])
+            if surcharge_rows:
+                r.table("Surcharges", ["Type", "Rate", "Amount", "Reason"], surcharge_rows)
+            # Explicit tax & shipping breakdown (always shown per business feedback).
+            r.table("Tax & shipping (AI-calculated)",
+                    ["Charge", "Basis", "Rate / Terms", "Amount"],
+                    [
+                        ["Freight (shipping)", f"{freight_source or '—'}",
+                         f"{incoterm}  ·  base ${to_num(ft.get('base_freight'), 0) if ft else 0:,.2f}"
+                         f"  ·  +${to_num(ft.get('per_kg_rate'), 0) if ft else 0:,.2f}/kg",
+                         f"${freight_amt:,.2f}"],
+                        ["Sales tax", tax_label,
+                         f"{tax_pct:g}% on subtotal + surcharges (${tax_base:,.2f})",
+                         f"${tax_amt:,.2f}"],
+                    ])
+            r.kv("Order totals", [
+                ("Subtotal", f"${subtotal:,.2f}"),
+                ("Surcharges", f"${surcharge_total:,.2f}"),
+                ("Freight / shipping", f"${freight_amt:,.2f} ({incoterm})"),
+                (f"Sales tax ({tax_pct:g}% — {tax_row.get('region_name') or region})",
+                 f"${tax_amt:,.2f}"),
+                ("Order total", f"${order_total:,.2f}"),
+            ])
+
+        # ── Policy breach -> interactive CSR gate (human-in-the-loop) ────────────
+        # Phrased like the decision-layer prompt: "Requested discount exceeds
+        # policy. Margin impact = $X. Approve exception?" The CSR chooses
+        # Approve / Reject / Escalate on the paused stage card. The full order is
+        # already priced so the totals above remain valid after an override.
+        if breach is not None:
+            b = breach
+            r.fail("PRICING_EXCEPTION",
+                   f"Requested discount {b['eff_from_list']}% on SKU '{b['sku']}' exceeds the "
+                   f"{b['family']} policy limit of {b['max_disc']}%. "
+                   f"Margin impact ≈ ${b['margin_impact']:,.0f}. Approve exception?")
+            r.kv("Pricing exception — CSR approval required", [
+                ("SKU", b["sku"]), ("List price", f"${b['list_price']:,.2f}"),
+                ("Base price", f"${b['base']:,.2f} ({b['base_src']})"),
+                ("Total discount", f"{b['disc']}% (tier {b['tier_pct']}% + promo {b['promo_pct']}% + rebate {b['rebate_pct']}%)"),
+                ("Net unit price", f"${b['unit_net']:,.2f}"),
+                ("Effective discount vs list", f"{b['eff_from_list']}%"),
+                ("Policy max discount", f"{b['max_disc']}%"),
+                ("Policy min margin", f"{b['min_margin']}%"),
+                ("Margin impact (excess discount × qty)", f"${b['margin_impact']:,.2f}"),
+                ("Order total (if approved)", f"${order_total:,.2f}"),
+                ("Escalation target", b["approver_role"]),
+            ])
+            _emit_common_tables()
+            r.data["pricing_margin_impact"] = b["margin_impact"]
+            r.data["pricing_approver_role"] = b["approver_role"]
+            r.log(f"SKU '{b['sku']}' discount {b['eff_from_list']}%>{b['max_disc']}% -> pricing exception "
+                  f"(margin impact ${b['margin_impact']:,.2f}). Paused for CSR approval "
+                  f"(Approve exception / Reject / Escalate to {b['approver_role']}). "
+                  f"Order total ${order_total:,.2f} preserved for downstream stages.")
+            return r
+
+        r.ok(f"Final price calculated. Subtotal ${subtotal:,.2f} + surcharges "
+             f"${surcharge_total:,.2f} + freight ${freight_amt:,.2f} + tax "
+             f"${tax_amt:,.2f} = order total ${order_total:,.2f}. "
+             "Ready for budget and approval validation.")
+        _emit_common_tables()
         if notes:
             for n in notes:
                 r.note(n)
                 r.log(n)
-        r.data["order_total"] = order_total
-        r.data["pricing_subtotal"] = round(subtotal, 2)
-        r.data["price_waterfall_lines"] = waterfall
-        r.log(f"Pricing result: PASS -> order total ${order_total:,.2f}.")
+        r.log(f"Pricing result: PASS -> subtotal ${subtotal:,.2f}, freight "
+              f"${freight_amt:,.2f} ({incoterm}), tax ${tax_amt:,.2f} "
+              f"({tax_pct:g}% {region}), order total ${order_total:,.2f}.")
         return r

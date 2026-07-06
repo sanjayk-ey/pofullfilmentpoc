@@ -56,6 +56,9 @@ class AccountValidationResult:
     branch:              Optional[dict] = None
     ship_to:             Optional[dict] = None
 
+    # Customer standing (Customer Validation decision layer)
+    buying_history:      Optional[dict] = None
+
     # Applied rules
     applied_rules:        Dict[str, str] = field(default_factory=dict)
     applied_rule_sources: Dict[str, str] = field(default_factory=dict)
@@ -109,6 +112,14 @@ class AccountValidator:
         self._hierarchy_rows = _read_sheet(wb, "Account_Hierarchy")
         self._shipto_rows    = _read_sheet(wb, "Ship_To_Master")
         self._rule_rows      = _read_sheet(wb, "Hierarchy_Rules")
+        # Buying history is stored as transactional past orders (header + lines),
+        # mirroring the reference data model. The per-customer buying-history
+        # summary used by Customer Validation + Product Match is DERIVED from
+        # these transactions at load time (see _build_indexes).
+        self._order_history_rows = _read_sheet(wb, "Order_History") \
+            if "Order_History" in wb.sheetnames else []
+        self._order_history_line_rows = _read_sheet(wb, "Order_History_Lines") \
+            if "Order_History_Lines" in wb.sheetnames else []
         # Fulfillment rule profiles (added in feat/fulfillment-rules-business-semantics)
         # Each profile defines: preferred warehouse, alternates, restricted DCs,
         # split-shipment flag, backorder flag, MOQ, delivery SLA, allocation priority.
@@ -149,6 +160,95 @@ class AccountValidator:
             return None
         return self.fulfillment_rule_profiles.get(str(rule_id).strip())
 
+    # ── Buying history derived from transactional order history ─────────────────
+    def _build_buying_history(self):
+        """Derive a per-customer buying-history summary from past orders.
+
+        Buying history is not stored pre-aggregated; it is computed from the
+        transactional Order_History (header) + Order_History_Lines (detail)
+        tables, exactly as an ERP would report a customer's purchasing profile.
+        Exposed per customer:
+          customer_since, total_orders, lifetime_value, avg_order_value,
+          last_order_date, frequent_families, frequent_skus, recent_orders.
+        """
+        # Index line items by order_id
+        lines_by_order: Dict[str, list] = {}
+        for r in self._order_history_line_rows:
+            oid = _clean(r.get("order_id"))
+            if not oid:
+                continue
+            try:
+                qty = float(r.get("quantity") or 0)
+            except (TypeError, ValueError):
+                qty = 0.0
+            lines_by_order.setdefault(oid, []).append({
+                "sku":       (_clean(r.get("sku")) or "").upper(),
+                "family":    (_clean(r.get("product_family")) or "").upper(),
+                "quantity":  qty,
+                "uom":       _clean(r.get("uom")) or "",
+                "unit_price": _clean(r.get("unit_price")) or "",
+                "line_total": _clean(r.get("line_total")) or "",
+            })
+
+        # Group order headers by customer account
+        orders_by_acct: Dict[str, list] = {}
+        for r in self._order_history_rows:
+            acct = _clean(r.get("customer_account"))
+            oid = _clean(r.get("order_id"))
+            if not acct or not oid:
+                continue
+            try:
+                total = float(r.get("order_total") or 0)
+            except (TypeError, ValueError):
+                total = 0.0
+            orders_by_acct.setdefault(acct.upper(), []).append({
+                "order_id":     oid,
+                "po_number":    _clean(r.get("po_number")) or "",
+                "order_date":   _clean(r.get("order_date")) or "",
+                "order_status": _clean(r.get("order_status")) or "",
+                "order_total":  total,
+                "currency":     _clean(r.get("currency")) or "",
+                "lines":        lines_by_order.get(oid, []),
+            })
+
+        self.order_history: Dict[str, list] = orders_by_acct
+        self.buying_history: Dict[str, dict] = {}
+        for acct, orders in orders_by_acct.items():
+            if not orders:
+                continue
+            orders_sorted = sorted(orders, key=lambda o: o["order_date"])
+            total_orders = len(orders_sorted)
+            lifetime_value = round(sum(o["order_total"] for o in orders_sorted), 2)
+            avg_order_value = round(lifetime_value / total_orders, 2) if total_orders else 0.0
+            dates = [o["order_date"] for o in orders_sorted if o["order_date"]]
+            customer_since = dates[0][:4] if dates else ""
+            last_order_date = dates[-1] if dates else ""
+
+            # Rank families / SKUs by cumulative quantity across all order lines.
+            fam_qty: Dict[str, float] = {}
+            sku_qty: Dict[str, float] = {}
+            for o in orders_sorted:
+                for ln in o["lines"]:
+                    if ln["family"]:
+                        fam_qty[ln["family"]] = fam_qty.get(ln["family"], 0.0) + ln["quantity"]
+                    if ln["sku"]:
+                        sku_qty[ln["sku"]] = sku_qty.get(ln["sku"], 0.0) + ln["quantity"]
+            frequent_families = [f for f, _ in
+                                 sorted(fam_qty.items(), key=lambda kv: kv[1], reverse=True)]
+            frequent_skus = [s for s, _ in
+                             sorted(sku_qty.items(), key=lambda kv: kv[1], reverse=True)[:5]]
+
+            self.buying_history[acct] = {
+                "customer_since":    customer_since,
+                "total_orders":      total_orders,
+                "lifetime_value":    lifetime_value,
+                "avg_order_value":   avg_order_value,
+                "last_order_date":   last_order_date,
+                "frequent_families": frequent_families,
+                "frequent_skus":     frequent_skus,
+                "recent_orders":     list(reversed(orders_sorted))[:3],
+            }
+
     # ── Build lookup indexes from the flat Excel tables ─────────────────────────
     def _build_indexes(self):
         # Rules keyed by level_id
@@ -182,7 +282,17 @@ class AccountValidator:
                 "branch_id":        _clean(r.get("branch_id")) or "",
                 "erp_customer_id":  _clean(r.get("erp_customer_id")) or "",
                 "crm_account_id":   _clean(r.get("crm_account_id")) or "",
+                # Customer Validation attributes (shown in Resolved Account
+                # Hierarchy and used by the Customer Validation layer).
+                "customer_tier":              _clean(r.get("customer_tier")) or "",
+                "payment_terms":              _clean(r.get("payment_terms")) or "",
+                "customer_class":             _clean(r.get("customer_class")) or "",
+                "distributor_authorization":  _clean(r.get("distributor_authorization")) or "",
             })
+
+        # Buying history: derive a per-customer summary from the transactional
+        # order history (Order_History + Order_History_Lines).
+        self._build_buying_history()
 
         # Branch -> {branch, regional_division, global_parent} (each node carries rules)
         self.branch_index: Dict[str, dict] = {}
@@ -233,10 +343,12 @@ class AccountValidator:
 
     # ── Public API ──────────────────────────────────────────────────────────────
     def validate(self, customer_account: Optional[str],
-                 ship_to_zip: Optional[str]) -> AccountValidationResult:
+                 ship_to_zip: Optional[str],
+                 company_name: Optional[str] = None) -> AccountValidationResult:
         r = AccountValidationResult()
+        who = customer_account or company_name
         r.audit_trail.append(
-            f"Account validation started for customer='{customer_account}', "
+            f"Account validation started for customer='{who}', "
             f"ship-to ZIP='{ship_to_zip}'."
         )
 
@@ -246,9 +358,12 @@ class AccountValidator:
                    c["customer_account"].upper() == customer_account.upper()]
 
         if len(matches) == 0:
+            ident = (f"Customer account '{customer_account}'" if customer_account
+                     else f"Company '{company_name}'" if company_name
+                     else "The customer")
             r.status = "EXCEPTION"
             r.exception_type = "UNMATCHED_CUSTOMER"
-            r.message = (f"Customer account '{customer_account}' was not found in the "
+            r.message = (f"{ident} was not found in the "
                          f"customer master. Cannot determine account hierarchy.")
             r.audit_trail.append("Customer lookup: NO MATCH -> Unmatched customer exception.")
             return r
@@ -269,6 +384,29 @@ class AccountValidator:
         r.audit_trail.append(
             f"Customer resolved: {customer['company_name']} "
             f"(ERP {customer['erp_customer_id']}, CRM {customer['crm_account_id']}).")
+
+        # ── Customer standing: tier, class, distributor status, terms ─────────
+        r.audit_trail.append(
+            f"Customer standing: tier={customer.get('customer_tier') or 'n/a'}, "
+            f"class={customer.get('customer_class') or 'n/a'}, "
+            f"distributor status={customer.get('distributor_authorization') or 'n/a'}, "
+            f"payment terms={customer.get('payment_terms') or 'n/a'}.")
+
+        # ── Buying-history validation (Customer Validation decision layer) ─────
+        bh = self.buying_history.get((customer["customer_account"] or "").upper())
+        r.buying_history = bh
+        if bh:
+            lv = bh.get("lifetime_value")
+            lv_disp = f"${lv:,.0f}" if isinstance(lv, (int, float)) else str(lv)
+            r.audit_trail.append(
+                f"Buying history verified from {bh.get('total_orders')} past order(s): "
+                f"customer since {bh.get('customer_since')}, "
+                f"lifetime value {lv_disp}, "
+                f"last order {bh.get('last_order_date')}, "
+                f"frequent families {', '.join(bh.get('frequent_families') or []) or 'n/a'}.")
+        else:
+            r.audit_trail.append(
+                "Buying history: no prior purchase history on file (new customer).")
 
         # ── Resolve hierarchy from customer's branch ───────────────────────────
         branch_info = self.branch_index.get(customer["branch_id"])

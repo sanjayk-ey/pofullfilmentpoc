@@ -17,7 +17,7 @@ from modules.xlsx_util import load_sheets, clean, to_num, yes
 
 class BudgetApprovalValidator:
     stage_key = "budget_approval"
-    title = "Budget, Spend Limit & Approval Routing"
+    title = "Approval"
     icon = "💰"
     steps = [
         (0.30, "💰", "Calculating order value against budgets..."),
@@ -77,7 +77,7 @@ class BudgetApprovalValidator:
                 r.data["approval_email_sent_to"] = approver_name
                 r.data["approval_email_role"] = approver_role
                 r.log("Budget exceeded -> budget exception.")
-                r.log(f"Mock email notification triggered to {approver_role} ({approver_name}). Process halted pending response.")
+                r.log(f"Budget escalation email sent to {approver_role} ({approver_name}). Process halted pending response.")
                 return r
 
         # ── Buyer self-approval authority ───────────────────────────────────
@@ -111,9 +111,12 @@ class BudgetApprovalValidator:
         approver_name = clean(approver.get("approver_name"))
         approver_role = clean(approver.get("approver_role"))
 
-        # Trigger the MOCK email notification to the approver (no real network call)
+        # Send the approval request email to the approver
         from modules.mock_integrations import send_email
-        approver_email = f"{(approver_name or 'approver').lower().replace(' ', '.')}@company.example.com"
+        _be = clean(ctx.get("buyer_email"))
+        _domain = _be.split("@")[-1] if _be and "@" in _be else "company.com"
+        approver_email = clean(approver.get("email")) or \
+            f"{(approver_name or 'approver').lower().replace(' ', '.')}@{_domain}"
         smtp = send_email(
             to=approver_email,
             subject=f"Approval required for PO {clean(ctx.get('po_number'))} (${amount:,.2f})",
@@ -135,8 +138,8 @@ class BudgetApprovalValidator:
             ("Threshold range",  f"${to_num(approver.get('min_amount')):,} – "
                                  f"${to_num(approver.get('max_amount')):,}"),
             ("SLA",              f"{to_num(approver.get('sla_hours'))} hours"),
-            ("Mock email status", smtp.message),
-            ("Mock email message ID", smtp.record_id or "—"),
+            ("Email status",     smtp.message),
+            ("Email message ID", smtp.record_id or "—"),
         ])
         # UI hooks (render_stage_result picks these up to show the email/halt panel)
         r.data["approval_email_sent_to"] = approver_name

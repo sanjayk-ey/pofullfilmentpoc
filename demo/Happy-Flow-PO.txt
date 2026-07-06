@@ -1,0 +1,24 @@
+================================================================================
+                                PURCHASE ORDER
+================================================================================
+PO Number   : PO-2026-30001
+PO Date     : 02 July 2026
+
+BUYER
+Company Name : Great Lakes Plumbing Supply Co
+Email        : john.miller@glps.com
+
+SHIP TO
+Great Lakes Plumbing - Chicago DC
+4500 West Diversey Avenue
+Chicago, IL 60639
+
+Requested Delivery Date : 27 July 2026
+
+ORDER LINES
+Item # | Product Code   | Description                        |   Qty
+-------+----------------+------------------------------------+------
+1      | SKU-CTG-4520   | Ceramic Disc Faucet Cartridge      |  100
+2      | SKU-SEL-1150   | Tank-to-Bowl Gasket Kit            |  120
+3      | SKU-VLV-2201   | Pressure-Balancing Shower Valve    |   15
+================================================================================
