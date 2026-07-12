@@ -120,7 +120,7 @@ r = sub.add_run("Demo Files & CSR Approval Guide")
 r.bold = True; r.font.size = Pt(16); r.font.color.rgb = BLUE
 meta = doc.add_paragraph()
 meta.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = meta.add_run("How the AI agent reads each purchase order and where it pauses "
+r = meta.add_run("How the Order assistant reads each purchase order and where it pauses "
                  "for Customer Service Rep (CSR) approval")
 r.italic = True; r.font.size = Pt(11); r.font.color.rgb = GREY
 

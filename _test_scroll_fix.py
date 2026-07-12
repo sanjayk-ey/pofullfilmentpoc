@@ -11,7 +11,7 @@ except Exception:
 
 
 STAGES = [
-    "AI Agent Processing",
+    "Order Assistant Processing",
     "Reviewing order against master data",
     "Backfilled from master data",
     "Intake decision",
@@ -117,7 +117,7 @@ def run(po_name: str, label: str, out_dir: pathlib.Path):
         page.screenshot(path=str(out_dir / f"{label}_viewport.png"), full_page=False)
 
         expected = [
-            "AI Agent Processing", "Reviewing order against master data",
+            "Order Assistant Processing", "Reviewing order against master data",
             "Intake decision", "Account Hierarchy Validation",
             "Product Matching", "Pricing", "Inventory",
             "Compliance", "Logistics", "Order Creation",

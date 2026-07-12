@@ -17,9 +17,11 @@ ORDER LINES
 Item # | Product Code   | Description                            |   Qty | UOM
 -------+----------------+----------------------------------------+-------+------
 1      | SKU-CTG-1000   | Legacy 2-Handle Faucet Cartridge       |   40  | EA
-2      | PN-DRAIN-STD   | Pop-Up Drain Assembly                  |   30  | EA
+2      | SKU-DRN-3010   | Pop-Up Drain Assembly                  |   30  | EA
 3      |                | Tank-to-Bowl Gasket Kit                |   50  | EA
 4      | SKU-VLV-2201   | Pressure-Balancing Shower Valve        |    0  | EA
 5      | SKU-CTG-4520   | Ceramic Disc Faucet Cartridge          |   84  | CASE
 6      | SKU-SHS-7700   | Shower System                          |   10  | EA
+7      | SKU-CTG-1017   | Kohler PB Cartridge (GP-1017285)       |    5  | KIT
+8      | SKU-DRN-7213   | Kohler Clearflo Bath Drain Kit (K-7213)|   24  | EA
 ================================================================================

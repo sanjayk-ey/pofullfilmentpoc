@@ -1,4 +1,4 @@
-# PO Fulfillment AI Agent — Setup & User Guide
+# PO Fulfillment Order Assistant — Setup & User Guide
 
 **Project:** AI PO-to-Fulfillment Orchestration  
 **Module:** Full 12-Stage Orchestration Pipeline (US-01 – US-12)  
@@ -10,7 +10,7 @@
 
 ## What This POC Does
 
-This is a local Proof of Concept that demonstrates how an AI Agent can
+This is a local Proof of Concept that demonstrates how an Order Assistant can
 automatically read a Purchase Order (PO), extract its key business fields,
 and run it through a **12-stage orchestration pipeline** — from intake to
 order creation — without manual data entry.
@@ -19,7 +19,7 @@ The system accepts a PO in two ways:
 1. **Excel upload** (.xlsx files only)
 2. **Text paste** (copy-paste into the chat window)
 
-Once submitted, the AI agent processes the PO step by step (visible on screen).
+Once submitted, the Order assistant processes the PO step by step (visible on screen).
 Each stage either **passes** and hands off to the next, or **pauses with an
 exception** that requires human intervention.
 
@@ -143,7 +143,7 @@ If it does not open, copy and paste that URL into your browser.
 ### Main Screen
 
 When you open the application, you will see a chat window with a welcome message
-from the AI agent. At the bottom of the screen there are two ways to submit a PO:
+from the Order assistant. At the bottom of the screen there are two ways to submit a PO:
 
 ```
 [ ➕ ]  [ Paste your PO text here, or click ➕ to upload Excel... ]
@@ -155,7 +155,7 @@ from the AI agent. At the bottom of the screen there are two ways to submit a PO
 2. An upload panel appears — click **Browse** or drag and drop an Excel file
 3. **Only .xlsx and .xls files are accepted**
    - If you try to upload a PDF or any other format, the system will reject it with an error
-4. Once the file is selected, the AI agent starts processing automatically
+4. Once the file is selected, the Order assistant starts processing automatically
 
 ### Option 2: Paste PO Text
 
@@ -166,10 +166,10 @@ from the AI agent. At the bottom of the screen there are two ways to submit a PO
 
 ### AI Processing Display
 
-Once a PO is submitted, you will see the AI agent processing each stage step by step:
+Once a PO is submitted, you will see the Order assistant processing each stage step by step:
 
 ```
-AI Agent Processing — PO Text
+Order Assistant Processing — PO Text
   📄 Analyzing document format and structure...
   🔍 Reading PO header section...
   ...
@@ -324,7 +324,7 @@ Sample files are organized per story under `sample-data/`:
 ### Demo 1: Happy Path — Full Pipeline (Text)
 1. Open `sample-data/US-01/sample-po-text.txt`, copy all text
 2. Paste into the chat input box, press Enter
-3. Watch the AI agent run through all 12 stages
+3. Watch the Order assistant run through all 12 stages
 4. Result: Order created, customer confirmation displayed
 
 ### Demo 2: Happy Path — Excel Upload

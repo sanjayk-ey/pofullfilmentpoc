@@ -1,7 +1,7 @@
 """Generate 'CSR Approval Conditions & Test Guide' (.docx).
 
 This is a REVIEW document. It enumerates every condition in the Autonomous
-PO-to-Fulfillment Orchestration where the AI agent pauses for a Customer Service
+PO-to-Fulfillment Orchestration where the Order assistant pauses for a Customer Service
 Representative (CSR) decision, explains the process for each, and gives exact,
 copy-paste test steps using the real mock master-data values.
 
@@ -142,7 +142,7 @@ para(doc, "Prepared for review. Lists every point in the workflow where the AI "
 
 # ── 1. How human-in-the-loop works ────────────────────────────────────────────
 heading(doc, "1. How Human-in-the-Loop Governance Works")
-para(doc, "The AI agent processes each purchase order autonomously through a "
+para(doc, "The Order assistant processes each purchase order autonomously through a "
           "sequence of decision layers. Whenever a business rule is breached, data "
           "is missing, or data is ambiguous, the agent stops, explains what it "
           "found, and hands the decision to a CSR. The order does not advance until "

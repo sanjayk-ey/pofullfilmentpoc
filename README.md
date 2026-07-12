@@ -1,6 +1,6 @@
-# PO Fulfillment AI Agent — POC
+# PO Fulfillment Order Assistant — POC
 
-A local Proof of Concept that demonstrates how an AI agent can automatically read a
+A local Proof of Concept that demonstrates how an Order assistant can automatically read a
 Purchase Order (PO), extract its key business fields, validate them, and resolve the
 correct corporate account hierarchy and ship-to location — without manual data entry.
 

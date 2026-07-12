@@ -3,13 +3,18 @@ product_matcher.py
 Complex Product Matching, Configuration, Variant, and UOM Validation.
 
 Matches each requested SKU to a catalog variant, validates it is orderable,
-converts non-standard units of measure using approved conversion rules, and
-recommends an approved substitute when a SKU is obsolete or inactive.
+converts non-standard units of measure using approved conversion rules,
+recommends an approved substitute when a SKU is obsolete or inactive, and
+validates STOCK AVAILABILITY: the requested quantity (in base UOM) is checked
+against unreserved stock across all distribution centers. If the PO quantity
+cannot be met, the order is stopped here and never advances downstream.
 
 Master data: product-master-data.xlsx (Product_Master, Product_Attributes,
-UOM_Conversions, Substitution_Rules, Compatibility_Rules).
+UOM_Conversions, Substitution_Rules, Compatibility_Rules) and
+inventory-master-data.xlsx (DC_Stock) for availability.
 
-Exception types: PRODUCT_CONFIG_EXCEPTION, OBSOLETE_SKU, INVALID_UOM.
+Exception types: PRODUCT_CONFIG_EXCEPTION, OBSOLETE_SKU, INVALID_UOM,
+                 OUT_OF_STOCK (requested quantity not available — order stopped).
 """
 from modules.stage_result import StageResult
 from modules.xlsx_util import load_sheets, clean, to_num
@@ -34,6 +39,34 @@ class ProductMatchValidator:
         self.products = {clean(r.get("sku")): r for r in s["Product_Master"] if clean(r.get("sku"))}
         self.attributes = s["Product_Attributes"]
         self.subs = {clean(r.get("original_sku")): r for r in s["Substitution_Rules"] if clean(r.get("original_sku"))}
+
+        # Stock availability per SKU across ALL distribution centers, using the
+        # UNRESERVED on-hand quantity (on_hand − reserved) that can actually be
+        # promised to this order. Availability is validated HERE, during product
+        # match: if the requested quantity cannot be met from warehouse stock,
+        # the order is stopped and never advances to pricing / credit / approval.
+        #   self.dc_available[sku]  -> total unreserved units across all DCs
+        #   self.dc_breakdown[sku]  -> [(dc_id, unreserved_qty), ...] for display
+        self.dc_available = {}
+        self.dc_breakdown = {}
+        try:
+            inv = load_sheets("inventory-master-data.xlsx", ["DC_Stock"])
+            for d in inv.get("DC_Stock", []):
+                sku = clean(d.get("sku"))
+                loc = clean(d.get("location_id"))
+                if not sku:
+                    continue
+                on_hand = to_num(d.get("on_hand_qty"), 0) or 0
+                reserved = to_num(d.get("quantity_reserved"), 0) or 0
+                avail = max(0, on_hand - reserved)
+                self.dc_available[sku] = self.dc_available.get(sku, 0) + avail
+                if loc:
+                    self.dc_breakdown.setdefault(sku, []).append((loc, avail))
+        except Exception:
+            # If inventory master is unavailable, skip the availability gate
+            # rather than blocking product matching.
+            self.dc_available = {}
+            self.dc_breakdown = {}
         # UOM conversions keyed by (family, from_uom, to_uom). A family value of
         # "ALL" is the universal fallback (e.g. KG->LB, DOZ->EA). Family-scoped
         # rules always take priority over ALL when they exist.
@@ -133,6 +166,41 @@ class ProductMatchValidator:
                 converted = True
                 effective_uom = req_uom
                 conv_note = f"{qty} {req_uom} × {factor} = {qty_base} {base_uom} (approved rule)"
+
+            # ── Stock availability validation (during product match) ────────────
+            # Validate the requested quantity (in base UOM) against the UNRESERVED
+            # stock available across all distribution centers. If the PO quantity
+            # cannot be met from warehouse stock, the order is STOPPED here and
+            # never advances to pricing / credit / inventory / approval. (An order
+            # that is fully available but only by splitting across warehouses does
+            # pass this gate — the split itself is confirmed later in Inventory.)
+            need = qty_base or 0
+            avail = self.dc_available.get(sku)
+            if avail is not None and need > 0 and avail < need:
+                loc_txt = (", ".join(f"{loc}: {a:g}" for loc, a in self.dc_breakdown.get(sku, []))
+                           or "none")
+                zero = avail <= 0
+                headline = (f"SKU '{sku}' has no available stock in any warehouse."
+                            if zero else
+                            f"SKU '{sku}' is short: {avail:g} available vs {need:g} requested "
+                            f"across all warehouses.")
+                r.fail("OUT_OF_STOCK",
+                       f"{headline} The requested quantity cannot be fulfilled, so the order "
+                       f"is stopped and will not be processed.")
+                r.kv("Stock availability check (all warehouses)", [
+                    ("SKU", sku),
+                    ("Description", clean(product.get("description"))),
+                    ("Requested quantity", f"{need:g} {base_uom}"),
+                    ("Available (unreserved, all DCs)", f"{avail:g} {base_uom}"),
+                    ("Shortfall", f"{need - avail:g} {base_uom}"),
+                    ("Availability by warehouse", loc_txt),
+                    ("Decision", "STOP — requested quantity is not available"),
+                    ("Recommended action",
+                     "Escalate to Procurement / Planning for replenishment, or reject the line"),
+                ])
+                r.log(f"SKU '{sku}': need {need:g} > available {avail:g} "
+                      f"-> OUT_OF_STOCK (order stopped at product match).")
+                return r
 
             resolved.append({
                 "line": ln.get("line_number"), "sku": sku, "description": clean(product.get("description")),

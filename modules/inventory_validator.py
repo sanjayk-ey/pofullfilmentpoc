@@ -19,7 +19,7 @@ A customer-level row in inventory-master-data.xlsx -> Fulfillment_Preferences
 still acts as an override for legacy compatibility.
 
 Exception types: INVENTORY_SHORTAGE, ALLOCATION_CONFLICT, SPLIT_NOT_ALLOWED,
-                 MIN_ORDER_QTY_NOT_MET, RESTRICTED_WAREHOUSE.
+                 SPLIT_SHIPMENT, MIN_ORDER_QTY_NOT_MET, RESTRICTED_WAREHOUSE.
 """
 from modules.stage_result import StageResult
 from modules.xlsx_util import load_sheets, clean, to_num
@@ -235,6 +235,46 @@ class InventoryValidator:
                     r.log(f"SKU '{sku}': need {need} > unreserved {total_unreserved} "
                           f"-> ALLOCATION_CONFLICT.")
                     return r
+
+            # ── SPLIT-SHIPMENT APPROVAL (multi-warehouse delivery) ──────────────
+            # The line is fully available, but only by pulling stock from more
+            # than one warehouse (e.g. 8 from DC-CHI-01 + 2 from DC-DET-02 for a
+            # qty of 10). Split shipments mean multiple deliveries / staggered
+            # ETAs, so — even when the customer's profile permits splitting — a
+            # CSR must confirm the split delivery before the order proceeds.
+            if remaining <= 0 and len(sources_used) > 1 and profile.get("split_shipment_allowed"):
+                any_split = True
+                split_txt = " + ".join(f"{q:g} from {dc}" for dc, q in sources_used)
+                r.fail("SPLIT_SHIPMENT",
+                       f"SKU '{sku}' (qty {need:g}) can be fully delivered only by splitting the "
+                       f"shipment across {len(sources_used)} warehouses ({split_txt}). "
+                       f"CSR approval required for the split delivery.")
+                r.kv("Split-shipment approval required", [
+                    ("SKU", sku),
+                    ("Requested quantity", need),
+                    ("Warehouse split",
+                     ", ".join(f"{dc} → {q:g} unit(s)" for dc, q in sources_used)),
+                    ("Single-warehouse fulfillment possible?",
+                     "No — no single warehouse holds the full quantity"),
+                    ("Split shipment rule",
+                     "Allowed (Y) — but split delivery needs CSR confirmation"),
+                    ("Delivery impact",
+                     "Multiple shipments / potentially staggered ETAs"),
+                    ("Allocation priority", profile.get("allocation_priority")),
+                    ("Recommended action",
+                     "CSR to approve the split delivery, or consolidate to a single warehouse"),
+                ])
+                r.note("Split-delivery proposal routed to CSR for confirmation.")
+                # Publish the planned split so downstream stages and the final
+                # confirmation stay correct once the CSR approves the override.
+                plan.append({"sku": sku, "qty": need,
+                             "sources": [{"dc": dc, "qty": q} for dc, q in sources_used]})
+                r.data["fulfillment_plan"] = plan
+                r.data["fulfillment_source"] = sources_used[0][0]
+                r.data["fulfillment_profile"] = profile
+                r.data["delivery_sla_days"] = profile.get("delivery_sla_days")
+                r.log(f"SKU '{sku}': fully sourced via split ({split_txt}) -> SPLIT_SHIPMENT approval.")
+                return r
 
             if len(sources_used) > 1:
                 any_split = True

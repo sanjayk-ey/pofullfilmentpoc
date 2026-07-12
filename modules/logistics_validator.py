@@ -71,7 +71,7 @@ _ZONE_MATRIX = {
 
 class LogisticsValidator:
     stage_key = "logistics"
-    title = "Logistics"
+    title = "Shipments"
     icon = "🎯"
     steps = [
         (0.30, "📍", "Validating ship-to ZIP serviceability..."),
@@ -318,7 +318,7 @@ class LogisticsValidator:
                 r.note("Routed to CSR for customer communication "
                        "(alternate carrier / ship-to / pickup).")
             r.log("ZIP not serviceable -> AI suggested nearest pickup location "
-                  "-> logistics exception.")
+                  "-> shipments exception.")
             return r
 
         chosen_carrier = carriers[0]

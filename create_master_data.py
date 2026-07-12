@@ -149,12 +149,20 @@ build_workbook("product-master-data.xlsx", [
       "country_of_origin", "pack_size", "pack_unit", "requires_compliance_docs"],
      [
         ["SKU-CTG-4520", "Ceramic Disc Faucet Cartridge, Single-Control", "CARTRIDGE", "ACTIVE", "EA", "Ceramic/Brass", "Single-Control", "Standard", "Y", "N", "", 12.50, "USD", 0.3, 7, "AquaCore", "USA", 24, "EA", "N"],
+        ["SKU-CTG-4600", "Ceramic Disc Faucet Cartridge, Dual-Control", "CARTRIDGE", "ACTIVE", "EA", "Ceramic/Brass", "Dual-Control", "Standard", "Y", "N", "", 13.75, "USD", 0.32, 7, "AquaCore", "USA", 24, "EA", "N"],
+        ["SKU-CTG-4800", "Thermostatic Mixing Faucet Cartridge, Single-Control", "CARTRIDGE", "ACTIVE", "EA", "Ceramic/Brass", "Single-Control", "Standard", "Y", "N", "", 15.90, "USD", 0.35, 9, "ThermoGuard", "USA", 24, "EA", "N"],
         ["SKU-DRN-3010", "Pop-Up Drain Assembly, Brushed Nickel", "DRAIN", "ACTIVE", "EA", "Solid Brass", "Grid Strainer", "1.25 in", "Y", "N", "", 45.00, "USD", 1.1, 10, "FlowFit", "USA", 6, "EA", "N"],
         ["SKU-VLV-2201", "Pressure-Balancing Shower Valve, 1/2 in", "VALVE", "ACTIVE", "EA", "Forged Brass", "Pressure-Balance", "1/2 in", "Y", "N", "", 88.00, "USD", 1.4, 14, "ThermoGuard", "USA", 4, "EA", "Y"],
         ["SKU-SHS-7700", "Digital Shower Interface System", "SHOWERSYS", "ACTIVE", "EA", "Composite/Electronic", "Smart-Control", "Wall-Mount", "Y", "N", "", 1450.00, "USD", 6.5, 28, "AquaSmart", "USA", 1, "EA", "Y"],
         ["SKU-FIN-9100", "Enameled Cast Iron Touch-Up Finish, White", "FINISH", "ACTIVE", "GAL", "Enamel Coating", "VOC-Grade", "1 qt", "N", "Y", "", 9.75, "USD", 1.2, 5, "FinishPro", "USA", 1, "GAL", "Y"],
         ["SKU-FIN-9200", "Cast Iron Touch-Up Aerosol, Almond (SDS pending)", "FINISH", "ACTIVE", "GAL", "Enamel Aerosol", "VOC-Grade", "12 oz", "N", "Y", "", 14.00, "USD", 0.5, 6, "FinishPro", "USA", 12, "EA", "Y"],
         ["SKU-SEL-1150", "Tank-to-Bowl Gasket Kit", "SEAL", "ACTIVE", "EA", "Rubber/Foam", "Universal", "3 in", "N", "N", "", 6.25, "USD", 0.2, 4, "SealRight", "USA", 12, "EA", "N"],
+        # UOM demo — KIT → EA: this Kohler cartridge is stocked/priced per EACH but
+        # distributors order it in Kohler 12-count service kits (1 KIT = 12 EA).
+        ["SKU-CTG-1017", "Kohler Ceramic Disc Pressure-Balance Cartridge (GP-1017285)", "CARTRIDGE", "ACTIVE", "EA", "Ceramic/Brass", "Pressure-Balance", "Standard", "Y", "N", "", 16.80, "USD", 0.30, 7, "Kohler", "USA", 12, "KIT", "N"],
+        # UOM demo — EA → KIT: this Kohler Clearflo drain ships/stocks as a complete
+        # KIT (1 KIT = 4 components), but the buyer listed the loose piece count (EA).
+        ["SKU-DRN-7213", "Kohler Clearflo Cable Bath Drain Kit, Brushed Nickel (K-7213)", "DRAIN", "ACTIVE", "KIT", "Solid Brass", "Cable-Operated", "1.5 in", "N", "N", "", 128.00, "USD", 1.6, 12, "Kohler", "USA", 1, "KIT", "N"],
         ["SKU-CTG-1000", "Legacy 2-Handle Faucet Cartridge (obsolete)", "CARTRIDGE", "OBSOLETE", "EA", "Brass", "Two-Handle", "Standard", "N", "N", "SKU-CTG-4520", 11.00, "USD", 0.3, 0, "AquaCore", "USA", 24, "EA", "N"],
         ["SKU-VLV-2000", "Discontinued Thermostatic Shower Valve (inactive)", "VALVE", "INACTIVE", "EA", "Cast Brass", "Thermostatic", "1/2 in", "N", "N", "SKU-VLV-2201", 70.00, "USD", 1.5, 0, "ThermoGuard", "USA", 4, "EA", "Y"],
      ],
@@ -166,6 +174,10 @@ build_workbook("product-master-data.xlsx", [
      [
         ["SKU-CTG-4520", "control_type", "Single-Control", "Y", ""],
         ["SKU-CTG-4520", "finish", "Polished Chrome", "N", ""],
+        ["SKU-CTG-4600", "control_type", "Dual-Control", "Y", ""],
+        ["SKU-CTG-4600", "finish", "Brushed Nickel", "N", ""],
+        ["SKU-CTG-4800", "control_type", "Single-Control", "Y", ""],
+        ["SKU-CTG-4800", "finish", "Polished Chrome", "N", ""],
         ["SKU-DRN-3010", "finish", "Brushed Nickel", "Y", ""],
         ["SKU-DRN-3010", "drain_type", "Pop-Up", "Y", ""],
         ["SKU-VLV-2201", "connection_type", "Sweat", "Y", ""],
@@ -183,6 +195,10 @@ build_workbook("product-master-data.xlsx", [
         # Cartridge pack sizes
         ["UOM-1001", "CASE",   "EA",   24,        "CARTRIDGE", "exact",         0, "1 case = 24 cartridges"],
         ["UOM-1002", "EA",     "CASE", 0.0416667, "CARTRIDGE", "round_up",      2, "each to case"],
+        # KIT → EA: Kohler cartridge service kit explodes into individual cartridges
+        ["UOM-1020", "KIT",    "EA",   12,        "CARTRIDGE", "exact",         0, "1 Kohler service kit = 12 cartridges (EA)"],
+        # EA → KIT: loose Clearflo drain components roll up into complete drain kits
+        ["UOM-1021", "EA",     "KIT",  0.25,      "DRAIN",     "round_up",      0, "1 Clearflo drain kit = 4 components (drain body, stopper, overflow, cable)"],
         # Finish products: US gallons ↔ litres (Sample_data ref: rounding_half_up @ 5%)
         ["UOM-1003", "L",      "GAL",  0.264172,  "FINISH",    "round_half_up", 5, "litres to US gallons"],
         ["UOM-1004", "GAL",    "L",    3.78541,   "FINISH",    "round_half_up", 5, "US gallons to litres"],
@@ -211,6 +227,8 @@ build_workbook("product-master-data.xlsx", [
       "availability_impact", "requires_approval", "rationale"],
      [
         ["SKU-CTG-1000", "SKU-CTG-4520", "FULL", 13.6, "IN_STOCK", "Y", "Ceramic disc cartridge supersedes legacy two-handle cartridge; same fit"],
+        ["SKU-CTG-1000", "SKU-CTG-4600", "FULL", 25.0, "IN_STOCK", "Y", "Dual-control ceramic disc cartridge; same footprint, upgraded ergonomics"],
+        ["SKU-CTG-1000", "SKU-CTG-4800", "FUNCTIONAL", 44.5, "IN_STOCK", "Y", "Thermostatic mixing cartridge; adds scald protection, needs compatible body"],
         ["SKU-VLV-2000", "SKU-VLV-2201", "FUNCTIONAL", 25.7, "IN_STOCK", "Y", "Pressure-balancing valve replaces discontinued thermostatic valve"],
      ],
      [14, 14, 14, 14, 16, 16, 44]),
@@ -269,7 +287,9 @@ build_workbook("compliance-master-data.xlsx", [
      ["sku", "region", "eligible", "conditions"],
      [
         ["SKU-CTG-4520", "ALL", "Y", "None"],
+        ["SKU-CTG-1017", "ALL", "Y", "None"],
         ["SKU-DRN-3010", "ALL", "Y", "None"],
+        ["SKU-DRN-7213", "ALL", "Y", "None"],
         ["SKU-VLV-2201", "ALL", "Y", "None"],
         ["SKU-SHS-7700", "ALL", "Y", "None"],
         ["SKU-SEL-1150", "ALL", "Y", "None"],
@@ -290,12 +310,16 @@ build_workbook("pricing-master-data.xlsx", [
      ["sku", "currency", "list_price", "uom", "effective_from", "effective_to", "price_list_id"],
      [
         ["SKU-CTG-4520", "USD", 12.50, "EA", "2026-01-01", "2026-12-31", "PL-2026"],
+        ["SKU-CTG-4600", "USD", 13.75, "EA", "2026-01-01", "2026-12-31", "PL-2026"],
+        ["SKU-CTG-4800", "USD", 15.90, "EA", "2026-01-01", "2026-12-31", "PL-2026"],
         ["SKU-DRN-3010", "USD", 45.00, "EA", "2026-01-01", "2026-12-31", "PL-2026"],
         ["SKU-VLV-2201", "USD", 88.00, "EA", "2026-01-01", "2026-12-31", "PL-2026"],
         ["SKU-SHS-7700", "USD", 1450.00, "EA", "2026-01-01", "2026-12-31", "PL-2026"],
         ["SKU-FIN-9100", "USD", 9.75, "GAL", "2026-01-01", "2026-12-31", "PL-2026"],
         ["SKU-FIN-9200", "USD", 14.00, "GAL", "2026-01-01", "2026-12-31", "PL-2026"],
         ["SKU-SEL-1150", "USD", 6.25, "EA", "2026-01-01", "2026-12-31", "PL-2026"],
+        ["SKU-CTG-1017", "USD", 16.80, "EA", "2026-01-01", "2026-12-31", "PL-2026"],
+        ["SKU-DRN-7213", "USD", 128.00, "KIT", "2026-01-01", "2026-12-31", "PL-2026"],
      ],
      [14, 8, 12, 8, 14, 14, 12]),
 
@@ -549,11 +573,15 @@ build_workbook("inventory-master-data.xlsx", [
      ["location_id", "location_type", "region", "sku", "on_hand_qty", "uom"],
      [
         ["PLANT-SHB", "PLANT", "Midwest", "SKU-CTG-4520", 5000, "EA"],
+        ["PLANT-SHB", "PLANT", "Midwest", "SKU-CTG-4600", 2000, "EA"],
+        ["PLANT-SHB", "PLANT", "Midwest", "SKU-CTG-4800", 800, "EA"],
         ["PLANT-SHB", "PLANT", "Midwest", "SKU-DRN-3010", 800, "EA"],
         ["PLANT-SHB", "PLANT", "Midwest", "SKU-VLV-2201", 60, "EA"],
         ["PLANT-SHB", "PLANT", "Midwest", "SKU-SHS-7700", 4, "EA"],
         ["PLANT-SHB", "PLANT", "Midwest", "SKU-SEL-1150", 1500, "EA"],
         ["PLANT-SHB", "PLANT", "Midwest", "SKU-FIN-9100", 900, "GAL"],
+        ["PLANT-SHB", "PLANT", "Midwest", "SKU-CTG-1017", 4000, "EA"],
+        ["PLANT-SHB", "PLANT", "Midwest", "SKU-DRN-7213", 300, "KIT"],
      ],
      [12, 14, 12, 14, 12, 8]),
 
@@ -563,12 +591,22 @@ build_workbook("inventory-master-data.xlsx", [
       "quantity_reserved", "lead_time_days", "next_available_date"],
      [
         ["DC-CHI-01", "DC", "Midwest", "SKU-CTG-4520", 3000, "EA", 120, 1, "2026-06-27"],
+        ["DC-CHI-01", "DC", "Midwest", "SKU-CTG-4600", 1500, "EA", 40, 1, "2026-06-27"],
+        ["DC-CHI-01", "DC", "Midwest", "SKU-CTG-4800", 500, "EA", 20, 2, "2026-06-28"],
         ["DC-CHI-01", "DC", "Midwest", "SKU-DRN-3010", 400, "EA", 30, 2, "2026-06-28"],
         ["DC-CHI-01", "DC", "Midwest", "SKU-VLV-2201", 30, "EA", 5, 3, "2026-06-30"],
         ["DC-CHI-01", "DC", "Midwest", "SKU-SEL-1150", 600, "EA", 25, 1, "2026-06-27"],
-        ["DC-CHI-01", "DC", "Midwest", "SKU-SHS-7700", 8, "EA", 1, 5, "2026-07-02"],
+        # UOM demo lines — ample single-DC stock so they source cleanly (the only
+        # gate they raise is the intake UOM conversion, not a shortage/split).
+        ["DC-CHI-01", "DC", "Midwest", "SKU-CTG-1017", 500, "EA", 30, 1, "2026-06-27"],
+        ["DC-CHI-01", "DC", "Midwest", "SKU-DRN-7213", 60, "KIT", 4, 2, "2026-06-28"],
+        # Split-shipment scenario: a PO qty of 10 for the shower system can be
+        # fully sourced only by combining 8 units here (Chicago) with 2 units at
+        # Detroit — no single warehouse holds all 10, so it needs CSR approval.
+        ["DC-CHI-01", "DC", "Midwest", "SKU-SHS-7700", 8, "EA", 0, 5, "2026-07-02"],
         ["DC-DET-02", "DC", "Midwest", "SKU-CTG-4520", 1200, "EA", 60, 2, "2026-06-28"],
         ["DC-DET-02", "DC", "Midwest", "SKU-VLV-2201", 15, "EA", 2, 3, "2026-06-30"],
+        ["DC-DET-02", "DC", "Midwest", "SKU-SHS-7700", 2, "EA", 0, 5, "2026-07-02"],
         ["DC-LA-05", "DC", "West", "SKU-CTG-4520", 2000, "EA", 80, 4, "2026-07-01"],
         ["DC-LA-05", "DC", "West", "SKU-DRN-3010", 200, "EA", 20, 4, "2026-07-01"],
         ["DC-LA-05", "DC", "West", "SKU-SEL-1150", 300, "EA", 15, 4, "2026-07-01"],
@@ -589,11 +627,15 @@ build_workbook("inventory-master-data.xlsx", [
      ["sku", "atp_qty", "uom", "next_replenishment_date", "replenishment_qty"],
      [
         ["SKU-CTG-4520", 8000, "EA", "2026-07-15", 5000],
+        ["SKU-CTG-4600", 3200, "EA", "2026-07-15", 1500],
+        ["SKU-CTG-4800", 1200, "EA", "2026-07-18", 600],
         ["SKU-DRN-3010", 1100, "EA", "2026-07-20", 500],
         ["SKU-VLV-2201", 90, "EA", "2026-07-05", 40],
-        ["SKU-SHS-7700", 5, "EA", "2026-07-12", 3],
+        ["SKU-SHS-7700", 10, "EA", "2026-07-12", 3],
         ["SKU-SEL-1150", 2100, "EA", "2026-07-10", 1000],
         ["SKU-FIN-9100", 900, "GAL", "2026-07-08", 500],
+        ["SKU-CTG-1017", 800, "EA", "2026-07-15", 500],
+        ["SKU-DRN-7213", 120, "KIT", "2026-07-16", 60],
      ],
      [14, 10, 8, 18, 16]),
 

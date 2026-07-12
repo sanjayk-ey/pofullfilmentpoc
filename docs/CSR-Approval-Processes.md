@@ -2,7 +2,7 @@
 
 This document describes **only the CSR (Customer Service Representative) approval processes** in the PO Order-Fulfillment Orchestration accelerator.
 
-The AI agent auto-resolves everything it can confidently determine from master data. Whenever a decision carries business risk, is ambiguous, or breaches policy, the agent **pauses the pipeline** and raises an interactive gate for a human CSR. Each gate presents:
+The Order assistant auto-resolves everything it can confidently determine from master data. Whenever a decision carries business risk, is ambiguous, or breaches policy, the agent **pauses the pipeline** and raises an interactive gate for a human CSR. Each gate presents:
 
 - **Why approval is needed** — the exact condition the AI detected.
 - **What the AI decided automatically** — the recommendation derived from master data.
@@ -18,9 +18,11 @@ Every CSR decision is written to the **CSR Decision Audit Trail** for traceabili
 CSR approval gates fire in two phases of the run:
 
 1. **Intake resolution** (before the decision pipeline) — the agent reconciles the "soft" parts of the PO (products, quantities, units, ship-to, buyer) against master data.
-2. **Decision pipeline** (per validation layer) — pricing, credit, inventory, and logistics each raise their own exception gate when policy is breached.
+2. **Decision pipeline** (per validation layer) — pricing, credit, inventory, and logistics each raise their own exception gate when policy is breached. The **approval-matrix / budget check runs last**, only after product, pricing, credit, inventory, and logistics have all been validated.
 
 The reference demo (`demo/CSR-Approval-PO.txt`) is engineered to trigger **all 11 gates** in a single order.
+
+> **Hard stop (not a CSR gate): stock not available (`OUT_OF_STOCK`).** **Stock availability is validated during product match.** The agent compares the requested quantity (in base UOM) against the **unreserved stock available across all distribution centers**. If the requested quantity **cannot be met** — whether the product has zero stock anywhere or simply not enough — the order **is stopped immediately and will not be processed**. There is no approve/override, because no CSR decision can create stock; the item is escalated to Procurement / Planning for replenishment. This check happens up front so the order never advances into pricing, credit, inventory, or approval when the quantity cannot be supplied. (An order that is fully available but only by splitting across warehouses **does** pass this gate — the split itself is confirmed later in Inventory; see gate 10.)
 
 ---
 
@@ -98,11 +100,14 @@ The reference demo (`demo/CSR-Approval-PO.txt`) is engineered to trigger **all 1
 - **Routes to:** Finance / Credit Team.
 - **Demo example:** Order value **$38,868.66** exceeds available credit **$30,000.00**.
 
-## 10. Inventory shortage (`INVENTORY_SHORTAGE`)
-- **Why approval is needed:** Available-to-promise (ATP) stock is insufficient to fully fulfill a line.
-- **AI auto-decision:** Checks ATP across warehouses, allocates what is available, and computes the backorder quantity per the backorder policy, proposing a split/backorder plan.
-- **CSR action:** Approve the backorder/allocation plan / Escalate.
+## 10. Inventory — split-shipment approval (`SPLIT_SHIPMENT`)
+- **Why approval is needed:** A line is **fully available**, but only by pulling stock from **more than one warehouse** — no single warehouse holds the entire quantity. A split shipment means multiple deliveries / potentially staggered ETAs, so the split delivery needs CSR confirmation before proceeding.
+- **AI auto-decision:** Sources the line across warehouses honoring the customer's preferred → alternate order, confirms the quantity can be fully met, and presents the exact per-warehouse split.
+- **CSR action:** Approve the split delivery / Reject / Escalate.
 - **Routes to:** Fulfillment Planner.
+- **Demo example:** `SKU-SHS-7700` (Shower System), qty **10** — sourced as **8 units from DC-CHI-01 + 2 units from DC-DET-02**; no single warehouse has all 10.
+
+> **Related inventory gates.** The same layer also raises: **`INVENTORY_SHORTAGE`** (ATP insufficient — proposes a backorder/partial plan), **`ALLOCATION_CONFLICT`** (on-hand exists but is reserved for higher-priority demand), **`SPLIT_NOT_ALLOWED`** (a split is required but the customer's profile forbids splitting), and **`MIN_ORDER_QTY_NOT_MET`**. Each routes to the Fulfillment Planner. (Note: if a product has **no stock anywhere**, that is caught earlier as the `OUT_OF_STOCK` hard stop during product match — see above — and the order does not reach this layer.)
 
 ## 11. ZIP not serviceable (`ZIP_NOT_SERVICEABLE`)
 - **Why approval is needed:** The destination ZIP is not serviceable by the assigned carrier.

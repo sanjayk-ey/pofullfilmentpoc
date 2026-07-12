@@ -29,7 +29,7 @@ def main():
     # Title
     t = doc.add_paragraph()
     t.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = t.add_run("PO Fulfilment AI Agent")
+    run = t.add_run("PO Fulfilment Order Assistant")
     run.bold = True
     run.font.size = Pt(22)
     run.font.color.rgb = NAVY

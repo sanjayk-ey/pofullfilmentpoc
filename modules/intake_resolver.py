@@ -2,7 +2,7 @@
 intake_resolver.py
 Intake-time resolution and issue detection (US-01 / US-02 / US-04).
 
-After extraction, the AI agent resolves the "soft" parts of a purchase order
+After extraction, the Order assistant resolves the "soft" parts of a purchase order
 against master data BEFORE the decision pipeline runs, and surfaces anything it
 cannot resolve confidently as an interactive issue for the CSR to
 approve / reject / escalate / correct:
@@ -43,6 +43,15 @@ def _norm(s) -> str:
 
 def _tokens(s) -> set:
     return set(_norm(s).split())
+
+
+def _fmt_qty(v) -> str:
+    """Render a quantity for display, dropping a trailing '.0' on whole numbers
+    (e.g. 0.0 -> '0', 2.0 -> '2', 2.5 -> '2.5')."""
+    n = to_num(v)
+    if n is None:
+        return str(v)
+    return str(int(n)) if float(n).is_integer() else str(n)
 
 
 def _similarity(a, b) -> float:
@@ -91,14 +100,33 @@ class IntakeResolver:
     # Confidence bands for description-based SKU identification
     AUTO_MATCH = 0.82     # single strong match -> AI recommends, CSR just approves
     SUGGEST_MIN = 0.45    # show as a suggestion to pick from
+    MAX_SHIPTO_OPTIONS = 10   # cap on ship-to locations offered in the CSR picker
 
     def __init__(self):
         p = load_sheets("product-master-data.xlsx",
-                        ["Product_Master", "Substitution_Rules", "UOM_Conversions"])
+                        ["Product_Master", "Substitution_Rules", "UOM_Conversions",
+                         "Product_Attributes"])
         self.products = {clean(r.get("sku")): r
                          for r in p["Product_Master"] if clean(r.get("sku"))}
+        # First approved substitute per original SKU (kept for backward compat)…
         self.subs = {clean(r.get("original_sku")): r
                      for r in p["Substitution_Rules"] if clean(r.get("original_sku"))}
+        # …plus every approved substitute row per original SKU (there may be
+        # several — the CSR should be offered all of them, not just one).
+        self.sub_rules_by_orig = {}
+        for r in p["Substitution_Rules"]:
+            o = clean(r.get("original_sku"))
+            if o:
+                self.sub_rules_by_orig.setdefault(o, []).append(r)
+        # Configuration attributes (finish, control type, …) keyed by SKU, used
+        # to explain a suggestion in plain language.
+        self.attrs_by_sku = {}
+        for r in p.get("Product_Attributes", []):
+            s = clean(r.get("sku"))
+            nm = clean(r.get("attribute_name"))
+            vl = clean(r.get("attribute_value"))
+            if s and nm and vl:
+                self.attrs_by_sku.setdefault(s, {})[nm] = vl
         # UOM conversions from pack UOM -> base UOM, keyed by (from_uom, family).
         # Used to advertise the pack unit name (e.g. CARTRIDGE family: CASE -> EA
         # x 24) when the PO omits UOM and qty is ambiguous vs the pack size.
@@ -147,50 +175,216 @@ class IntakeResolver:
 
     # ── SKU identification ────────────────────────────────────────────────────
     def _match_by_description(self, description) -> List[Dict[str, Any]]:
-        """Rank ACTIVE catalog products by similarity to a free-text description."""
+        """Rank ACTIVE catalog products by similarity to a free-text description.
+
+        Returns multiple options so the CSR always has alternatives to choose
+        from: confident matches (>= SUGGEST_MIN) are preferred, but when only
+        one clears the bar the next-best active products are added (up to three
+        total) so the pick-list is never a single forced choice."""
         scored = []
         for sku, prod in self.products.items():
             if clean(prod.get("status")) != "ACTIVE":
                 continue
             score = _similarity(description, prod.get("description"))
-            if score >= self.SUGGEST_MIN:
-                scored.append({
-                    "sku": sku,
-                    "description": clean(prod.get("description")),
-                    "family": clean(prod.get("product_family")),
-                    "score": round(score, 3),
-                })
+            scored.append({
+                "sku": sku,
+                "description": clean(prod.get("description")),
+                "family": clean(prod.get("product_family")),
+                "score": round(score, 3),
+            })
         scored.sort(key=lambda x: x["score"], reverse=True)
-        return scored[:5]
+        strong = [c for c in scored if c["score"] >= self.SUGGEST_MIN]
+        if len(strong) >= 2:
+            return strong[:5]
+        # Top up with the next-best plausible products so multiple options show.
+        result = list(strong)
+        for c in scored:
+            if len(result) >= 3:
+                break
+            if c not in result and c["score"] > 0.1:
+                result.append(c)
+        return result[:5]
+
+    # ── Price / attribute helpers (used to enrich CSR suggestions) ────────────
+    def _price(self, sku):
+        return to_num((self.products.get(sku) or {}).get("list_price"))
+
+    def _currency(self, sku):
+        return clean((self.products.get(sku) or {}).get("currency")) or "USD"
+
+    def _attrs(self, sku) -> Dict[str, str]:
+        """Human-facing attribute map for a SKU, blending Product_Master fields
+        with the Product_Attributes sheet (finish, control type, …)."""
+        p = self.products.get(sku) or {}
+        a = {
+            "family": clean(p.get("product_family")),
+            "material": clean(p.get("material")),
+            "grade": clean(p.get("grade")),
+            "size": clean(p.get("size")),
+            "base_uom": clean(p.get("base_uom")),
+            "manufacturer": clean(p.get("manufacturer")),
+        }
+        for k, v in (self.attrs_by_sku.get(sku) or {}).items():
+            a.setdefault(k, v)
+        return {k: v for k, v in a.items() if v}
+
+    @staticmethod
+    def _money(cur, amount):
+        return f"{cur} {amount:,.2f}" if amount is not None else "n/a"
+
+    @staticmethod
+    def _join(items):
+        items = [i for i in items if i]
+        if not items:
+            return ""
+        if len(items) == 1:
+            return items[0]
+        return ", ".join(items[:-1]) + " and " + items[-1]
+
+    # Attribute -> friendly label used when describing a product in words.
+    _ATTR_LABELS = [
+        ("family", "product family"), ("grade", "configuration"),
+        ("control_type", "control type"), ("material", "material"),
+        ("size", "size"), ("finish", "finish"), ("base_uom", "unit of measure"),
+    ]
+
+    def _price_fields(self, orig_sku, cand_sku) -> Dict[str, Any]:
+        """price / original_price / difference block for a candidate SKU."""
+        op = self._price(orig_sku) if orig_sku else None
+        cp = self._price(cand_sku)
+        cur = self._currency(cand_sku) or (self._currency(orig_sku) if orig_sku else "USD")
+        out = {"price": cp, "currency": cur}
+        if op is not None:
+            out["original_price"] = op
+            if cp is not None:
+                diff = round(cp - op, 2)
+                out["price_diff"] = diff
+                out["price_diff_pct"] = round(diff / op * 100, 1) if op else None
+        return out
+
+    def _substitution_reason(self, orig_sku, cand_sku) -> str:
+        """Plain-language explanation of why cand_sku is offered for orig_sku,
+        mapping the two products' attributes and comparing their prices."""
+        oa, ca = self._attrs(orig_sku), self._attrs(cand_sku)
+        od = clean((self.products.get(orig_sku) or {}).get("description")) or orig_sku
+        cd = clean((self.products.get(cand_sku) or {}).get("description")) or cand_sku
+        shared, diffs = [], []
+        for k, lab in self._ATTR_LABELS:
+            ov, cv = oa.get(k), ca.get(k)
+            if ov and cv:
+                if _norm(ov) == _norm(cv):
+                    shared.append(f"{lab} ({cv})")
+                else:
+                    diffs.append(f"{lab} ({ov} → {cv})")
+        parts = [f"{cand_sku} ({cd}) is an active replacement for the "
+                 f"discontinued {orig_sku} ({od})."]
+        if shared:
+            parts.append(f"It keeps the same {self._join(shared)}.")
+        if diffs:
+            parts.append(f"It differs on {self._join(diffs)}.")
+        op, cp = self._price(orig_sku), self._price(cand_sku)
+        cur = self._currency(cand_sku)
+        if op is not None and cp is not None:
+            diff = round(cp - op, 2)
+            pct = round(diff / op * 100, 1) if op else 0
+            if diff == 0:
+                parts.append(f"Both list at {self._money(cur, cp)}.")
+            else:
+                direction = "more" if diff > 0 else "less"
+                parts.append(f"It lists at {self._money(cur, cp)} versus "
+                             f"{self._money(cur, op)} — about {self._money(cur, abs(diff))} "
+                             f"({abs(pct)}%) {direction}.")
+        return " ".join(parts)
+
+    def _match_reason(self, cand_sku, from_desc) -> str:
+        """Plain-language explanation of a description-matched candidate,
+        describing its attributes and price (no confidence score)."""
+        ca = self._attrs(cand_sku)
+        cd = clean((self.products.get(cand_sku) or {}).get("description")) or cand_sku
+        cp = self._price(cand_sku)
+        cur = self._currency(cand_sku)
+        bits = [f"{lab} {ca[k]}" for k, lab in self._ATTR_LABELS if ca.get(k)]
+        parts = []
+        if from_desc:
+            parts.append(f"Identified from the description “{from_desc}”.")
+        parts.append(f"{cand_sku} ({cd})"
+                     + (f" is a product with {self._join(bits)}." if bits else "."))
+        if cp is not None:
+            parts.append(f"It lists at {self._money(cur, cp)}.")
+        return " ".join(parts)
+
+    def _enrich_candidate(self, cand, orig_sku=None, from_desc=None, substitute=False):
+        """Attach price, attributes and a conversational reason to a candidate
+        suggestion dict (mutates and returns it)."""
+        sku = cand.get("sku")
+        cand.update(self._price_fields(orig_sku, sku))
+        cand["attrs"] = self._attrs(sku)
+        cand["original_sku"] = orig_sku
+        if substitute:
+            cand["reason"] = self._substitution_reason(orig_sku, sku)
+        else:
+            cand["reason"] = self._match_reason(sku, from_desc)
+        return cand
 
     def _substitution_issue(self, ln, sku, status, product) -> IntakeIssue:
-        sub = self.subs.get(sku, {})
-        sub_sku = clean(sub.get("substitute_sku")) or clean(product.get("substitute_sku"))
-        sub_prod = self.products.get(sub_sku, {})
-        rec = {
-            "original_sku": sku,
-            "substitute_sku": sub_sku,
-            "substitute_description": clean(sub_prod.get("description")),
-            "compatibility": clean(sub.get("compatibility")) or "FUNCTIONAL",
-            "price_impact_pct": sub.get("price_impact_pct") if sub else None,
-            "availability_impact": clean(sub.get("availability_impact")) or "IN_STOCK",
-            "rationale": clean(sub.get("rationale")) or "Approved successor product.",
-        }
+        # Build the full list of approved substitutes for this obsolete SKU.
+        # The Product_Master successor (substitute_sku) is the primary
+        # recommendation; every Substitution_Rules row adds a further option so
+        # the CSR can choose between multiple valid replacements.
+        primary_sku = clean(product.get("substitute_sku"))
+        ordered_subs = []                    # (substitute_sku, rule_row)
+        seen = set()
+        if primary_sku:
+            rule = next((r for r in self.sub_rules_by_orig.get(sku, [])
+                         if clean(r.get("substitute_sku")) == primary_sku), {})
+            ordered_subs.append((primary_sku, rule)); seen.add(primary_sku)
+        for r in self.sub_rules_by_orig.get(sku, []):
+            ss = clean(r.get("substitute_sku"))
+            if ss and ss not in seen and ss in self.products:
+                ordered_subs.append((ss, r)); seen.add(ss)
+        # Fallback: other ACTIVE products in the same family, if no rule exists.
+        if not ordered_subs:
+            fam = (clean(product.get("product_family")) or "").upper()
+            for cs, cp in self.products.items():
+                if cs != sku and clean(cp.get("status")) == "ACTIVE" \
+                        and (clean(cp.get("product_family")) or "").upper() == fam:
+                    ordered_subs.append((cs, {})); seen.add(cs)
+
+        options = []
+        for ss, rule in ordered_subs:
+            sub_prod = self.products.get(ss, {})
+            opt = {
+                "sku": ss,
+                "description": clean(sub_prod.get("description")),
+                "family": clean(sub_prod.get("product_family")),
+                # keep substitute_* keys so the apply/render paths stay compatible
+                "substitute_sku": ss,
+                "substitute_description": clean(sub_prod.get("description")),
+                "compatibility": clean(rule.get("compatibility")) or "FUNCTIONAL",
+                "price_impact_pct": rule.get("price_impact_pct") if rule else None,
+                "availability_impact": clean(rule.get("availability_impact")) or "IN_STOCK",
+                "rationale": clean(rule.get("rationale")) or "Approved successor product.",
+            }
+            self._enrich_candidate(opt, orig_sku=sku, substitute=True)
+            options.append(opt)
+
+        rec = options[0] if options else None
         return IntakeIssue(
             kind="SUBSTITUTE_SKU",
             title=f"Line {ln.line_number}: SKU {sku} is {status}",
-            detail=(f"SKU '{sku}' is {status}. The AI agent identified an approved "
-                    f"substitute and needs CSR approval before replacing it. The "
-                    f"CSR can also type a different SKU to use instead."),
+            detail=(f"SKU '{sku}' is {status}. The Order assistant identified "
+                    f"{'approved substitutes' if len(options) > 1 else 'an approved substitute'} "
+                    f"and needs CSR approval before replacing it. The CSR can pick a "
+                    f"replacement below or type a different SKU to use instead."),
             line_number=ln.line_number,
             original=sku,
-            suggestions=[rec] if sub_sku else [],
-            recommended=rec if sub_sku else None,
+            suggestions=options,
+            recommended=rec,
             # Obsolete-product substitution: CSR can Approve, Modify (type a
             # different SKU), or Escalate. No "reject" — per the Product Match
             # decision layer the substitution is Approve / Modify / Escalate.
             actions=["approve", "enter", "escalate"],
-            rationale=rec["rationale"],
+            rationale=(rec.get("rationale") if rec else "Approved successor product."),
         )
 
     def _uom_conversion_issue(self, ln, product) -> Optional[IntakeIssue]:
@@ -230,7 +424,7 @@ class IntakeResolver:
         choice = {
             "kind": "convert",
             "original_qty": qty_d, "original_uom": uom,
-            "qty_base": converted, "uom": base_uom,
+            "qty_base": conv_d, "uom": base_uom,
             "factor": fac_d, "rule": rule.get("notes") or "",
             "logic": logic,
             "label": f"Convert {qty_d} {uom} → {conv_d} {base_uom}",
@@ -284,7 +478,7 @@ class IntakeResolver:
             detail=("The PO did not include a unit of measure and the quantity is "
                     f"small enough that it could reasonably be either individual "
                     f"{base_uom.lower()} pieces or full {pack_uom.lower()}s. "
-                    "The AI agent needs CSR confirmation before continuing."),
+                    "The Order assistant needs CSR confirmation before continuing."),
             line_number=ln.line_number,
             original=f"qty={qty}, uom=<missing>",
             suggestions=[as_base, as_pack],
@@ -301,7 +495,7 @@ class IntakeResolver:
         before the pipeline can continue."""
         qty_raw = ln.quantity
         reason = ("no quantity was provided" if qty_raw in (None, "")
-                  else f"quantity is {qty_raw}")
+                  else f"quantity is {_fmt_qty(qty_raw)}")
         sku_disp = clean(ln.sku) or (clean(ln.description) or "this line")
         detail = (f"Line {ln.line_number} for **{sku_disp}** cannot be processed "
                   f"because {reason}. CSR to enter the correct quantity, reject "
@@ -354,8 +548,11 @@ class IntakeResolver:
             return None   # active, resolved
 
         # 2) Code not a known SKU (wrong label / typo / missing) -> identify by
-        #    description against master data (label-independent).
+        #    description against master data (label-independent). Each candidate
+        #    is enriched with its price, attributes and a plain-language reason.
         candidates = self._match_by_description(desc) if desc else []
+        for cand in candidates:
+            self._enrich_candidate(cand, orig_sku=(sku or None), from_desc=desc)
 
         if len(candidates) == 1 and candidates[0]["score"] >= self.AUTO_MATCH:
             top = candidates[0]
@@ -364,7 +561,7 @@ class IntakeResolver:
                 title=(f"Line {ln.line_number}: "
                        + (f"SKU '{sku}' not found in catalog"
                           if sku else "SKU missing (description + qty only)")),
-                detail=("The AI agent identified the product from its description "
+                detail=("The Order assistant identified the product from its description "
                         "against the catalog and recommends confirming the SKU."),
                 line_number=ln.line_number,
                 original=sku or (desc or ""),
@@ -381,7 +578,7 @@ class IntakeResolver:
                 title=(f"Line {ln.line_number}: "
                        + (f"SKU '{sku}' not found — multiple possible matches"
                           if sku else "SKU missing — multiple possible matches")),
-                detail=("The AI agent found several possible catalog products. "
+                detail=("The Order assistant found several possible catalog products. "
                         "CSR to pick the correct SKU, type the correct SKU, or escalate."),
                 line_number=ln.line_number,
                 original=sku or (desc or ""),
@@ -425,7 +622,12 @@ class IntakeResolver:
                     po.ship_to_name = clean(exact[0].get("name"))
                 return None
 
-        # 2) Fuzzy match on name / address against the customer's ship-tos
+        # 2) Fuzzy match on name / address against the customer's ship-tos.
+        #    Every registered ship-to for the account is scored and offered to
+        #    the CSR (ranked by confidence) so the full set of valid locations
+        #    is always selectable — not just those above the suggestion
+        #    threshold. SUGGEST_MIN is only used to decide whether the match is
+        #    confident enough to skip the CSR gate or to flag it as ambiguous.
         query = " ".join([x for x in (name, addr) if x])
         scored = []
         for s in pool:
@@ -433,18 +635,21 @@ class IntakeResolver:
                             clean(s.get("city")) or "", clean(s.get("state")) or ""])
             score = max(_similarity(query, hay),
                         _similarity(name, s.get("name")) if name else 0.0)
-            if score >= self.SUGGEST_MIN:
-                scored.append({
-                    "ship_to_id": clean(s.get("ship_to_id")),
-                    "name": clean(s.get("name")),
-                    "address": clean(s.get("address")),
-                    "zip": clean(s.get("zip")),
-                    "score": round(score, 3),
-                })
+            scored.append({
+                "ship_to_id": clean(s.get("ship_to_id")),
+                "name": clean(s.get("name")),
+                "address": clean(s.get("address")),
+                "zip": clean(s.get("zip")),
+                "score": round(score, 3),
+            })
         scored.sort(key=lambda x: x["score"], reverse=True)
+        # All registered ship-tos for the account, ranked best-match first.
+        options = scored[:self.MAX_SHIPTO_OPTIONS]
+        above = [x for x in scored if x["score"] >= self.SUGGEST_MIN]
 
-        # Strong single match -> recommend, CSR confirms
-        if len(scored) >= 1 and scored[0]["score"] >= self.AUTO_MATCH and (
+        # Strong single match -> recommend, CSR confirms (all locations still
+        # selectable in case the CSR wants a different one).
+        if scored and scored[0]["score"] >= self.AUTO_MATCH and (
                 len(scored) == 1 or scored[0]["score"] - scored[1]["score"] >= 0.15):
             top = scored[0]
             # If a valid ZIP was already given and matches, no issue
@@ -453,24 +658,28 @@ class IntakeResolver:
             return IntakeIssue(
                 kind="PARTIAL_SHIP_TO",
                 title="Ship-to needs confirmation",
-                detail=("Only a partial ship-to was provided. The AI agent matched it "
-                        "to a registered location and needs CSR confirmation."),
+                detail=("Only a partial ship-to was provided. The Order assistant matched it "
+                        "to a registered location and needs CSR confirmation. All "
+                        "ship-to locations registered for this customer are listed so "
+                        "the CSR can confirm the best match or choose another."),
                 original=query or zip_ or "",
-                suggestions=scored[:5],
+                suggestions=options,
                 recommended=top,
                 actions=["approve", "reject", "escalate", "enter"],
                 rationale=(f"Best ship-to match {top['name']} (ZIP {top['zip']}) "
                            f"at {int(top['score']*100)}% confidence."),
             )
 
-        if scored:
+        if above:
             return IntakeIssue(
                 kind="PARTIAL_SHIP_TO",
                 title="Ship-to is ambiguous",
-                detail=("The AI agent found several possible ship-to locations. "
-                        "CSR to pick the correct one, type a corrected address, or escalate."),
+                detail=("The Order assistant could not confidently match the ship-to. All "
+                        "ship-to locations registered for this customer are listed "
+                        "(ranked by match confidence). CSR to pick the correct one, "
+                        "type a corrected address, or escalate."),
                 original=query or zip_ or "",
-                suggestions=scored[:5],
+                suggestions=options,
                 recommended=None,
                 actions=["pick", "enter", "escalate"],
                 rationale="Multiple candidate ship-to locations.",
@@ -549,14 +758,17 @@ class IntakeResolver:
         """Resolve the PO against master data and return any issues needing CSR
         input. Confident, unambiguous matches are applied in place silently."""
         issues: List[IntakeIssue] = []
-        # Buyer first — downstream authorization depends on it.
-        buyer_issue = self._resolve_buyer(po)
-        if buyer_issue:
-            issues.append(buyer_issue)
+        # CSR-approval order: order items first, then buyer, then ship-to.
+        # 1) Order items (line-level product / quantity / UOM issues).
         for ln in po.order_lines:
             issue = self._resolve_line(ln)
             if issue:
                 issues.append(issue)
+        # 2) Buyer resolution / authorization.
+        buyer_issue = self._resolve_buyer(po)
+        if buyer_issue:
+            issues.append(buyer_issue)
+        # 3) Ship-to details.
         st_issue = self._resolve_ship_to(po)
         if st_issue:
             issues.append(st_issue)

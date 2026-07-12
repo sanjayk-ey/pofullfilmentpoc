@@ -1,5 +1,5 @@
 """
-app.py  —  PO Fulfillment AI Agent
+app.py  —  PO Fulfillment Order Assistant
 Streamlit frontend with chat-like interface.
 Run with: python -m streamlit run app.py
 """
@@ -156,6 +156,74 @@ def inject_autoscroll(active: bool = True, force_follow: bool = False):
     )
 
 
+def scroll_to_csr_top(anchor_id: str):
+    """Scroll the page so the 'CSR DECISION NEEDED' warning banner lands at
+    the top of the viewport.
+
+    Emits JS that finds the warning element by its visible text content and
+    scrolls to it. Only fires once per unique anchor_id (so a radio click /
+    text-box interaction inside the card doesn't re-scroll). The auto-follow
+    observer is killed first so it can't fight the scroll position."""
+    if st.session_state.get("_csr_scrolled_to") == anchor_id:
+        return
+    st.session_state["_csr_scrolled_to"] = anchor_id
+    _components.html(
+        """
+        <script>
+          (function () {
+            try {
+              const w = window.parent || window;
+              // Kill auto-follow so it doesn't drag us back to the bottom.
+              w.__poFollow = false;
+              if (w.__poObs) { try { w.__poObs.disconnect(); } catch (_) {} w.__poObs = null; }
+              if (w.__poInt) { try { clearInterval(w.__poInt); } catch (_) {} w.__poInt = null; }
+
+              const doc = w.document;
+              const tryScroll = (n) => {
+                // Find the warning element containing "CSR DECISION NEEDED".
+                const alerts = doc.querySelectorAll(
+                  '[data-testid="stAlert"], [data-testid="stNotification"], ' +
+                  '[role="alert"], .stAlert, .element-container div[data-testid]'
+                );
+                let target = null;
+                for (const el of alerts) {
+                  if (el.textContent && el.textContent.indexOf('CSR DECISION NEEDED') !== -1) {
+                    target = el; break;
+                  }
+                }
+                // Fallback: search ALL elements for the text.
+                if (!target) {
+                  const all = doc.querySelectorAll('div, p, span');
+                  for (const el of all) {
+                    if (el.textContent && el.textContent.indexOf('CSR DECISION NEEDED') !== -1
+                        && el.offsetHeight > 0) {
+                      target = el; break;
+                    }
+                  }
+                }
+                if (target) {
+                  try { target.scrollIntoView({behavior:'auto', block:'start'}); }
+                  catch (_) { target.scrollIntoView(true); }
+                  // Nudge up a bit so the banner isn't flush against the very top.
+                  const sc = target.closest('[data-testid="stAppScrollToBottomContainer"]')
+                          || target.closest('[data-testid="stAppViewMain"]')
+                          || target.closest('section.main')
+                          || doc.scrollingElement || doc.documentElement;
+                  if (sc) sc.scrollTop = Math.max(0, sc.scrollTop - 16);
+                  return;
+                }
+                if (n > 0) setTimeout(() => tryScroll(n - 1), 100);
+              };
+              // Delay first attempt to let the Streamlit DOM settle after rerun.
+              setTimeout(() => tryScroll(40), 200);
+            } catch (e) { /* cross-origin / startup race — ignore */ }
+          })();
+        </script>
+        """,
+        height=0,
+    )
+
+
 from modules.extractor        import POExtractor, ExtractedPO
 from modules.excel_parser     import parse_excel
 from modules                  import duplicate_checker as dup
@@ -257,6 +325,19 @@ h2 { margin-top: 0.2rem !important; margin-bottom: 0.2rem !important; }
 hr { margin-top: 0.6rem !important; margin-bottom: 0.6rem !important; }
 [data-testid="stChatMessage"] { margin-top: 0 !important; padding-top: 0 !important; }
 [data-testid="stChatMessage"] h3:first-child { margin-top: 0 !important; }
+
+/* Disable dialog open/close transition so "View details" popup appears instantly */
+[data-testid="stDialog"],
+[data-testid="stModal"],
+div[role="dialog"],
+div[role="dialog"] > div {
+    animation: none !important;
+    transition: none !important;
+}
+div[data-testid="stModal"] > div[data-testid="stModalBackdrop"] {
+    animation: none !important;
+    transition: none !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -288,8 +369,8 @@ ESCALATION_ROUTING = {
     "UOM_AMBIGUOUS":        "Product Specialist",
     "UOM_CONVERSION":       "Product Specialist",
     "INVALID_QUANTITY":     "Order Operations Supervisor",
-    "PARTIAL_SHIP_TO":      "Logistics / Account Manager",
-    "UNRESOLVED_SHIP_TO":   "Logistics / Account Manager",
+    "PARTIAL_SHIP_TO":      "Shipments / Account Manager",
+    "UNRESOLVED_SHIP_TO":   "Shipments / Account Manager",
     "UNRESOLVED_BUYER":     "Sales Ops / Account Manager",
     "PRODUCT_CONFIG_EXCEPTION": "Product Specialist",
     "OBSOLETE_SKU":         "Product Specialist",
@@ -303,12 +384,14 @@ ESCALATION_ROUTING = {
     "INVENTORY_SHORTAGE":   "Fulfillment Planner",
     "ALLOCATION_CONFLICT":  "Fulfillment Planner",
     "SPLIT_NOT_ALLOWED":    "Fulfillment Planner",
+    "SPLIT_SHIPMENT":       "Fulfillment Planner",
+    "OUT_OF_STOCK":         "Procurement / Planning",
     "MIN_ORDER_QTY_NOT_MET":"Fulfillment Planner",
-    "ZIP_NOT_SERVICEABLE":  "Logistics Team",
-    "SLA_MISS":             "Logistics Team",
+    "ZIP_NOT_SERVICEABLE":  "Shipments Team",
+    "SLA_MISS":             "Shipments Team",
     "EXECUTION_FAILURE":    "Integration Support",
     "ACCOUNT_UNMATCHED_CUSTOMER": "Account Manager",
-    "ACCOUNT_INVALID_SHIP_TO":    "Logistics / Account Manager",
+    "ACCOUNT_INVALID_SHIP_TO":    "Shipments / Account Manager",
     "ACCOUNT_HIERARCHY_MISMATCH": "Account Manager",
     "ACCOUNT_DUPLICATE_CUSTOMER": "Account Manager",
     "DUPLICATE_PO":         "Order Operations Supervisor",
@@ -317,6 +400,53 @@ ESCALATION_ROUTING = {
 
 def escalation_target(exc_type) -> str:
     return ESCALATION_ROUTING.get(exc_type, "Order Operations Supervisor")
+
+
+# ── Multi-agent presentation (display only) ───────────────────────────────────
+# Each process is shown as if it were handled by its own dedicated, specialized
+# Order assistant. This is purely cosmetic — the orchestration is a single engine — but
+# it makes the "team of collaborating agents" story legible in the demo. Every
+# process (intake, customer validation, and each decision layer) gets a distinct
+# agent name and is badged accordingly wherever that process is rendered.
+AGENT_ICON = "🤖"
+AGENT_NAMES = {
+    "intake":               "Intake Agent",
+    "extraction":           "Intake Agent",
+    "account":              "Customer Validation Agent",
+    # Buyer authorization is a sub-check of Customer Validation — it is handled
+    # by the same agent so it reads as one process, not a separate agent.
+    "buyer_authorization":  "Customer Validation Agent",
+    "product_match":        "Product Matching Agent",
+    # Compliance is a sub-check of Product Match — it is handled by the same
+    # agent so it reads as one process, not a separate agent.
+    "compliance":           "Product Matching Agent",
+    "pricing":              "Pricing & Promo Agent",
+    "credit":               "Credit Agent",
+    "inventory":            "Inventory Agent",
+    "logistics":            "Shipments Agent",
+    "budget_approval":      "Approvals Agent",
+    "exception_governance": "Exception Governance Agent",
+    "order_execution":      "Order Execution Agent",
+}
+
+
+def agent_name(stage_key) -> str:
+    return AGENT_NAMES.get(stage_key, "Orchestration Agent")
+
+
+def agent_tag(stage_key) -> str:
+    """Plain-text agent tag for st.status labels (no HTML there)."""
+    return f"{AGENT_ICON} {agent_name(stage_key)}"
+
+
+def render_agent_badge(stage_key):
+    """Small styled pill shown under a process header in the settled view."""
+    st.markdown(
+        f"<div style='display:inline-block;background:#0B3D2E;color:#6EE7B7;"
+        f"border:1px solid #10B981;border-radius:12px;padding:2px 10px;"
+        f"font-size:0.78rem;font-weight:600;margin:0 0 10px;'>"
+        f"{AGENT_ICON} {html_safe(agent_name(stage_key))}</div>",
+        unsafe_allow_html=True)
 
 
 def think(title: str, lines, icon: str = "🧠"):
@@ -509,8 +639,9 @@ def render_po_result(po: ExtractedPO, is_dup: bool, dup_rec: dict = None):
 
 
 # ─── Helper: render account hierarchy validation result ───────────────────────
-def render_account_result(av: AccountValidationResult):
+def render_account_result(av: AccountValidationResult, subchecks=None):
     st.markdown("### 🧭 Customer Validation")
+    render_agent_badge("account")
 
     # ── Exception banners ───────────────────────────────────────────────────────
     if av.is_exception:
@@ -673,9 +804,16 @@ def render_account_result(av: AccountValidationResult):
     st.write("")
     st.caption(f"Most specific level applied: {LEVEL_LABEL.get(av.applied_level, av.applied_level)}")
 
-    with st.expander("🧾 View audit trail"):
-        for line in av.audit_trail:
-            st.markdown(f"- {md_safe(line)}")
+    # Sub-checks handled by the SAME Customer Validation agent (buyer
+    # authorization) — indented and folded into the single audit trail below.
+    subchecks = subchecks or []
+    for sub in subchecks:
+        _render_subcheck_sections(sub)
+
+    _render_combined_audit(
+        [("Customer Validation", av.audit_trail)]
+        + [(sub.title, sub.audit_trail) for sub in subchecks]
+    )
 
 
 # Stages that are folded UNDER a decision layer (rendered as a nested sub-check
@@ -685,21 +823,33 @@ def render_account_result(av: AccountValidationResult):
 #   compliance          → within "Product Match"
 SUBCHECK_STAGES = {"buyer_authorization", "compliance"}
 
+# Sub-checks folded into a PARENT's single live panel so one agent shows exactly
+# ONE running panel during processing:
+#   buyer_authorization → folded into the Customer Validation panel
+#                         (handled by _run_account_layer)
+#   compliance          → folded into the Product Match panel
+#                         (handled by _run_stage_animation via _folded_subchecks)
+FOLDED_SUBCHECKS = {"product_match": ["compliance"]}
+
+
+def _stage_by_key(key):
+    for s in SEQUENTIAL_STAGES:
+        if getattr(s, "stage_key", None) == key:
+            return s
+    return None
+
+
+def _folded_subchecks(stage):
+    keys = FOLDED_SUBCHECKS.get(getattr(stage, "stage_key", None), [])
+    return [s for s in SEQUENTIAL_STAGES if getattr(s, "stage_key", None) in keys]
+
 
 # ─── Helper: generic stage-result renderer (US-03 … US-12) ────────────────────
-def render_stage_result(res, divider=True):
-    is_subcheck = getattr(res, "stage_key", None) in SUBCHECK_STAGES
-    if is_subcheck:
-        # Nested sub-check: no divider, smaller heading so it visibly belongs
-        # to the decision layer above it.
-        st.markdown(f"#### ↳ {res.icon} {res.title}")
-    else:
-        # `divider` is suppressed when the layer is already wrapped in its own
-        # bordered container (the tree layout) so we don't draw a rule inside
-        # the box.
-        if divider:
-            st.markdown("---")
-        st.markdown(f"### {res.icon} {res.title}")
+def _render_stage_sections(res):
+    """Render a stage's PASS/EXCEPTION headline + its sections + the optional
+    approval-email banner — everything EXCEPT the audit-trail expander (that is
+    rendered once per agent by the caller, so a parent process and its
+    sub-checks share a single audit trail)."""
     if res.is_exception:
         st.error(f"🔴  EXCEPTION — {res.exception_type}")
         st.markdown(md_safe(res.headline))
@@ -749,33 +899,115 @@ def render_stage_result(res, divider=True):
         )
         st.write("")
 
-    if res.audit_trail:
-        with st.expander("🧾 View audit trail"):
-            for line in res.audit_trail:
+
+def _render_subcheck_sections(sub):
+    """Render a sub-check (same agent's sub-process) indented one level so it
+    reads as part of the parent process — heading + sections only, no separate
+    agent badge and no separate audit-trail expander."""
+    _, body = st.columns([1, 22], gap="small")
+    with body:
+        st.markdown(f"#### ↳ {sub.icon} {sub.title}")
+        _render_stage_sections(sub)
+
+
+def _render_combined_audit(blocks):
+    """Render ONE audit-trail expander for a single agent. `blocks` is a list of
+    (label, audit_lines). When more than one block has content each is shown
+    under its own bold sub-heading, so the parent process and its sub-checks
+    share a single, complete audit trail — one agent, one audit trail."""
+    blocks = [(lbl, lines) for lbl, lines in blocks if lines]
+    if not blocks:
+        return
+    multi = len(blocks) > 1
+    with st.expander("🧾 View audit trail"):
+        for i, (lbl, lines) in enumerate(blocks):
+            if multi:
+                st.markdown(f"**{md_safe(lbl)}**")
+            for line in lines:
                 st.markdown(f"- {md_safe(line)}")
+            if multi and i < len(blocks) - 1:
+                st.write("")
 
 
-def _run_stage_animation(stage, ctx):
-    """Animate a pipeline stage step-by-step.
+def render_stage_result(res, divider=True, subchecks=None):
+    """Render a settled decision-layer card.
+
+    `subchecks` (list of StageResult) are folded UNDER this stage because they
+    are the SAME agent's sub-processes (e.g. compliance under Product Match).
+    They render as indented sub-sections and their audit lines join this
+    stage's single audit trail — one agent, one audit trail."""
+    subchecks = subchecks or []
+    is_subcheck = getattr(res, "stage_key", None) in SUBCHECK_STAGES
+    if is_subcheck and not subchecks:
+        # Standalone render of a sub-check (e.g. a paused compliance exception):
+        # smaller heading, no divider.
+        st.markdown(f"#### ↳ {res.icon} {res.title}")
+    else:
+        # `divider` is suppressed when the layer is already wrapped in its own
+        # bordered container (the tree layout) so we don't draw a rule inside
+        # the box.
+        if divider:
+            st.markdown("---")
+        st.markdown(f"### {res.icon} {res.title}")
+    render_agent_badge(getattr(res, "stage_key", None))
+    _render_stage_sections(res)
+
+    for sub in subchecks:
+        _render_subcheck_sections(sub)
+
+    _render_combined_audit(
+        [(res.title, res.audit_trail)]
+        + [(sub.title, sub.audit_trail) for sub in subchecks]
+    )
+
+
+def _run_stage_animation(stage, ctx, subchecks=None):
+    """Animate a pipeline stage step-by-step, optionally folding its sub-checks
+    (the SAME agent's sub-processes) into the SAME status panel so one agent
+    shows exactly ONE running panel during processing.
 
     We keep the status widget `expanded=True` after completion (instead of
     collapsing it to a one-line accordion header) so every processing step
     stays on screen. This matters after CSR interactive decisions — the user
     needs to *see* the pipeline resume and progress stage-by-stage, not just
-    watch a stack of collapsed headers appear."""
+    watch a stack of collapsed headers appear.
+
+    Returns ``(stage_result, folded_subcheck_results)``. Folded sub-checks only
+    run when the parent stage passes; they stop at the first sub-check that
+    raises an exception."""
+    subchecks = subchecks or []
     result = [None]
-    # Subcheck stages (buyer authorization, compliance) belong UNDER a parent
-    # decision layer, so mark them with a "↳" during the live animation too —
-    # matching how the settled view nests them (see render_stage_result).
-    prefix = "↳ " if getattr(stage, "stage_key", None) in SUBCHECK_STAGES else ""
-    with st.status(f"{prefix}{stage.icon} {stage.title}...", expanded=True) as status:
+    folded = []
+    tag = agent_tag(getattr(stage, "stage_key", None))
+    with st.status(f"{tag}  ·  {stage.icon} {stage.title}...", expanded=True) as status:
+        st.caption(f"{tag} is handling this step.")
         for delay, emoji, text in stage.steps:
             st.write(f"{emoji} {text}")
             nap(paced_delay(delay))
         result[0] = stage.validate(ctx)
-        status.update(label=f"{prefix}{stage.icon} {stage.title} — complete",
+
+        # Fold the same agent's sub-checks into THIS panel (indented) so the
+        # agent renders as a single running process, not two.
+        if subchecks and not result[0].is_exception:
+            sub_ctx = dict(ctx)
+            sub_ctx.update(result[0].data or {})
+            for sub in subchecks:
+                st.markdown(f"↳ **{sub.icon} {sub.title}**")
+                for delay, emoji, text in sub.steps:
+                    st.write(f"{emoji} {text}")
+                    nap(paced_delay(delay))
+                sub_res = sub.validate(sub_ctx)
+                folded.append(sub_res)
+                sub_ctx.update(sub_res.data or {})
+                if sub_res.is_exception:
+                    break
+
+        state_txt = ("action required"
+                     if (result[0].is_exception or any(s.is_exception for s in folded))
+                     else "complete")
+        status.update(label=f"{tag}  ·  {stage.icon} {stage.title} — {state_txt}",
                       state="complete", expanded=True)
-    return result[0]
+    return result[0], folded
 
 
 def _run_full_pipeline_legacy(po: ExtractedPO, av: AccountValidationResult):
@@ -785,7 +1017,7 @@ def _run_full_pipeline_legacy(po: ExtractedPO, av: AccountValidationResult):
     paused = False
 
     for stage in SEQUENTIAL_STAGES:
-        res = _run_stage_animation(stage, ctx)
+        res, _ = _run_stage_animation(stage, ctx)
         ctx.update(res.data or {})
         render_stage_result(res)
         results.append(res)
@@ -794,19 +1026,20 @@ def _run_full_pipeline_legacy(po: ExtractedPO, av: AccountValidationResult):
             break
 
     # Exception governance (always runs)
-    with st.status(f"{GOVERNANCE.icon} {GOVERNANCE.title}...", expanded=True) as status:
+    _gtag = agent_tag("exception_governance")
+    with st.status(f"{_gtag}  ·  {GOVERNANCE.title}...", expanded=True) as status:
         for delay, emoji, text in GOVERNANCE.steps:
             st.write(f"{emoji} {text}")
             nap(paced_delay(delay))
         gov = GOVERNANCE.route(results, ctx)
-        status.update(label=f"{GOVERNANCE.icon} {GOVERNANCE.title} — complete",
+        status.update(label=f"{_gtag}  ·  {GOVERNANCE.title} — complete",
                       state="complete", expanded=False)
     render_stage_result(gov)
     results.append(gov)
 
     # Order execution (only when nothing paused)
     if not paused:
-        ex = _run_stage_animation(EXECUTION, ctx)
+        ex, _ = _run_stage_animation(EXECUTION, ctx)
         ctx.update(ex.data or {})
         render_stage_result(ex)
         results.append(ex)
@@ -814,36 +1047,18 @@ def _run_full_pipeline_legacy(po: ExtractedPO, av: AccountValidationResult):
     return results
 
 
-# ─── Helper: account validation processing animation ──────────────────────────
-def run_account_validation(customer_account, ship_to_zip, company_name=None) -> AccountValidationResult:
-    steps = [
-        (0.35, "🏢", "Resolving customer identity against customer master..."),
-        (0.30, "🔗", "Checking ERP and CRM customer records..."),
-        (0.35, "🧭", "Mapping corporate account hierarchy (parent › division › branch)..."),
-        (0.30, "📍", "Validating ship-to location against ship-to master..."),
-        (0.30, "🔍", "Confirming ship-to belongs to customer hierarchy..."),
-        (0.30, "🏷️", "Reading customer tier, distributor classification & payment terms..."),
-        (0.30, "📚", "Verifying customer buying history (tenure, volume, payment behaviour)..."),
-        (0.30, "⚙️", "Determining applicable hierarchy-level rules..."),
-        (0.25, "🧾", "Recording applied hierarchy level in audit trail..."),
-    ]
-    result = [None]
-    with st.status("AI Agent Validating Customer...", expanded=True) as status:
-        for i, (delay, emoji, text) in enumerate(steps):
-            st.write(f"{emoji} {text}")
-            nap(paced_delay(delay))
-            if i == 4 and result[0] is None:
-                result[0] = ACCOUNT_VALIDATOR.validate(customer_account, ship_to_zip, company_name)
-        status.update(label="✅ Account validation complete — results below",
-                      state="complete", expanded=True)
-    if result[0] is None:
-        result[0] = ACCOUNT_VALIDATOR.validate(customer_account, ship_to_zip, company_name)
-    return result[0]
-
-
 # ─── Helper: AI processing animation ─────────────────────────────────────────
-def run_ai_processing(raw_text: str, source_label: str) -> ExtractedPO:
-    steps = [
+def run_intake(orch, raw_text: str, source_label: str) -> ExtractedPO:
+    """Single Intake Agent process: read + extract the PO AND review it against
+    master data, all inside ONE status panel so intake reads as one step.
+
+    Side effects on ``orch``:
+      * sets ``po`` / ``is_dup`` / ``dup_rec`` after extraction,
+      * sets ``issues`` (the resolver output) — left as ``[]`` when the PO is a
+        duplicate or is missing mandatory fields (review narration is skipped in
+        that case and the caller routes to the escalation card).
+    """
+    extract_steps = [
         (0.35, "📄", "Analyzing document format and structure..."),
         (0.30, "🔍", "Reading PO header section..."),
         (0.30, "🔢", "Extracting Purchase Order number..."),
@@ -861,24 +1076,88 @@ def run_ai_processing(raw_text: str, source_label: str) -> ExtractedPO:
     ]
 
     extracted = [None]
+    _tag = agent_tag("intake")
+    with st.status(f"{_tag}  ·  Reading, extracting & reviewing PO — {source_label}",
+                   expanded=True) as status:
+        st.caption(f"{_tag} is handling this step.")
 
-    with st.status(f"AI Agent Processing — {source_label}", expanded=True) as status:
-        for i, (delay, emoji, text) in enumerate(steps):
+        # Read & extract the PO, then review it against master data — all as one
+        # continuous intake stream in THIS single panel (no sub-process breaks).
+        for i, (delay, emoji, text) in enumerate(extract_steps):
             st.write(f"{emoji} {text}")
             nap(paced_delay(delay))
             # Run actual extraction halfway through animation
             if i == 7 and extracted[0] is None:
                 extracted[0] = EXTRACTOR.extract_from_text(raw_text)
-        status.update(
-            label="✅ Processing Complete — results below",
-            state="complete",
-            expanded=False,
-        )
+        if extracted[0] is None:
+            extracted[0] = EXTRACTOR.extract_from_text(raw_text)
+        po = extracted[0]
 
-    # Ensure extraction ran even if steps were very fast
-    if extracted[0] is None:
-        extracted[0] = EXTRACTOR.extract_from_text(raw_text)
-    return extracted[0]
+        # Duplicate / mandatory-field detection (routing handled by caller).
+        is_dup, dup_rec = dup.check(po.po_number, po.customer_account)
+        if not is_dup and po.po_number:
+            dup.register(po.po_number, po.customer_account, st.session_state.session_id)
+        orch.update(po=po, is_dup=is_dup, dup_rec=dup_rec)
+
+        if is_dup or po.missing_fields:
+            # Skip the master-data review — the caller shows the escalation card.
+            orch["issues"] = []
+            status.update(
+                label=f"{_tag}  ·  Extraction complete — results below",
+                state="complete",
+                expanded=False,
+            )
+            nap(0.15)
+            return po
+
+        # Continue in the SAME panel: review the order against master data.
+        orch["issues"] = INTAKE_RESOLVER.resolve(po)
+        n = len(orch["issues"])
+        if n > 0:
+            for delay, text in [
+                (THINK_PACE, "🔎 Ran product catalog / lifecycle / UOM / "
+                             "ship-to / buyer resolution against master data."),
+                (THINK_PACE, f"⚠️ Found **{n} item(s)** that need CSR "
+                             "confirmation before I continue."),
+                (THINK_PACE, "🛑 **Downstream checks (pricing, inventory, "
+                             "credit, compliance, logistics, order creation) "
+                             "are paused** until each item is resolved."),
+            ]:
+                st.markdown(text)
+                nap(delay)
+            status.update(
+                label=f"{_tag}  ·  Intake review — {n} item(s) need CSR confirmation",
+                state="complete",
+                expanded=True,
+            )
+        else:
+            for delay, text in [
+                (THINK_PACE, "🔎 **Product catalog check** — matching each line "
+                             "against Product Master by code AND description "
+                             "(the order assistant is label-independent)…"),
+                (THINK_PACE, "♻️ **Lifecycle check** — is each SKU ACTIVE, "
+                             "OBSOLETE, or INACTIVE?"),
+                (THINK_PACE, "📏 **UOM check** — does each line's UOM match the "
+                             "product's base UOM? If missing, defaulting to base "
+                             "UOM from Product Master."),
+                (THINK_PACE, "📍 **Ship-to resolution** — matching the ship-to "
+                             "against registered locations for this customer…"),
+                (THINK_PACE, "👤 **Buyer resolution** — mapping buyer email → "
+                             "internal buyer ID + cost center from Buyer Profiles."),
+                (THINK_PACE, "📄 **Optional-field backfill** — looking up contact "
+                             "person and contract reference in master data when "
+                             "the PO omitted them (delivery instructions come "
+                             "only from the PO — never from master)."),
+            ]:
+                st.markdown(text)
+                nap(delay)
+            status.update(
+                label=f"{_tag}  ·  Intake complete — order validated against master data",
+                state="complete",
+                expanded=True,
+            )
+    nap(0.15)
+    return po
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -891,6 +1170,7 @@ def run_ai_processing(raw_text: str, source_label: str) -> ExtractedPO:
 #  order desk (US-11 AC-01 / AC-02).
 # ══════════════════════════════════════════════════════════════════════════════
 def new_orchestration(kind: str, payload):
+    st.session_state.pop("_csr_scrolled_to", None)
     st.session_state.orch = {
         # Unique id per submitted PO. The whole run is rendered inside a
         # container keyed by this id, so submitting a NEW PO changes the key and
@@ -1046,36 +1326,28 @@ def render_orch_static(orch):
         # An unresolved account exception is rendered by the drive step instead.
         if orch["av"] is not None and (not orch["av"].is_exception
                                        or orch["phase"] not in ("account_pending",)):
-            render_account_result(orch["av"])
-            for res in results:
-                if res.stage_key == "buyer_authorization":
-                    _render_nested_subcheck(res)
-                    rendered.add(id(res))
+            buyer_subs = [r for r in results if r.stage_key == "buyer_authorization"]
+            render_account_result(orch["av"], subchecks=buyer_subs)
+            for r in buyer_subs:
+                rendered.add(id(r))
             st.markdown("---")
 
         # ── Remaining decision layers ────────────────────────────────────
         # Each non-subcheck stage is a heading + processes + separator.
-        # Compliance is a sub-check nested under the Product Match layer.
+        # Compliance is a sub-check folded into the Product Match agent.
         for res in results:
             if id(res) in rendered:
                 continue
             if res.stage_key in SUBCHECK_STAGES:
-                continue  # nested under its parent layer below
-            render_stage_result(res, divider=False)
+                continue  # folded into its parent agent below
             if res.stage_key == "product_match":
-                for sub in results:
-                    if sub.stage_key == "compliance":
-                        _render_nested_subcheck(sub)
-                        rendered.add(id(sub))
+                comp_subs = [s for s in results if s.stage_key == "compliance"]
+                render_stage_result(res, divider=False, subchecks=comp_subs)
+                for s in comp_subs:
+                    rendered.add(id(s))
+            else:
+                render_stage_result(res, divider=False)
             st.markdown("---")
-
-
-def _render_nested_subcheck(res):
-    """Render a sub-check (e.g. buyer authorization, compliance) indented one
-    level so it reads as a child of the decision layer above it."""
-    _, body = st.columns([1, 22], gap="small")
-    with body:
-        render_stage_result(res, divider=False)
 
 
 def _render_resolved_intake_cards(orch):
@@ -1097,23 +1369,104 @@ def _uses_radio(issue):
             and (len(issue.suggestions) >= 2 or issue.kind == "UNRESOLVED_BUYER"))
 
 
+def _fmt_price(cur, amount):
+    """Currency-code price string (avoids Streamlit '$' LaTeX handling)."""
+    return f"{cur} {amount:,.2f}" if isinstance(amount, (int, float)) else "—"
+
+
+def _render_reason_list(options):
+    """Plain-language 'why this is suggested' lines, one per candidate."""
+    for s in options:
+        if s.get("reason"):
+            st.markdown(f"<div style='margin:2px 0 6px 2px;color:#CBD5E1;'>"
+                        f"💡 {html_safe(s['reason'])}</div>", unsafe_allow_html=True)
+
+
+# Column layout for the interactive substitute-SKU table (radio-select first).
+_SUBST_COL_WEIGHTS = [0.8, 1.7, 3.0, 1.5, 1.5, 1.5, 1.8]
+_SUBST_COL_HEADERS = ["Select", "Suggested SKU", "Description",
+                      "Original Price", "Suggested Price", "Difference",
+                      "Why suggested"]
+
+
+@st.dialog(" ")
+def _show_substitute_reason_dialog(sku: str, reason: str):
+    """Modal popup showing the plain-language rationale for a suggested SKU.
+    Streamlit renders a native ✕ close button in the top-right of the dialog
+    header, so no explicit close control is needed inside the body."""
+    st.markdown(f"**Why {html_safe(sku)} is suggested**")
+    st.markdown(f"<div style='color:#CBD5E1;'>💡 {html_safe(reason)}</div>",
+                unsafe_allow_html=True)
+
+
+def _render_substitute_sku_selector(orch, issue):
+    """Interactive 'actual vs. suggested SKU' table for obsolete-product
+    substitution. The first column is a radio-style selector and the last column
+    carries the plain-language reason, so the whole decision reads from ONE
+    table (no separate 'pick one' list). Returns the selected suggestion dict."""
+    st.markdown("**Suggested replacement"
+                f"{'s' if len(issue.suggestions) > 1 else ''} — actual vs. suggested "
+                "SKU (CSR approval required):**")
+    sugg = issue.suggestions
+    rec_sku = (issue.recommended or {}).get("sku")
+
+    sel_key = f"subst_sel_{orch['issue_ptr']}"
+    if sel_key not in st.session_state:
+        st.session_state[sel_key] = next(
+            (i for i, s in enumerate(sugg) if s.get("sku") == rec_sku), 0)
+    selected_idx = min(st.session_state[sel_key], len(sugg) - 1)
+
+    with st.container(border=True):
+        hc = st.columns(_SUBST_COL_WEIGHTS, vertical_alignment="center")
+        for c, h in zip(hc, _SUBST_COL_HEADERS):
+            c.markdown(f"<div style='font-weight:700;font-size:0.78rem;color:#93C5FD;'>"
+                       f"{h}</div>", unsafe_allow_html=True)
+
+    for i, s in enumerate(sugg):
+        cur = s.get("currency") or "USD"
+        op, cp = s.get("original_price"), s.get("price")
+        diff, pct = s.get("price_diff"), s.get("price_diff_pct")
+        if isinstance(diff, (int, float)) and pct is not None and diff != 0:
+            sign = "+" if diff > 0 else "−"
+            color = "#F87171" if diff > 0 else "#34D399"
+            diff_txt = (f"<span style='color:{color};'>{sign}{cur} "
+                        f"{abs(diff):,.2f} ({sign}{abs(pct)}%)</span>")
+        elif isinstance(diff, (int, float)) and diff == 0:
+            diff_txt = "no change"
+        else:
+            diff_txt = "—"
+        with st.container(border=True):
+            rc = st.columns(_SUBST_COL_WEIGHTS, vertical_alignment="center")
+            if rc[0].button("🔘" if i == selected_idx else "⚪",
+                            key=f"subst_pick_{orch['issue_ptr']}_{i}",
+                            help="Select this replacement"):
+                st.session_state[sel_key] = i
+                st.rerun()
+            rc[1].markdown(f"<b>{html_safe(s.get('sku'))}</b>", unsafe_allow_html=True)
+            rc[2].markdown(html_safe(s.get('description')), unsafe_allow_html=True)
+            rc[3].markdown(_fmt_price(cur, op), unsafe_allow_html=True)
+            rc[4].markdown(f"<b>{_fmt_price(cur, cp)}</b>", unsafe_allow_html=True)
+            rc[5].markdown(diff_txt, unsafe_allow_html=True)
+            reason = s.get("reason")
+            if reason:
+                if rc[6].button("🔍 View details",
+                                key=f"subst_view_{orch['issue_ptr']}_{i}",
+                                use_container_width=True):
+                    _show_substitute_reason_dialog(s.get("sku"), reason)
+            else:
+                rc[6].markdown("—")
+
+    return sugg[selected_idx]
+
+
 def _impact_table_for_issue(issue):
-    if issue.kind == "SUBSTITUTE_SKU" and issue.recommended:
-        r = issue.recommended
-        st.markdown("**Substitution recommendation (CSR approval required):**")
-        st.markdown(
-            "<table class='field-table'><thead><tr>"
-            "<th>Original SKU</th><th>Recommended Substitute</th><th>Compatibility</th>"
-            "<th>Price Impact</th><th>Availability</th></tr></thead><tbody>"
-            f"<tr><td>{html_safe(r['original_sku'])}</td>"
-            f"<td><b>{html_safe(r['substitute_sku'])}</b> — {html_safe(r.get('substitute_description') or '')}</td>"
-            f"<td>{html_safe(r['compatibility'])}</td>"
-            f"<td>{html_safe(str(r['price_impact_pct'])+'%' if r.get('price_impact_pct') is not None else '—')}</td>"
-            f"<td>{html_safe(r['availability_impact'])}</td></tr>"
-            "</tbody></table>",
-            unsafe_allow_html=True,
-        )
-    elif issue.kind == "UOM_CONVERSION" and issue.recommended:
+    if issue.kind == "SUBSTITUTE_SKU":
+        # Obsolete-product substitution is rendered as an INTERACTIVE table
+        # (radio-select column + "Why suggested" reason column) by
+        # _render_substitute_sku_selector() in render_intake_issue — so there is
+        # nothing to render here.
+        return
+    if issue.kind == "UOM_CONVERSION" and issue.recommended:
         c = issue.recommended
         st.markdown("**Unit-of-measure conversion (CSR to confirm):**")
         st.markdown(
@@ -1188,21 +1541,20 @@ def _impact_table_for_issue(issue):
             "</tr></tbody></table>",
             unsafe_allow_html=True,
         )
+    elif issue.kind in ("UNRESOLVED_SKU", "MISSING_SKU") and issue.suggestions:
+        # SKU identified from the description. Present each candidate's price +
+        # attributes in plain language (MISSING_SKU intentionally omits any
+        # match-confidence text). The pick-list below is the selector.
+        st.markdown("**Suggested product"
+                    f"{'s' if len(issue.suggestions) > 1 else ''} from master data:**")
+        _render_reason_list(issue.suggestions)
     elif issue.suggestions and not _uses_radio(issue):
-        if issue.kind in ("PARTIAL_SHIP_TO", "UNRESOLVED_SHIP_TO"):
-            head = "<th>Ship-To</th><th>Address</th><th>ZIP</th><th>Match</th>"
-            body = "".join(
-                f"<tr><td><b>{html_safe(s.get('name'))}</b></td>"
-                f"<td>{html_safe(s.get('address'))}</td><td>{html_safe(s.get('zip'))}</td>"
-                f"<td>{int(s.get('score',0)*100)}%</td></tr>" for s in issue.suggestions
-            )
-        else:
-            head = "<th>SKU</th><th>Description</th><th>Family</th><th>Match</th>"
-            body = "".join(
-                f"<tr><td><b>{html_safe(s.get('sku'))}</b></td>"
-                f"<td>{html_safe(s.get('description'))}</td><td>{html_safe(s.get('family'))}</td>"
-                f"<td>{int(s.get('score',0)*100)}%</td></tr>" for s in issue.suggestions
-            )
+        head = "<th>Ship-To</th><th>Address</th><th>ZIP</th><th>Match</th>"
+        body = "".join(
+            f"<tr><td><b>{html_safe(s.get('name'))}</b></td>"
+            f"<td>{html_safe(s.get('address'))}</td><td>{html_safe(s.get('zip'))}</td>"
+            f"<td>{int(s.get('score',0)*100)}%</td></tr>" for s in issue.suggestions
+        )
         st.markdown("**Possible matches from master data:**")
         st.markdown(f"<table class='field-table'><thead><tr>{head}</tr></thead>"
                     f"<tbody>{body}</tbody></table>", unsafe_allow_html=True)
@@ -1219,10 +1571,14 @@ def apply_issue_decision(orch, issue, decision, value=None):
     if decision in ("Approved", "Picked", "Entered"):
         if issue.kind == "SUBSTITUTE_SKU":
             # Approve = accept the AI's recommended substitute.
-            # Enter    = CSR typed a completely different SKU to use instead.
+            # Picked  = CSR chose one of the offered substitute options.
+            # Enter   = CSR typed a completely different SKU to use instead.
             if decision == "Entered" and isinstance(value, str) and value.strip():
                 new_sku = value.strip().upper()
                 new_desc = None
+            elif isinstance(value, dict):
+                new_sku = value.get("substitute_sku") or value.get("sku")
+                new_desc = value.get("substitute_description") or value.get("description")
             else:
                 new_sku = (issue.recommended or {}).get("substitute_sku")
                 new_desc = (issue.recommended or {}).get("substitute_description")
@@ -1418,9 +1774,27 @@ def _radio_label_for(issue, s):
         pct = int(s.get('score', 0) * 100)
         return (f"**{s.get('name')}**  ·  {s.get('address')}  ·  "
                 f"ZIP {s.get('zip')}  ·  **{pct}% match**")
+    # Price string (currency-code form avoids Streamlit's LaTeX '$' handling).
+    price = s.get("price")
+    cur = s.get("currency") or "USD"
+    price_txt = f"{cur} {price:,.2f}" if isinstance(price, (int, float)) else ""
+    if issue.kind == "SUBSTITUTE_SKU":
+        diff = s.get("price_diff")
+        pct = s.get("price_diff_pct")
+        delta = ""
+        if isinstance(diff, (int, float)) and diff != 0 and pct is not None:
+            sign = "+" if diff > 0 else "−"
+            delta = f"  ·  **Δ {sign}{cur} {abs(diff):,.2f} ({sign}{abs(pct)}%)**"
+        return (f"**{s.get('sku')}**  ·  {s.get('description')}  ·  "
+                f"{s.get('compatibility') or 'FUNCTIONAL'}  ·  {price_txt}{delta}")
+    # UNRESOLVED_SKU keeps the confidence score; MISSING_SKU drops it per request.
+    tail = f"  ·  {price_txt}" if price_txt else ""
+    if issue.kind == "MISSING_SKU":
+        return (f"**{s.get('sku')}**  ·  {s.get('description')}  ·  "
+                f"{s.get('family') or '—'}{tail}")
     pct = int(s.get('score', 0) * 100)
     return (f"**{s.get('sku')}**  ·  {s.get('description')}  ·  "
-            f"{s.get('family') or '—'}  ·  **{pct}% match**")
+            f"{s.get('family') or '—'}{tail}  ·  **{pct}% match**")
 
 
 # Decision kinds whose options are presented as a radio list to pick + approve.
@@ -1430,9 +1804,23 @@ RADIO_KINDS = ("UNRESOLVED_BUYER", "PARTIAL_SHIP_TO", "UNRESOLVED_SHIP_TO",
 
 def render_intake_issue(orch, issue):
     """Render an intake issue with Approve / Reject / Escalate + correction input."""
-    st.markdown("---")
+    po = orch.get("po")
+    po_id = getattr(po, "po_number", "") if po is not None else ""
+    scroll_to_csr_top(
+        f"csr-intake-{po_id}-{orch.get('issue_ptr', 0)}-{issue.kind}"
+    )
     st.warning(f"🟡  CSR DECISION NEEDED — {issue.title}")
-    st.markdown(md_safe(issue.detail))
+    st.caption(f"{AGENT_ICON} Flagged by the {agent_name('intake')}")
+    if issue.kind == "SUBSTITUTE_SKU":
+        # Highlight the obsolete/inactive status so it stands out clearly.
+        st.markdown(
+            "<div style='background:#7F1D1D;color:#FEE2E2;padding:9px 13px;"
+            "border-left:4px solid #EF4444;border-radius:6px;font-weight:600;'>"
+            f"⛔ {html_safe(issue.detail)}</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(md_safe(issue.detail))
     if issue.rationale:
         st.caption(f"🧠 AI reasoning: {issue.rationale}")
     _impact_table_for_issue(issue)
@@ -1451,7 +1839,53 @@ def render_intake_issue(orch, issue):
         if cols[1].button("⛔ Reject", key=_decision_key("uomc_no"),
                           use_container_width=True):
             _intake_reject(orch, issue)
-        if cols[2].button("⏫ Escalate", key=_decision_key("uomc_esc"),
+        if cols[2].button("📧 Notify to customer", key=_decision_key("uomc_esc"),
+                          use_container_width=True):
+            _intake_escalate(orch, issue)
+        return
+
+    # SUBSTITUTE_SKU (obsolete product): the whole decision lives in one
+    # interactive table — a radio-select column, the actual-vs-suggested pricing
+    # columns and a "Why suggested" reason column. No separate pick-list.
+    if issue.kind == "SUBSTITUTE_SKU":
+        selected = _render_substitute_sku_selector(orch, issue)
+
+        typed = None
+        entry_error = None
+        if "enter" in issue.actions:
+            ph = "Or type a different SKU"
+            typed = st.text_input(ph, key=_decision_key("subst_txt"),
+                                  placeholder=ph, label_visibility="collapsed")
+            if typed:
+                entry_error = validate_manual_sku(
+                    typed, orch["po"], issue.line_number, INTAKE_RESOLVER.products)
+                if entry_error:
+                    st.error(f"❌ {entry_error}")
+
+        n_cols = 1 + (1 if "enter" in issue.actions else 0) \
+                   + (1 if "reject" in issue.actions else 0) + 1
+        cols = st.columns(n_cols)
+        i = 0
+        if cols[i].button("✅ Approve selected", key=_decision_key("subst_ok"),
+                          use_container_width=True):
+            apply_issue_decision(orch, issue, "Picked", value=selected)
+            orch["issue_ptr"] += 1
+            st.rerun()
+        i += 1
+        if "enter" in issue.actions:
+            if cols[i].button("✍️ Use my entry", key=_decision_key("subst_use"),
+                              use_container_width=True,
+                              disabled=not typed or bool(entry_error)):
+                apply_issue_decision(orch, issue, "Entered", value=typed)
+                orch["issue_ptr"] += 1
+                st.rerun()
+            i += 1
+        if "reject" in issue.actions:
+            if cols[i].button("⛔ Reject", key=_decision_key("subst_no"),
+                              use_container_width=True):
+                _intake_reject(orch, issue)
+            i += 1
+        if cols[i].button("📧 Notify to customer", key=_decision_key("subst_esc"),
                           use_container_width=True):
             _intake_escalate(orch, issue)
         return
@@ -1483,7 +1917,7 @@ def render_intake_issue(orch, issue):
                 ph = "Or type a different SKU"
             typed = st.text_input(ph, key=_decision_key("radio_txt"),
                                   placeholder=ph, label_visibility="collapsed")
-            if typed and issue.kind in ("UNRESOLVED_SKU", "MISSING_SKU"):
+            if typed and issue.kind in ("UNRESOLVED_SKU", "MISSING_SKU", "SUBSTITUTE_SKU"):
                 entry_error = validate_manual_sku(
                     typed, orch["po"], issue.line_number, INTAKE_RESOLVER.products)
             if entry_error:
@@ -1510,7 +1944,7 @@ def render_intake_issue(orch, issue):
                               use_container_width=True):
                 _intake_reject(orch, issue)
             i += 1
-        if cols[i].button("⏫ Escalate", key=_decision_key("radio_esc"),
+        if cols[i].button("📧 Notify to customer", key=_decision_key("radio_esc"),
                           use_container_width=True):
             _intake_escalate(orch, issue)
         return
@@ -1541,7 +1975,7 @@ def render_intake_issue(orch, issue):
             })
             orch["terminal"] = ("rejected", f"Order rejected by CSR at intake: {issue.title}.")
             orch["phase"] = "terminal"; st.rerun()
-        if cols[3].button("⏫ Escalate", key=_decision_key("uom_esc"), use_container_width=True):
+        if cols[3].button("📧 Notify to customer", key=_decision_key("uom_esc"), use_container_width=True):
             target = escalation_target(issue.kind)
             orch["decisions"].append({"what": issue.title, "decision": "Escalated",
                                       "detail": f"Escalated to {target}.",
@@ -1626,7 +2060,7 @@ def render_intake_issue(orch, issue):
             st.rerun()
         idx += 1
     # Escalate
-    if cols[idx].button("⏫ Escalate", key=_decision_key("intake_esc"), use_container_width=True):
+    if cols[idx].button("📧 Notify to customer", key=_decision_key("intake_esc"), use_container_width=True):
         target = escalation_target(issue.kind)
         orch["decisions"].append({"what": issue.title, "decision": "Escalated",
                                   "detail": f"Routed to {target}.",
@@ -1651,9 +2085,14 @@ def _decision_buttons(orch, what, exc_type, kind, reason="", auto_findings=None)
     `reason` is the master-data-derived explanation of WHY the AI paused for
     CSR approval; `auto_findings` lists what the AI already decided
     automatically from master data. Both are recorded in the audit trail."""
+    po = orch.get("po")
+    po_id = getattr(po, "po_number", "") if po is not None else ""
+    scroll_to_csr_top(
+        f"csr-stage-{po_id}-{orch.get('stage_index', 0)}-{exc_type}-{kind}"
+    )
     st.warning("🟡  CSR DECISION NEEDED — the agent paused on this exception.")
     st.caption("Approve to override and continue, Reject to stop the order, or "
-               "Escalate to route it to the responsible team.")
+               "Notify to customer to route it to the responsible team.")
     cols = st.columns(3)
     if cols[0].button("✅ Approve", key=_decision_key(kind + "_ok"),
                       use_container_width=True):
@@ -1686,7 +2125,7 @@ def _decision_buttons(orch, what, exc_type, kind, reason="", auto_findings=None)
         orch["terminal"] = ("rejected", f"Order rejected by CSR: {exc_type}.")
         orch["phase"] = "terminal"
         st.rerun()
-    if cols[2].button("⏫ Escalate", key=_decision_key(kind + "_esc"), use_container_width=True):
+    if cols[2].button("📧 Notify to customer", key=_decision_key(kind + "_esc"), use_container_width=True):
         target = escalation_target(exc_type)
         orch["decisions"].append({"what": what, "decision": "Escalated",
                                   "detail": f"Routed to {target}.",
@@ -1719,7 +2158,7 @@ def _narrate_intake_review(orch, po):
     orch["issues"] = INTAKE_RESOLVER.resolve(po)
     n = len(orch["issues"])
     if n > 0:
-        think("Intake review — action required", [
+        think(f"{AGENT_ICON} {agent_name('intake')} — intake review — action required", [
             (THINK_PACE, "🔎 Ran product catalog / lifecycle / UOM / "
                          "ship-to / buyer resolution against master data."),
             (THINK_PACE, f"⚠️ Found **{n} item(s)** that need CSR "
@@ -1729,7 +2168,7 @@ def _narrate_intake_review(orch, po):
                          "are paused** until each item is resolved."),
         ], icon="⚠️")
     else:
-        think("Reviewing order against master data", [
+        think(f"{AGENT_ICON} {agent_name('intake')} — reviewing order against master data", [
             (THINK_PACE, "🔎 **Product catalog check** — matching each line "
                          "against Product Master by code AND description "
                          "(the AI is label-independent)…"),
@@ -1760,12 +2199,18 @@ def _route_after_intake(orch, po):
 
 
 def _run_account_layer(orch):
-    """Animate the Customer Validation layer (account + ship-to hierarchy).
+    """Animate the Customer Validation layer as ONE agent panel.
 
-    Returns "pause" if it hit an exception that needs CSR input (phase is set
-    to account_pending); otherwise builds the shared context and returns None.
-    Rendered inside the caller's chat_message so it streams in the same run as
-    the layers before and after it."""
+    Customer identity + account/ship-to hierarchy AND buyer authorization (a
+    sub-check of the same Customer Validation agent) run inside a SINGLE status
+    panel, so the agent shows exactly one running panel during processing.
+
+    Returns "pause" if it hit an exception that needs CSR input:
+      * account exception  → phase set to 'account_pending',
+      * buyer-auth exception → phase set to 'pipeline', orch['pending'] set.
+    Otherwise builds the shared context, records the buyer-auth result, and
+    returns None. Rendered inside the caller's chat_message so it streams in the
+    same run as the layers before and after it."""
     po = orch["po"]
     _render_resolved_intake_cards(orch)
     if orch.get("resolved_issues"):
@@ -1775,50 +2220,136 @@ def _run_account_layer(orch):
                          "account & ship-to hierarchy validation next, "
                          "then every remaining decision layer will animate below."),
         ], icon="▶️")
-    av = run_account_validation(po.customer_account, po.ship_to_zip, po.company_name)
-    orch["av"] = av
+
+    account_steps = [
+        (0.35, "🏢", "Resolving customer identity against customer master..."),
+        (0.30, "🔗", "Checking ERP and CRM customer records..."),
+        (0.35, "🧭", "Mapping corporate account hierarchy (parent › division › branch)..."),
+        (0.30, "📍", "Validating ship-to location against ship-to master..."),
+        (0.30, "🔍", "Confirming ship-to belongs to customer hierarchy..."),
+        (0.30, "🏷️", "Reading customer tier, distributor classification & payment terms..."),
+        (0.30, "📚", "Verifying customer buying history (tenure, volume, payment behaviour)..."),
+        (0.30, "⚙️", "Determining applicable hierarchy-level rules..."),
+        (0.25, "🧾", "Recording applied hierarchy level in audit trail..."),
+    ]
+    buyer_stage = _stage_by_key("buyer_authorization")
+    av_holder = [None]
+    buyer_holder = [None]
+    _tag = agent_tag("account")
+    with st.status(f"{_tag}  ·  Validating customer identity, hierarchy & buyer authorization...",
+                   expanded=True) as status:
+        st.caption(f"{_tag} is handling this step.")
+        for i, (delay, emoji, text) in enumerate(account_steps):
+            st.write(f"{emoji} {text}")
+            nap(paced_delay(delay))
+            if i == 4 and av_holder[0] is None:
+                av_holder[0] = ACCOUNT_VALIDATOR.validate(po.customer_account,
+                                                          po.ship_to_zip, po.company_name)
+        if av_holder[0] is None:
+            av_holder[0] = ACCOUNT_VALIDATOR.validate(po.customer_account,
+                                                      po.ship_to_zip, po.company_name)
+        av = av_holder[0]
+        orch["av"] = av
+
+        if av.is_exception:
+            status.update(label=f"{_tag}  ·  Customer validation — action required",
+                          state="complete", expanded=True)
+        else:
+            # Build the shared context, then fold buyer authorization (same
+            # agent) into THIS panel as an indented sub-check.
+            orch["ctx"] = build_context(po, av)
+            if buyer_stage is not None:
+                st.markdown(f"↳ **{buyer_stage.icon} {buyer_stage.title}**")
+                for delay, emoji, text in buyer_stage.steps:
+                    st.write(f"{emoji} {text}")
+                    nap(paced_delay(delay))
+                buyer_holder[0] = buyer_stage.validate(orch["ctx"])
+                # Flag so the pipeline loop skips buyer authorization (it has
+                # already animated inside this Customer Validation panel).
+                orch["buyer_auth_folded"] = True
+            state_txt = ("action required"
+                         if (buyer_holder[0] is not None and buyer_holder[0].is_exception)
+                         else "complete")
+            status.update(
+                label=f"{_tag}  ·  Customer validation & buyer authorization — {state_txt}",
+                state="complete", expanded=True)
+
+    av = av_holder[0]
     if av.is_exception:
         orch["phase"] = "account_pending"
         return "pause"
-    orch["ctx"] = build_context(po, av)
+
+    buyer_res = buyer_holder[0]
+    if buyer_res is not None and buyer_res.is_exception:
+        # Route the buyer-auth gate through the standard stage-pending flow.
+        # stage_index stays at buyer_authorization (index 0) so the resume path
+        # appends the result and advances to product match.
+        orch["pending"] = buyer_res
+        orch["phase"] = "pipeline"
+        return "pause"
+
+    if buyer_res is not None:
+        orch["ctx"].update(buyer_res.data or {})
+        orch["results"].append(buyer_res)
     return None
 
 
 def _run_pipeline_layers(orch):
-    """Animate the downstream decision layers (US-03 … US-12), then governance
-    and order execution — every layer running to completion, one after another,
-    in the current continuous run.
+    """Animate the downstream decision layers and order execution — every layer
+    running to completion, one after another, in the current continuous run.
 
     Returns "pause" if a stage raised an exception that needs CSR input
     (orch['pending'] is set); otherwise sets phase to 'done' and returns None."""
     # 1) Sequential stages — each finishes before the next begins.
     while orch["stage_index"] < len(SEQUENTIAL_STAGES):
         stage = SEQUENTIAL_STAGES[orch["stage_index"]]
-        res = _run_stage_animation(stage, orch["ctx"])
+        # Buyer authorization is normally folded into the Customer Validation
+        # panel by _run_account_layer, so skip it here. (If an account exception
+        # was overridden the fold never happened, so let it run standalone.)
+        if (getattr(stage, "stage_key", None) == "buyer_authorization"
+                and orch.get("buyer_auth_folded")):
+            orch["stage_index"] += 1
+            continue
+
+        # Fold this agent's sub-checks (e.g. compliance under product match)
+        # into the SAME panel so the agent shows only one running panel.
+        subs = _folded_subchecks(stage)
+        res, folded = _run_stage_animation(stage, orch["ctx"], subchecks=subs)
         if res.is_exception:
+            # OUT_OF_STOCK is a hard stop: the product has no stock in ANY
+            # warehouse, so there is nothing a CSR can approve to continue. Stop
+            # the order outright rather than opening an approve/override gate.
+            if res.exception_type == "OUT_OF_STOCK":
+                orch["results"].append(res)
+                orch["decisions"].append({
+                    "what": f"{res.title} — OUT_OF_STOCK",
+                    "decision": "Order stopped",
+                    "detail": "No stock available in any warehouse — order cannot be fulfilled.",
+                    "reason": res.headline,
+                    "auto": list(res.audit_trail)})
+                orch["terminal"] = ("stopped", res.headline)
+                orch["phase"] = "terminal"
+                return "pause"
             orch["pending"] = res
             return "pause"
         orch["ctx"].update(res.data or {})
         orch["results"].append(res)
         orch["stage_index"] += 1
+
+        # Record the folded sub-checks (they already animated in the panel
+        # above). A sub-check exception opens the standard CSR gate; the resume
+        # path appends it and advances past its slot.
+        for sub_res in folded:
+            if sub_res.is_exception:
+                orch["pending"] = sub_res
+                return "pause"
+            orch["ctx"].update(sub_res.data or {})
+            orch["results"].append(sub_res)
+            orch["stage_index"] += 1
         nap(paced_delay(0.35))
 
-    # 2) Governance (always runs).
-    if not orch.get("governance_done"):
-        with st.status(f"{GOVERNANCE.icon} {GOVERNANCE.title}...",
-                       expanded=True) as status:
-            for delay, emoji, text in GOVERNANCE.steps:
-                st.write(f"{emoji} {text}")
-                nap(paced_delay(delay))
-            gov = GOVERNANCE.route(orch["results"], orch["ctx"])
-            status.update(label=f"{GOVERNANCE.icon} {GOVERNANCE.title} — complete",
-                          state="complete", expanded=True)
-        orch["results"].append(gov)
-        orch["governance_done"] = True
-        nap(paced_delay(0.35))
-
-    # 3) Order execution.
-    ex = _run_stage_animation(EXECUTION, orch["ctx"])
+    # 2) Order execution.
+    ex, _ = _run_stage_animation(EXECUTION, orch["ctx"])
     orch["ctx"].update(ex.data or {})
     orch["results"].append(ex)
     orch["phase"] = "done"
@@ -1850,26 +2381,23 @@ def drive_orchestration():
                         orch["phase"] = "terminal"
                         orch["terminal"] = ("rejected", f"Unreadable Excel file: {exc}")
                         return
-                po = run_ai_processing(raw_text, f"Excel: {fname}")
-                po.source_type = "EXCEL"
+                source_label = f"Excel: {fname}"
             else:
                 orch["source_label"] = "PO text"
-                po = run_ai_processing(orch["payload"], "PO Text")
+                raw_text = orch["payload"]
+                source_label = "PO Text"
 
-            is_dup, dup_rec = dup.check(po.po_number, po.customer_account)
-            if not is_dup and po.po_number:
-                dup.register(po.po_number, po.customer_account, st.session_state.session_id)
-            orch.update(po=po, is_dup=is_dup, dup_rec=dup_rec)
+            # Single intake process: read + extract AND review against master
+            # data inside ONE panel. Sets orch po / is_dup / dup_rec / issues.
+            po = run_intake(orch, raw_text, source_label)
+            if orch["kind"] == "excel":
+                po.source_type = "EXCEL"
 
             # Dup / missing-field POs need an escalation card → hand off with a
-            # rerun (no narration, no downstream processing).
-            if is_dup or po.missing_fields:
+            # rerun (no downstream processing).
+            if orch["is_dup"] or po.missing_fields:
                 orch["phase"] = "intake_review"
                 st.rerun()
-
-            # Narrate the intake review in THIS SAME run — directly below the
-            # extraction steps — so every message appends in sequence.
-            _narrate_intake_review(orch, po)
 
             # Flagged items need CSR confirmation → resolve them one-by-one.
             if orch["issues"]:
@@ -1917,7 +2445,7 @@ def drive_orchestration():
                                    "in the submission ledger."),
                         "auto": ["Matched an existing submission — flagged as duplicate."],
                     })
-                if st.button("⏫ Escalate to Duplicate PO Team",
+                if st.button("📧 Notify to customer",
                              key="dup_esc", use_container_width=True):
                     orch["decisions"].append({
                         "what": f"Duplicate PO {po.po_number}",
@@ -1941,7 +2469,7 @@ def drive_orchestration():
                     st.markdown(f"- ❌ **{mf}**")
                 st.caption("Only PO Number, PO Date, Buyer Company, Buyer Email, Ship-To, "
                            "Requested Delivery Date, and line SKU/Description/Qty are mandatory.")
-                if st.button("⏫ Escalate to Order Operations", key="intake_missing_esc"):
+                if st.button("📧 Notify to customer", key="intake_missing_esc"):
                     orch["terminal"] = ("escalated",
                                         "Missing mandatory fields escalated to Order Operations.")
                     orch["phase"] = "terminal"
@@ -1997,8 +2525,8 @@ def drive_orchestration():
                                   auto_findings=list(orch["av"].audit_trail))
         return
 
-    # ---- pipeline: US-03 … US-12  +  governance  +  execution ----
-    # IMPORTANT: these three logical phases run in ONE continuous script run.
+    # ---- pipeline: decision layers  +  execution ----
+    # IMPORTANT: these logical phases run in ONE continuous script run.
     # Previously each stage ended in st.rerun(), which forced
     # render_orch_static() to replay an ever-growing history and made
     # Streamlit fade the whole app on every rerun. Past the intake step the
@@ -2023,13 +2551,19 @@ def drive_orchestration():
     # ---- terminal states ----
     elif phase == "done":
         with st.chat_message("assistant"):
-            st.success("🎉 Order fully processed — customer confirmation sent with price, "
-                       "ETA, fulfillment source and tracking details.")
+            order_no = (orch.get("ctx") or {}).get("order_number") or "—"
+            st.success(f"🎉 Order number {order_no} created successfully. "
+                       "Customer notification emails has been forwarded.")
     elif phase == "terminal":
         with st.chat_message("assistant"):
             kind, msg = orch["terminal"]
             if kind == "rejected":
                 st.error("⛔ **Order stopped.** " + md_safe(msg))
+            elif kind == "stopped":
+                st.error("⛔ **Order stopped — product unavailable.** " + md_safe(msg))
+                st.caption("The requested product has no stock in any warehouse, so the order "
+                           "cannot be fulfilled. Escalated to Procurement / Planning for "
+                           "replenishment.")
             else:
                 st.info("⏫ **Escalated.** " + msg)
 
