@@ -91,7 +91,7 @@ build_workbook("buyer-master-data.xlsx", [
       "can_self_approve", "punchout_id", "approver_id", "approval_threshold_amount"],
      [
         ["BUY-001", "John Miller", "john.miller@glps.com", "CUST-1001", "BR-GLP-MW", "CC-MW-100", "SENIOR_BUYER", "ACTIVE", 250000, "USD", "Y", "PUNCH-GL-001", "APR-501", 25000],
-        ["BUY-002", "Linda Park", "linda.park@glps.com", "CUST-1001", "BR-GLP-MW", "CC-MW-200", "JUNIOR_BUYER", "ACTIVE", 5000, "USD", "N", "PUNCH-GL-002", "APR-501", 5000],
+        ["BUY-002", "Linda Park", "linda.park@glps.com", "CUST-1001", "BR-GLP-MW", "CC-MW-200", "SENIOR_BUYER", "ACTIVE", 200000, "USD", "Y", "PUNCH-GL-002", "APR-501", 200000],
         ["BUY-003", "Mark Snow", "mark.snow@ekbd.com", "CUST-1002", "BR-GLP-NE", "CC-NE-100", "BUYER", "ACTIVE", 75000, "USD", "Y", "PUNCH-EK-003", "APR-502", 50000],
         ["BUY-010", "Sara Lee", "sara.lee@pcbk.com", "CUST-5001", "BR-PCBK-WEST", "CC-WEST-100", "BUYER", "ACTIVE", 120000, "USD", "Y", "PUNCH-PC-010", "APR-503", 75000],
         ["BUY-900", "Tom Gray (suspended)", "tom.gray@glps.com", "CUST-1001", "BR-GLP-MW", "CC-MW-100", "BUYER", "SUSPENDED", 0, "USD", "N", "", "APR-501", 0],
@@ -105,7 +105,7 @@ build_workbook("buyer-master-data.xlsx", [
       "requires_approval_above"],
      [
         ["BUY-001", "BR-GLP-MW", "CC-MW-100,CC-MW-200", "CARTRIDGE,DRAIN,VALVE,SHOWERSYS,SEAL,FINISH", "", 100000, 250000],
-        ["BUY-002", "BR-GLP-MW", "CC-MW-200", "CARTRIDGE,DRAIN,SEAL", "SHOWERSYS,FINISH,VALVE", 2500, 5000],
+        ["BUY-002", "BR-GLP-MW", "CC-MW-200", "CARTRIDGE,DRAIN,SEAL,VALVE,SHOWERSYS", "FINISH", 100000, 200000],
         ["BUY-003", "BR-GLP-NE", "CC-NE-100", "CARTRIDGE,DRAIN,VALVE,SEAL", "FINISH", 40000, 75000],
         ["BUY-010", "BR-PCBK-WEST", "CC-WEST-100", "CARTRIDGE,VALVE,SHOWERSYS", "FINISH", 60000, 120000],
      ],
@@ -130,8 +130,6 @@ build_workbook("buyer-master-data.xlsx", [
      [
         ["PV-001", "global_parent", "GP-CONT", "ALL", "", "VISIBLE", "JUNIOR_BUYER", "Default catalog"],
         ["PV-002", "product_family", "FINISH", "FINISH", "", "RESTRICTED", "SENIOR_BUYER", "Hazardous finishes - senior buyers only"],
-        ["PV-003", "sku", "", "SHOWERSYS", "SKU-SHS-7700", "RESTRICTED", "SENIOR_BUYER", "Capital equipment approval"],
-        ["PV-004", "cost_center", "CC-MW-200", "VALVE", "", "HIDDEN", "BUYER", "Shower valves not orderable for maintenance CC"],
      ],
      [10, 16, 16, 16, 16, 14, 16, 32]),
 ])
@@ -160,9 +158,10 @@ build_workbook("product-master-data.xlsx", [
         # UOM demo — KIT → EA: this Kohler cartridge is stocked/priced per EACH but
         # distributors order it in Kohler 12-count service kits (1 KIT = 12 EA).
         ["SKU-CTG-1017", "Kohler Ceramic Disc Pressure-Balance Cartridge (GP-1017285)", "CARTRIDGE", "ACTIVE", "EA", "Ceramic/Brass", "Pressure-Balance", "Standard", "Y", "N", "", 16.80, "USD", 0.30, 7, "Kohler", "USA", 12, "KIT", "N"],
-        # UOM demo — EA → KIT: this Kohler Clearflo drain ships/stocks as a complete
-        # KIT (1 KIT = 4 components), but the buyer listed the loose piece count (EA).
-        ["SKU-DRN-7213", "Kohler Clearflo Cable Bath Drain Kit, Brushed Nickel (K-7213)", "DRAIN", "ACTIVE", "KIT", "Solid Brass", "Cable-Operated", "1.5 in", "N", "N", "", 128.00, "USD", 1.6, 12, "Kohler", "USA", 1, "KIT", "N"],
+        # UOM demo — EA → KIT: this Kohler Clearflo drain is sold in kits of 10.
+        # When the PO orders in EA and qty doesn't divide evenly, CSR picks
+        # round-down or round-up with price impact.
+        ["SKU-DRN-7213", "Kohler Clearflo Cable Bath Drain Kit, Brushed Nickel (K-7213)", "DRAIN", "ACTIVE", "KIT", "Solid Brass", "Cable-Operated", "1.5 in", "N", "N", "", 128.00, "USD", 1.6, 12, "Kohler", "USA", 10, "KIT", "N"],
         ["SKU-CTG-1000", "Legacy 2-Handle Faucet Cartridge (obsolete)", "CARTRIDGE", "OBSOLETE", "EA", "Brass", "Two-Handle", "Standard", "N", "N", "SKU-CTG-4520", 11.00, "USD", 0.3, 0, "AquaCore", "USA", 24, "EA", "N"],
         ["SKU-VLV-2000", "Discontinued Thermostatic Shower Valve (inactive)", "VALVE", "INACTIVE", "EA", "Cast Brass", "Thermostatic", "1/2 in", "N", "N", "SKU-VLV-2201", 70.00, "USD", 1.5, 0, "ThermoGuard", "USA", 4, "EA", "Y"],
      ],
@@ -198,7 +197,7 @@ build_workbook("product-master-data.xlsx", [
         # KIT → EA: Kohler cartridge service kit explodes into individual cartridges
         ["UOM-1020", "KIT",    "EA",   12,        "CARTRIDGE", "exact",         0, "1 Kohler service kit = 12 cartridges (EA)"],
         # EA → KIT: loose Clearflo drain components roll up into complete drain kits
-        ["UOM-1021", "EA",     "KIT",  0.25,      "DRAIN",     "round_up",      0, "1 Clearflo drain kit = 4 components (drain body, stopper, overflow, cable)"],
+        ["UOM-1021", "EA",     "KIT",  0.1,       "DRAIN",     "round_up",      0, "1 Clearflo drain kit = 10 pieces (EA)"],
         # Finish products: US gallons ↔ litres (Sample_data ref: rounding_half_up @ 5%)
         ["UOM-1003", "L",      "GAL",  0.264172,  "FINISH",    "round_half_up", 5, "litres to US gallons"],
         ["UOM-1004", "GAL",    "L",    3.78541,   "FINISH",    "round_half_up", 5, "US gallons to litres"],
@@ -455,7 +454,7 @@ build_workbook("budget-master-data.xlsx", [
       "consumed_amount", "available_amount", "currency"],
      [
         ["CC-MW-100", "Midwest Operations", "BR-GLP-MW", "ACTIVE", 600000, 250000, 350000, "USD"],
-        ["CC-MW-200", "Midwest Maintenance", "BR-GLP-MW", "ACTIVE", 80000, 78000, 2000, "USD"],
+        ["CC-MW-200", "Midwest Maintenance", "BR-GLP-MW", "ACTIVE", 300000, 100000, 200000, "USD"],
         ["CC-NE-100", "Northeast Operations", "BR-GLP-NE", "ACTIVE", 300000, 295000, 5000, "USD"],
         ["CC-WEST-100", "West Operations", "BR-PCBK-WEST", "ACTIVE", 400000, 100000, 300000, "USD"],
      ],
@@ -478,7 +477,7 @@ build_workbook("budget-master-data.xlsx", [
      ["buyer_id", "max_order_value", "can_self_approve", "branch_id", "cost_centers"],
      [
         ["BUY-001", 250000, "Y", "BR-GLP-MW", "CC-MW-100,CC-MW-200"],
-        ["BUY-002", 5000, "N", "BR-GLP-MW", "CC-MW-200"],
+        ["BUY-002", 200000, "Y", "BR-GLP-MW", "CC-MW-200"],
         ["BUY-003", 75000, "Y", "BR-GLP-NE", "CC-NE-100"],
         ["BUY-010", 120000, "Y", "BR-PCBK-WEST", "CC-WEST-100"],
      ],

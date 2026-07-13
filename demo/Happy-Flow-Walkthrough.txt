@@ -1,0 +1,126 @@
+================================================================================
+SCREEN RECORDING SCRIPT — HAPPY FLOW (STRAIGHT-THROUGH PROCESSING)
+PO Order-Fulfillment Orchestration — AI Accelerator
+================================================================================
+
+PURPOSE (read to client at the start)
+--------------------------------------------------------------------------------
+"This first demo shows the happy path — a clean purchase order that the AI can
+process end-to-end with zero human intervention. Watch how a team of specialised
+AI agents validate the order against master data, price it, check credit and
+inventory, plan the shipment, clear approvals, and create the order — all
+automatically, in one pass, with a full audit trail."
+
+
+STEP 0 — SETUP (before you hit record)
+--------------------------------------------------------------------------------
+- Start the app and open it in the browser (full screen, chat panel visible).
+- Have the PO text below ready on your clipboard.
+- If a previous run is on screen, start a fresh order so the demo begins clean.
+
+
+STEP 1 — SUBMIT THE PURCHASE ORDER
+--------------------------------------------------------------------------------
+Action:  Click the "+" (add order) control, then paste the PO text below and
+         submit it.
+
+Say:     "Here's a standard PO from Great Lakes Plumbing — three line items,
+         a known buyer, and a valid ship-to address. I'll drop it in exactly as
+         it would arrive from the customer."
+
+--- COPY-PASTE THIS PURCHASE ORDER --------------------------------------------
+================================================================================
+                                PURCHASE ORDER
+================================================================================
+PO Number   : PO-2026-30001
+PO Date     : 02 July 2026
+
+BUYER
+Company Name : Great Lakes Plumbing Supply Co
+Email        : john.miller@glps.com
+
+SHIP TO
+Great Lakes Plumbing - Chicago DC
+4500 West Diversey Avenue
+Chicago, IL 60639
+
+Requested Delivery Date : 27 July 2026
+
+ORDER LINES
+Item # | Product Code   | Description                        |   Qty
+-------+----------------+------------------------------------+------
+1      | SKU-CTG-4520   | Ceramic Disc Faucet Cartridge      |  100
+2      | SKU-SEL-1150   | Tank-to-Bowl Gasket Kit            |  120
+3      | SKU-VLV-2201   | Pressure-Balancing Shower Valve    |   15
+================================================================================
+--- END OF PURCHASE ORDER -----------------------------------------------------
+
+
+STEP 2 — INTAKE AGENT: EXTRACT + REVIEW
+--------------------------------------------------------------------------------
+On screen:  The Intake Agent reads the raw PO, extracts the header, buyer,
+            ship-to and all order lines, and shows the structured PO card. It
+            then reviews every line against master data (product catalog,
+            lifecycle, unit of measure, quantities, ship-to and buyer).
+
+Say:        "The Intake Agent has digitised the PO and is checking each line
+            against master data. Notice it confirms all three SKUs are active,
+            the quantities are valid, and the buyer and ship-to both resolve
+            cleanly — so there is nothing for a human to review. It moves on
+            automatically."
+
+Highlight:  No "CSR DECISION NEEDED" banners appear — the order flows straight
+            through.
+
+
+STEP 3 — THE DECISION PIPELINE (AGENTS RUN ONE AFTER ANOTHER)
+--------------------------------------------------------------------------------
+On screen:  Each agent runs in its own panel, showing its steps and result:
+
+   1. Customer Validation Agent  — resolves the customer identity and account
+                                    hierarchy, validates the ship-to belongs to
+                                    the customer, and authorises the buyer.
+   2. Product Matching Agent     — confirms each SKU against the catalog and
+                                    runs the compliance sub-check.
+   3. Pricing & Promo Agent      — builds the price waterfall (list → contract →
+                                    volume tier → promo → rebate → net) and
+                                    computes the line and order totals.
+   4. Credit Agent               — checks the order value against available
+                                    credit.
+   5. Inventory Agent            — sources each line from the distribution
+                                    centres and confirms availability.
+   6. Shipments Agent            — confirms carrier serviceability, freight and
+                                    delivery SLA.
+   7. Approvals Agent            — runs the approval-matrix / budget check last.
+
+Say:        "Now the specialist agents take over. Each one validates its part of
+            the order and passes clean results to the next — pricing, credit,
+            inventory, shipping and approvals all pass automatically because the
+            order is fully within policy."
+
+
+STEP 4 — ORDER CREATED
+--------------------------------------------------------------------------------
+On screen:  The Order Execution Agent creates the sales order and shows the
+            completion message with the generated order number and totals.
+
+Expected totals for this PO:
+   Subtotal        : $3,083.00
+   Freight         : $151.62
+   Tax             : $271.79
+   ORDER TOTAL     : $3,529.53
+   (Order number is generated at run time.)
+
+Say:        "And the order is created — no human touched it. The whole thing was
+            validated, priced, credit-checked, sourced, shipped-planned and
+            approved automatically, and everything the AI decided is captured in
+            the audit trail for full traceability."
+
+
+CLOSING TALKING POINTS
+--------------------------------------------------------------------------------
+- Straight-through processing: clean orders need zero manual effort.
+- Every decision is driven by master data, not hard-coded rules.
+- A complete, step-by-step audit trail is produced for every order.
+- This frees CSRs to focus only on the exceptions — which is the next demo.
+================================================================================

@@ -59,14 +59,14 @@ def validate_manual_sku(sku: str, po, current_line_number: Optional[int],
 
 
 def validate_manual_quantity(text: str) -> Optional[str]:
-    """Return an error message if the typed quantity is not a positive
-    number. None means the quantity is acceptable."""
+    """Return an error message if the typed quantity is not a positive whole
+    number. Only digits are accepted — no decimals, negatives, or letters."""
     if text is None or not str(text).strip():
-        return "Please enter a positive quantity."
-    try:
-        q = float(str(text).strip())
-    except (TypeError, ValueError):
-        return f"'{text}' is not a valid number — please enter a positive quantity."
+        return "Please enter a positive whole number."
+    raw = str(text).strip()
+    if not raw.isdigit():
+        return f"'{raw}' is not valid — only positive whole numbers are allowed (no decimals, letters, or negative signs)."
+    q = int(raw)
     if q <= 0:
-        return f"Quantity must be greater than zero (you entered {q:g})."
+        return "Quantity must be greater than zero."
     return None

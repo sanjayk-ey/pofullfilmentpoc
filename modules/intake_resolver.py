@@ -389,22 +389,23 @@ class IntakeResolver:
 
     def _uom_conversion_issue(self, ln, product) -> Optional[IntakeIssue]:
         """AC-02 — the PO line specifies its quantity in a NON-STANDARD unit of
-        measure (not the product's base UOM). Convert it to the base UOM using an
-        approved conversion rule and surface the conversion for CSR confirmation
-        before pricing: original qty/UOM, converted qty, converted UOM, and the
-        conversion logic are all shown."""
+        measure (not the product's base UOM).
+
+        When the converted quantity is a whole number the issue is a straight
+        confirmation (single option). When it is NOT a whole number (e.g. 52 EA
+        ordered but 1 KIT = 10 EA → 5.2 KIT) the CSR is offered two options:
+        round DOWN (5 KIT / 50 EA) and round UP (6 KIT / 60 EA), each with
+        price impact and a plain-language reason."""
         uom = (clean(ln.uom) or "").upper()
         if not uom:
             return None
         base_uom = (clean(product.get("base_uom")) or "").upper()
         if not base_uom or uom == base_uom:
-            return None                            # already in base UOM
+            return None
         qty = to_num(ln.quantity)
         if not qty or qty <= 0:
             return None
         family = (clean(product.get("product_family")) or "").upper()
-        # Find an approved conversion rule from the PO's UOM to the base UOM,
-        # preferring a family-specific rule over a universal ("ALL") one.
         rule = None
         for r in (self.uom_rules_by_family.get(family, [])
                   + self.uom_rules_by_family.get("ALL", [])):
@@ -412,14 +413,81 @@ class IntakeResolver:
                 rule = r
                 break
         if not rule:
-            return None      # unknown/unsupported UOM — left for downstream checks
+            return None
         factor = rule["factor"]
         converted = round(qty * factor, 4)
 
         def _disp(n):
             return int(n) if float(n) == int(n) else round(n, 2)
 
-        qty_d, conv_d, fac_d = _disp(qty), _disp(converted), _disp(factor)
+        qty_d = _disp(qty)
+        price_per_kit = to_num(product.get("list_price")) or 0
+        currency = (clean(product.get("currency")) or "USD").upper()
+
+        # Determine how many base-UOM units are in one pack (inverse of factor).
+        ea_per_kit = round(1 / factor) if factor and factor > 0 else 1
+
+        # When conversion yields a non-whole number, offer round-down / round-up.
+        if float(converted) != int(converted):
+            lo_kits = int(converted)           # round down
+            hi_kits = lo_kits + 1              # round up
+            lo_ea = lo_kits * ea_per_kit
+            hi_ea = hi_kits * ea_per_kit
+            lo_total = round(lo_kits * price_per_kit, 2)
+            hi_total = round(hi_kits * price_per_kit, 2)
+            orig_ea_cost = round(qty * (price_per_kit / ea_per_kit), 2) if ea_per_kit else 0
+            lo_diff = round(lo_total - orig_ea_cost, 2)
+            hi_diff = round(hi_total - orig_ea_cost, 2)
+            lo_ea_short = int(qty) - lo_ea
+
+            option_lo = {
+                "kind": "round_down", "kits": lo_kits,
+                "ea_equivalent": lo_ea, "total_price": lo_total,
+                "price_diff": lo_diff, "currency": currency,
+                "original_qty": qty_d, "original_uom": uom,
+                "qty_base": lo_kits, "uom": base_uom,
+                "factor": _disp(factor),
+                "rule": rule.get("notes") or "",
+                "logic": f"{lo_kits} {base_uom} × {ea_per_kit} {uom}/{base_uom} = {lo_ea} {uom}",
+                "label": f"Order {lo_kits} {base_uom} ({lo_ea} {uom})",
+                "reason": (f"Round down to {lo_kits} {base_uom} ({lo_ea} {uom}). "
+                           f"This is {lo_ea_short} {uom} less than the {qty_d} {uom} "
+                           f"requested on the PO. Total cost: {currency} {lo_total:,.2f}."),
+            }
+            option_hi = {
+                "kind": "round_up", "kits": hi_kits,
+                "ea_equivalent": hi_ea, "total_price": hi_total,
+                "price_diff": hi_diff, "currency": currency,
+                "original_qty": qty_d, "original_uom": uom,
+                "qty_base": hi_kits, "uom": base_uom,
+                "factor": _disp(factor),
+                "rule": rule.get("notes") or "",
+                "logic": f"{hi_kits} {base_uom} × {ea_per_kit} {uom}/{base_uom} = {hi_ea} {uom}",
+                "label": f"Order {hi_kits} {base_uom} ({hi_ea} {uom})",
+                "reason": (f"Round up to {hi_kits} {base_uom} ({hi_ea} {uom}). "
+                           f"This is {hi_ea - int(qty)} {uom} more than the {qty_d} "
+                           f"{uom} requested on the PO. Total cost: {currency} {hi_total:,.2f}."),
+            }
+            return IntakeIssue(
+                kind="UOM_CONVERSION",
+                title=(f"Line {ln.line_number}: {qty_d} {uom} ordered but product "
+                       f"sells in {base_uom} (1 {base_uom} = {ea_per_kit} {uom})"),
+                detail=(f"The PO requests **{qty_d} {uom}** but this product is sold "
+                        f"in **{base_uom}** (1 {base_uom} = {ea_per_kit} {uom}). "
+                        f"{qty_d} {uom} does not convert to a whole number of "
+                        f"{base_uom} ({_disp(converted)} {base_uom}). "
+                        f"CSR to choose the appropriate quantity."),
+                line_number=ln.line_number,
+                original=f"{qty_d} {uom}",
+                suggestions=[option_lo, option_hi],
+                recommended=option_hi,
+                actions=["pick", "reject", "escalate"],
+                rationale=(f"1 {base_uom} = {ea_per_kit} {uom}. "
+                           f"{qty_d} ÷ {ea_per_kit} = {_disp(converted)} (not whole)."),
+            )
+
+        # Exact conversion — single option, straight confirmation.
+        conv_d, fac_d = _disp(converted), _disp(factor)
         logic = f"{qty_d} {uom} × {fac_d} {base_uom}/{uom} = {conv_d} {base_uom}"
         choice = {
             "kind": "convert",
@@ -434,8 +502,8 @@ class IntakeResolver:
             title=(f"Line {ln.line_number}: quantity in a non-standard UOM "
                    f"({qty_d} {uom}) needs conversion"),
             detail=(f"The PO gave this line's quantity as **{qty_d} {uom}**, which is "
-                    f"not the product's base unit of measure (**{base_uom}**). The AI "
-                    f"agent converted it with an approved conversion rule and needs "
+                    f"not the product's base unit of measure (**{base_uom}**). The Order "
+                    f"assistant converted it with an approved conversion rule and needs "
                     f"CSR confirmation before it proceeds to pricing."),
             line_number=ln.line_number,
             original=f"{qty_d} {uom}",
@@ -740,7 +808,7 @@ class IntakeResolver:
             kind="UNRESOLVED_BUYER",
             title=f"Buyer '{po.buyer_email}' is not in the buyer directory",
             detail=("The PO's buyer email does not match any registered buyer "
-                    "in the Buyer Profiles master. The AI listed the buyers "
+                    "in the Buyer Profiles master. The Order agent listed the buyers "
                     "registered against this customer — CSR to pick the correct "
                     "buyer, type the correct buyer name, or escalate before the "
                     "authorization stage runs."),

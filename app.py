@@ -202,14 +202,23 @@ def scroll_to_csr_top(anchor_id: str):
                   }
                 }
                 if (target) {
-                  try { target.scrollIntoView({behavior:'auto', block:'start'}); }
-                  catch (_) { target.scrollIntoView(true); }
-                  // Nudge up a bit so the banner isn't flush against the very top.
-                  const sc = target.closest('[data-testid="stAppScrollToBottomContainer"]')
-                          || target.closest('[data-testid="stAppViewMain"]')
-                          || target.closest('section.main')
-                          || doc.scrollingElement || doc.documentElement;
-                  if (sc) sc.scrollTop = Math.max(0, sc.scrollTop - 16);
+                  // Re-assert the position a few times: on a long section the
+                  // auto-follow may fire a competing *smooth* scroll-to-bottom,
+                  // so a single scroll can get overridden. Keep follow OFF and
+                  // pin the banner to the top for a short window.
+                  const pin = () => {
+                    w.__poFollow = false;
+                    try { target.scrollIntoView({behavior:'auto', block:'start'}); }
+                    catch (_) { target.scrollIntoView(true); }
+                    // Nudge up a bit so the banner isn't flush against the top.
+                    const sc = target.closest('[data-testid="stAppScrollToBottomContainer"]')
+                            || target.closest('[data-testid="stAppViewMain"]')
+                            || target.closest('section.main')
+                            || doc.scrollingElement || doc.documentElement;
+                    if (sc) sc.scrollTop = Math.max(0, sc.scrollTop - 16);
+                  };
+                  pin();
+                  [80, 180, 320, 500, 750].forEach((t) => setTimeout(pin, t));
                   return;
                 }
                 if (n > 0) setTimeout(() => tryScroll(n - 1), 100);
@@ -325,6 +334,13 @@ h2 { margin-top: 0.2rem !important; margin-bottom: 0.2rem !important; }
 hr { margin-top: 0.6rem !important; margin-bottom: 0.6rem !important; }
 [data-testid="stChatMessage"] { margin-top: 0 !important; padding-top: 0 !important; }
 [data-testid="stChatMessage"] h3:first-child { margin-top: 0 !important; }
+
+/* Make the selected substitute-SKU radio button clearly bolder/highlighted */
+.stButton > button[kind="primary"] {
+    font-weight: 800 !important;
+    border: 2px solid #34D399 !important;
+    box-shadow: 0 0 0 2px rgba(52,211,153,0.35) !important;
+}
 
 /* Disable dialog open/close transition so "View details" popup appears instantly */
 [data-testid="stDialog"],
@@ -851,7 +867,10 @@ def _render_stage_sections(res):
     rendered once per agent by the caller, so a parent process and its
     sub-checks share a single audit trail)."""
     if res.is_exception:
-        st.error(f"🔴  EXCEPTION — {res.exception_type}")
+        if res.exception_type == "PRICING_EXCEPTION":
+            st.warning(f"🟡  CSR DECISION NEEDED — {res.exception_type}")
+        else:
+            st.error(f"🔴  EXCEPTION — {res.exception_type}")
         st.markdown(md_safe(res.headline))
     else:
         st.success(f"✅  {md_safe(res.headline)}")
@@ -1209,13 +1228,26 @@ def _decision_key(prefix: str) -> str:
     return f"{prefix}_{o['phase']}_{o['issue_ptr']}_{o['stage_index']}"
 
 
+def _reset_widget_state(key: str, value):
+    """on_change callback: reset another widget's state so only one CSR input
+    (a picked option OR a typed correction) is ever active at a time."""
+    st.session_state[key] = value
+
+
+def _pick_row(sel_key: str, idx: int, clear_txt_key: str = None):
+    """on_click callback for radio-style 'Select' buttons. Runs BEFORE the
+    natural button rerun, so the new selection is rendered in that single run —
+    no extra st.rerun() (which would double the render work and cause lag)."""
+    st.session_state[sel_key] = idx
+    if clear_txt_key is not None:
+        st.session_state[clear_txt_key] = ""
+
+
 # ── Rendering: settled (static) portion of a run ──────────────────────────────
 def render_decision_log(decisions):
     if not decisions:
         return
     st.markdown("#### 🧾 CSR Decision Audit Trail")
-    st.caption("For every gate: why the AI paused for CSR approval, what it had "
-               "already decided automatically from master data, and the CSR's action.")
     action_style = {
         "Approved":      ("✅", "#10B981"),
         "Picked":        ("✅", "#10B981"),
@@ -1234,7 +1266,7 @@ def render_decision_log(decisions):
             items = "".join(f"<li>{html_safe(a)}</li>" for a in auto)
             auto_html = (
                 "<div style='color:#94A3B8; font-size:0.85rem; margin-top:4px;'>"
-                "<b>AI decided automatically from master data:</b>"
+                "<b>Order Assistant decided automatically from master data:</b>"
                 f"<ul style='margin:2px 0 0 0; padding-left:18px;'>{items}</ul></div>"
             )
         reason_html = (
@@ -1274,14 +1306,9 @@ def _render_resolved_issue_card(entry):
         f"padding:12px 16px; border-radius:6px;'>"
         f"<div style='color:{colour}; font-weight:600; margin-bottom:4px;'>"
         f"{icon}  CSR DECISION APPLIED — {html_safe(entry['title'])}</div>"
-        f"<div style='color:#CBD5E1; font-size:0.9rem; margin-bottom:6px;'>"
-        f"{md_safe(entry.get('detail', ''))}</div>"
-        + (f"<div style='color:#94A3B8; font-size:0.85rem; margin-bottom:6px;'>"
-           f"🧠 <i>AI reasoning: {html_safe(entry['rationale'])}</i></div>"
-           if entry.get('rationale') else "")
-        + f"<div style='color:#E2E8F0; font-size:0.9rem;'>"
-          f"<b>Action:</b> {icon} {html_safe(decision)} &nbsp; "
-          f"<b>Outcome:</b> {html_safe(entry.get('outcome', ''))}</div>"
+        f"<div style='color:#E2E8F0; font-size:0.9rem;'>"
+        f"<b>Action:</b> {icon} {html_safe(decision)} &nbsp; "
+        f"<b>Outcome:</b> {html_safe(entry.get('outcome', ''))}</div>"
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -1383,7 +1410,7 @@ def _render_reason_list(options):
 
 
 # Column layout for the interactive substitute-SKU table (radio-select first).
-_SUBST_COL_WEIGHTS = [0.8, 1.7, 3.0, 1.5, 1.5, 1.5, 1.8]
+_SUBST_COL_WEIGHTS = [1.5, 1.7, 3.0, 1.5, 1.5, 1.5, 1.8]
 _SUBST_COL_HEADERS = ["Select", "Suggested SKU", "Description",
                       "Original Price", "Suggested Price", "Difference",
                       "Why suggested"]
@@ -1412,9 +1439,8 @@ def _render_substitute_sku_selector(orch, issue):
 
     sel_key = f"subst_sel_{orch['issue_ptr']}"
     if sel_key not in st.session_state:
-        st.session_state[sel_key] = next(
-            (i for i, s in enumerate(sugg) if s.get("sku") == rec_sku), 0)
-    selected_idx = min(st.session_state[sel_key], len(sugg) - 1)
+        st.session_state[sel_key] = -1          # nothing selected by default
+    selected_idx = st.session_state[sel_key]
 
     with st.container(border=True):
         hc = st.columns(_SUBST_COL_WEIGHTS, vertical_alignment="center")
@@ -1437,11 +1463,17 @@ def _render_substitute_sku_selector(orch, issue):
             diff_txt = "—"
         with st.container(border=True):
             rc = st.columns(_SUBST_COL_WEIGHTS, vertical_alignment="center")
-            if rc[0].button("🔘" if i == selected_idx else "⚪",
-                            key=f"subst_pick_{orch['issue_ptr']}_{i}",
-                            help="Select this replacement"):
-                st.session_state[sel_key] = i
-                st.rerun()
+            is_sel = (i == selected_idx)
+            # Picking a row clears any manual SKU entry — only one option (a
+            # picked row OR a typed SKU) can be active at a time. Using an
+            # on_click callback avoids a second st.rerun() (no lag).
+            rc[0].button("🔘 Selected" if is_sel else "⚪ Select",
+                         key=f"subst_pick_{orch['issue_ptr']}_{i}",
+                         help="Select this replacement",
+                         type="primary" if is_sel else "secondary",
+                         use_container_width=True,
+                         on_click=_pick_row,
+                         args=(sel_key, i, _decision_key("subst_txt")))
             rc[1].markdown(f"<b>{html_safe(s.get('sku'))}</b>", unsafe_allow_html=True)
             rc[2].markdown(html_safe(s.get('description')), unsafe_allow_html=True)
             rc[3].markdown(_fmt_price(cur, op), unsafe_allow_html=True)
@@ -1456,7 +1488,127 @@ def _render_substitute_sku_selector(orch, issue):
             else:
                 rc[6].markdown("—")
 
-    return sugg[selected_idx]
+    if 0 <= selected_idx < len(sugg):
+        return sugg[selected_idx]
+    return None
+
+
+_UOM_CUSTOM_LABEL = "Enter custom value"
+
+
+def _render_uom_conversion_selector(orch, issue):
+    """Dropdown-based UOM conversion picker: the CSR chooses how many base-UOM
+    units (e.g. KIT) to order from a 1–10 dropdown, or picks 'Enter custom
+    value' to type any positive whole number. The product's base UOM is shown
+    next to the dropdown. Returns a choice dict (or None if nothing valid yet)."""
+    s0 = issue.suggestions[0] if issue.suggestions else {}
+    base_uom = s0.get("uom", "KIT")
+    orig_uom = s0.get("original_uom", "EA")
+    orig_qty = s0.get("original_qty")
+    currency = s0.get("currency", "USD")
+    kits0 = s0.get("kits", 1) or 1
+    ea_per_kit = round((s0.get("ea_equivalent", 0) / kits0)) if kits0 else 1
+    price_per_kit = (s0.get("total_price", 0) / kits0) if kits0 else 0
+
+    st.markdown(f"**Select the quantity to order in {base_uom} "
+                f"(the PO requested {orig_qty} {orig_uom}; "
+                f"1 {base_uom} = {ea_per_kit} {orig_uom}):**")
+
+    options = [str(n) for n in range(1, 11)] + [_UOM_CUSTOM_LABEL]
+    c1, c2 = st.columns([3, 1], vertical_alignment="center")
+    picked = c1.selectbox(
+        "Quantity", options, index=None,
+        placeholder=f"Select number of {base_uom}…",
+        key=_decision_key("uom_dd"), label_visibility="collapsed",
+    )
+    c2.markdown(
+        f"<div style='font-weight:700;font-size:1rem;'>{base_uom}</div>",
+        unsafe_allow_html=True,
+    )
+
+    kits = None
+    if picked == _UOM_CUSTOM_LABEL:
+        custom = st.text_input(
+            "Custom quantity", key=_decision_key("uom_custom"),
+            placeholder=f"Enter number of {base_uom} (positive whole number)",
+            label_visibility="collapsed",
+        )
+        if custom:
+            err = validate_manual_quantity(custom)
+            if err:
+                st.error(f"❌ {err}")
+            else:
+                kits = int(float(custom))
+    elif picked is not None:
+        kits = int(picked)
+
+    if not kits or kits <= 0:
+        return None
+
+    ea = kits * ea_per_kit
+    total = kits * price_per_kit
+    st.caption(f"Selected: **{kits} {base_uom}** = {ea} {orig_uom}  ·  "
+               f"Total {currency} {total:,.2f}")
+
+    return {
+        "kind": "convert_pick",
+        "original_qty": orig_qty, "original_uom": orig_uom,
+        "qty_base": kits, "uom": base_uom,
+        "ea_equivalent": ea, "total_price": round(total, 2),
+        "currency": currency,
+        "logic": f"{kits} {base_uom} × {ea_per_kit} {orig_uom}/{base_uom} = {ea} {orig_uom}",
+    }
+
+
+_BUYER_COL_WEIGHTS = [1.3, 2.0, 2.5, 1.8, 1.8]
+_BUYER_COL_HEADERS = ["Select", "Buyer", "Email", "Role", "Cost Center"]
+
+
+def _render_buyer_selector(orch, issue):
+    """Interactive bordered table for buyer selection — same visual style as
+    the obsolete-SKU and UOM-rounding selectors. Returns the selected
+    suggestion dict."""
+    sugg = issue.suggestions
+    if not sugg:
+        st.info("No buyers are registered against this customer in the "
+                "buyer directory. CSR to type the correct buyer name.")
+        return None
+
+    st.markdown("**Buyers registered for this customer — pick one:**")
+
+    sel_key = f"buyer_sel_{orch['issue_ptr']}"
+    if sel_key not in st.session_state:
+        st.session_state[sel_key] = -1          # nothing selected by default
+    selected_idx = st.session_state[sel_key]
+
+    with st.container(border=True):
+        hc = st.columns(_BUYER_COL_WEIGHTS, vertical_alignment="center")
+        for c, h in zip(hc, _BUYER_COL_HEADERS):
+            c.markdown(f"<div style='font-weight:700;font-size:0.78rem;color:#93C5FD;'>"
+                       f"{h}</div>", unsafe_allow_html=True)
+
+    for i, s in enumerate(sugg):
+        is_sel = (i == selected_idx)
+        with st.container(border=True):
+            rc = st.columns(_BUYER_COL_WEIGHTS, vertical_alignment="center")
+            # Picking a buyer clears any manual entry — one option at a time.
+            # on_click callback avoids a second st.rerun() (no lag).
+            rc[0].button("🔘 Selected" if is_sel else "⚪ Select",
+                         key=f"buyer_pick_{orch['issue_ptr']}_{i}",
+                         type="primary" if is_sel else "secondary",
+                         use_container_width=True,
+                         on_click=_pick_row,
+                         args=(sel_key, i, _decision_key("buyer_txt")))
+            rc[1].markdown(f"<b>{html_safe(s.get('buyer_name'))}</b>",
+                           unsafe_allow_html=True)
+            rc[2].markdown(html_safe(s.get('email')), unsafe_allow_html=True)
+            rc[3].markdown(html_safe(s.get('role')), unsafe_allow_html=True)
+            rc[4].markdown(html_safe(s.get('default_cost_center') or '—'),
+                           unsafe_allow_html=True)
+
+    if 0 <= selected_idx < len(sugg):
+        return sugg[selected_idx]
+    return None
 
 
 def _impact_table_for_issue(issue):
@@ -1465,6 +1617,10 @@ def _impact_table_for_issue(issue):
         # (radio-select column + "Why suggested" reason column) by
         # _render_substitute_sku_selector() in render_intake_issue — so there is
         # nothing to render here.
+        return
+    if issue.kind == "UOM_CONVERSION" and issue.suggestions and len(issue.suggestions) >= 2:
+        # Rounding scenario (e.g. 52 EA → non-whole KIT). Rendered as a
+        # quantity dropdown by _render_uom_conversion_selector — skip here.
         return
     if issue.kind == "UOM_CONVERSION" and issue.recommended:
         c = issue.recommended
@@ -1504,27 +1660,10 @@ def _impact_table_for_issue(issue):
             )
         st.markdown(f"<table class='field-table'><thead><tr>{head}</tr></thead>"
                     f"<tbody>{''.join(rows)}</tbody></table>", unsafe_allow_html=True)
-    elif issue.kind == "UNRESOLVED_BUYER" and not _uses_radio(issue):
-        st.markdown("**Buyers registered for this customer (CSR to pick or type a name):**")
-        if issue.suggestions:
-            body = "".join(
-                f"<tr><td><b>{html_safe(s.get('buyer_name'))}</b></td>"
-                f"<td>{html_safe(s.get('email'))}</td>"
-                f"<td>{html_safe(s.get('role'))}</td>"
-                f"<td>{html_safe(s.get('customer_account'))}</td>"
-                f"<td>{html_safe(s.get('default_cost_center'))}</td></tr>"
-                for s in issue.suggestions
-            )
-            st.markdown(
-                "<table class='field-table'><thead><tr>"
-                "<th>Buyer</th><th>Email</th><th>Role</th>"
-                "<th>Customer</th><th>Default Cost Center</th>"
-                "</tr></thead><tbody>" + body + "</tbody></table>",
-                unsafe_allow_html=True,
-            )
-        else:
-            st.info("No buyers are registered against this customer in the "
-                    "buyer directory. CSR to type the correct buyer name.")
+    elif issue.kind == "UNRESOLVED_BUYER":
+        # Buyer selection is rendered as an interactive bordered table by
+        # _render_buyer_selector() in render_intake_issue.
+        return
     elif issue.kind == "INVALID_QUANTITY":
         rec = issue.recommended or {}
         line_label = rec.get("line_label") or issue.original
@@ -1798,7 +1937,7 @@ def _radio_label_for(issue, s):
 
 
 # Decision kinds whose options are presented as a radio list to pick + approve.
-RADIO_KINDS = ("UNRESOLVED_BUYER", "PARTIAL_SHIP_TO", "UNRESOLVED_SHIP_TO",
+RADIO_KINDS = ("PARTIAL_SHIP_TO", "UNRESOLVED_SHIP_TO",
                "UNRESOLVED_SKU", "MISSING_SKU")
 
 
@@ -1810,7 +1949,6 @@ def render_intake_issue(orch, issue):
         f"csr-intake-{po_id}-{orch.get('issue_ptr', 0)}-{issue.kind}"
     )
     st.warning(f"🟡  CSR DECISION NEEDED — {issue.title}")
-    st.caption(f"{AGENT_ICON} Flagged by the {agent_name('intake')}")
     if issue.kind == "SUBSTITUTE_SKU":
         # Highlight the obsolete/inactive status so it stands out clearly.
         st.markdown(
@@ -1821,33 +1959,58 @@ def render_intake_issue(orch, issue):
         )
     else:
         st.markdown(md_safe(issue.detail))
-    if issue.rationale:
-        st.caption(f"🧠 AI reasoning: {issue.rationale}")
     _impact_table_for_issue(issue)
 
-    # UOM_CONVERSION (non-standard UOM): Approve the conversion to the base UOM,
-    # Reject, or Escalate. The conversion table + rule is shown above.
+    # UOM_CONVERSION: two paths depending on whether the conversion yields a
+    # whole number (single confirm) or requires rounding (pick from table).
     if issue.kind == "UOM_CONVERSION":
-        c = issue.recommended or {}
-        cols = st.columns(3)
-        if cols[0].button(
-                f"✅ Approve conversion → {c.get('qty_base')} {c.get('uom')}",
-                key=_decision_key("uomc_ok"), use_container_width=True):
-            apply_issue_decision(orch, issue, "Approved", value=c)
-            orch["issue_ptr"] += 1
-            st.rerun()
-        if cols[1].button("⛔ Reject", key=_decision_key("uomc_no"),
-                          use_container_width=True):
-            _intake_reject(orch, issue)
-        if cols[2].button("📧 Notify to customer", key=_decision_key("uomc_esc"),
-                          use_container_width=True):
-            _intake_escalate(orch, issue)
+        if len(issue.suggestions) >= 2:
+            # Rounding scenario — CSR picks the KIT quantity from a dropdown
+            # (1–10 or a custom value); the base UOM is shown alongside.
+            selected = _render_uom_conversion_selector(orch, issue)
+            cols = st.columns(3)
+            if cols[0].button("✅ Approve selected",
+                              key=_decision_key("uomc_ok"), use_container_width=True,
+                              disabled=selected is None):
+                apply_issue_decision(orch, issue, "Picked", value=selected)
+                orch["issue_ptr"] += 1
+                st.rerun()
+            if cols[1].button("⛔ Reject", key=_decision_key("uomc_no"),
+                              use_container_width=True):
+                _intake_reject(orch, issue)
+            if cols[2].button("📧 Notify to customer", key=_decision_key("uomc_esc"),
+                              use_container_width=True):
+                _intake_escalate(orch, issue)
+        else:
+            # Exact conversion — single option, straight confirm.
+            c = issue.recommended or {}
+            cols = st.columns(3)
+            if cols[0].button(
+                    f"✅ Approve conversion → {c.get('qty_base')} {c.get('uom')}",
+                    key=_decision_key("uomc_ok"), use_container_width=True):
+                apply_issue_decision(orch, issue, "Approved", value=c)
+                orch["issue_ptr"] += 1
+                st.rerun()
+            if cols[1].button("⛔ Reject", key=_decision_key("uomc_no"),
+                              use_container_width=True):
+                _intake_reject(orch, issue)
+            if cols[2].button("📧 Notify to customer", key=_decision_key("uomc_esc"),
+                              use_container_width=True):
+                _intake_escalate(orch, issue)
         return
 
     # SUBSTITUTE_SKU (obsolete product): the whole decision lives in one
     # interactive table — a radio-select column, the actual-vs-suggested pricing
     # columns and a "Why suggested" reason column. No separate pick-list.
     if issue.kind == "SUBSTITUTE_SKU":
+        # If the CSR has typed a manual SKU, deselect any table row BEFORE the
+        # table is drawn so the highlight clears in this same frame (only one
+        # option — a picked row OR a manual entry — can be active at a time).
+        sel_key = f"subst_sel_{orch['issue_ptr']}"
+        pre_typed = (st.session_state.get(_decision_key("subst_txt")) or "").strip()
+        if pre_typed and st.session_state.get(sel_key, -1) != -1:
+            st.session_state[sel_key] = -1
+
         selected = _render_substitute_sku_selector(orch, issue)
 
         typed = None
@@ -1857,6 +2020,7 @@ def render_intake_issue(orch, issue):
             typed = st.text_input(ph, key=_decision_key("subst_txt"),
                                   placeholder=ph, label_visibility="collapsed")
             if typed:
+                selected = None
                 entry_error = validate_manual_sku(
                     typed, orch["po"], issue.line_number, INTAKE_RESOLVER.products)
                 if entry_error:
@@ -1867,7 +2031,8 @@ def render_intake_issue(orch, issue):
         cols = st.columns(n_cols)
         i = 0
         if cols[i].button("✅ Approve selected", key=_decision_key("subst_ok"),
-                          use_container_width=True):
+                          use_container_width=True,
+                          disabled=selected is None):
             apply_issue_decision(orch, issue, "Picked", value=selected)
             orch["issue_ptr"] += 1
             st.rerun()
@@ -1890,33 +2055,101 @@ def render_intake_issue(orch, issue):
             _intake_escalate(orch, issue)
         return
 
-    # Multi-option decisions (buyer / ship-to / multi-match SKU): the CSR picks
+    # UNRESOLVED_BUYER: interactive bordered table with radio-select column.
+    if issue.kind == "UNRESOLVED_BUYER":
+        # Deselect any table row up-front if a manual entry is present, so the
+        # highlight clears in the same frame (one option active at a time).
+        sel_key = f"buyer_sel_{orch['issue_ptr']}"
+        pre_typed = (st.session_state.get(_decision_key("buyer_txt")) or "").strip()
+        if pre_typed and st.session_state.get(sel_key, -1) != -1:
+            st.session_state[sel_key] = -1
+
+        selected = _render_buyer_selector(orch, issue)
+
+        typed = None
+        buyer_entry_error = None
+        if "enter" in issue.actions:
+            ph = "Or type a different buyer name or email"
+            typed = st.text_input(ph, key=_decision_key("buyer_txt"),
+                                  placeholder=ph, label_visibility="collapsed")
+            if typed:
+                selected = None
+                if "@" in typed:
+                    import re as _re
+                    _email = typed.strip()
+                    _email_pat = _re.compile(
+                        r'^[a-zA-Z][a-zA-Z0-9._%+\-]*'    # local part starts with a letter
+                        r'@'
+                        r'[a-zA-Z][a-zA-Z0-9\-]*'         # domain starts with a letter
+                        r'(\.[a-zA-Z][a-zA-Z0-9\-]*)*'    # optional sub-domains
+                        r'\.[a-zA-Z]{2,6}$'                # TLD: 2-6 letters
+                    )
+                    if not _email_pat.match(_email):
+                        buyer_entry_error = "Please enter a valid email address (e.g. john.doe@company.com)."
+                    elif len(_email) > 80:
+                        buyer_entry_error = "Email address is too long."
+            if buyer_entry_error:
+                st.error(f"❌ {buyer_entry_error}")
+
+        n_cols = 1 + (1 if "enter" in issue.actions else 0) \
+                   + (1 if "reject" in issue.actions else 0) + 1
+        cols = st.columns(n_cols)
+        i = 0
+        if cols[i].button("✅ Approve selected", key=_decision_key("buyer_ok"),
+                          use_container_width=True,
+                          disabled=selected is None):
+            apply_issue_decision(orch, issue, "Picked", value=selected)
+            orch["issue_ptr"] += 1
+            st.rerun()
+        i += 1
+        if "enter" in issue.actions:
+            if cols[i].button("✍️ Use my entry", key=_decision_key("buyer_use"),
+                              use_container_width=True,
+                              disabled=not typed or bool(buyer_entry_error)):
+                apply_issue_decision(orch, issue, "Entered", value=typed)
+                orch["issue_ptr"] += 1
+                st.rerun()
+            i += 1
+        if "reject" in issue.actions:
+            if cols[i].button("⛔ Reject", key=_decision_key("buyer_no"),
+                              use_container_width=True):
+                _intake_reject(orch, issue)
+            i += 1
+        if cols[i].button("📧 Notify to customer", key=_decision_key("buyer_esc"),
+                          use_container_width=True):
+            _intake_escalate(orch, issue)
+        return
+
+    # Multi-option decisions (ship-to / multi-match SKU): the CSR picks
     # ONE option with a radio button, optionally types a correction, then
     # approves. Replaces the old one-button-per-suggestion layout.
     if _uses_radio(issue):
-        if issue.kind == "UNRESOLVED_BUYER":
-            st.markdown("**Buyers registered for this customer — pick one:**")
-        else:
-            st.markdown("**Possible matches from master data — pick one:**")
+        st.markdown("**Possible matches from master data — pick one:**")
+        radio_key = _decision_key("radio")
+        txt_key = _decision_key("radio_txt")
         idxs = list(range(len(issue.suggestions)))
+        # Picking an option clears any typed correction, and vice-versa, so only
+        # one CSR choice is ever active at a time.
         sel = st.radio(
-            "options", options=idxs,
+            "options", options=idxs, index=None,
             format_func=lambda i: _radio_label_for(issue, issue.suggestions[i]),
-            key=_decision_key("radio"), label_visibility="collapsed",
+            key=radio_key, label_visibility="collapsed",
+            on_change=_reset_widget_state, args=(txt_key, ""),
         )
-        selected = issue.suggestions[sel]
+        selected = issue.suggestions[sel] if sel is not None else None
 
         typed = None
         entry_error = None
         if "enter" in issue.actions:
             if issue.kind in ("PARTIAL_SHIP_TO", "UNRESOLVED_SHIP_TO"):
                 ph = "Or type a different ship-to address (include ZIP)"
-            elif issue.kind == "UNRESOLVED_BUYER":
-                ph = "Or type a different buyer name or email"
             else:
                 ph = "Or type a different SKU"
-            typed = st.text_input(ph, key=_decision_key("radio_txt"),
-                                  placeholder=ph, label_visibility="collapsed")
+            typed = st.text_input(ph, key=txt_key,
+                                  placeholder=ph, label_visibility="collapsed",
+                                  on_change=_reset_widget_state, args=(radio_key, None))
+            if typed:
+                selected = None
             if typed and issue.kind in ("UNRESOLVED_SKU", "MISSING_SKU", "SUBSTITUTE_SKU"):
                 entry_error = validate_manual_sku(
                     typed, orch["po"], issue.line_number, INTAKE_RESOLVER.products)
@@ -1926,7 +2159,8 @@ def render_intake_issue(orch, issue):
         cols = st.columns(4)
         i = 0
         if cols[i].button("✅ Approve selected", key=_decision_key("radio_ok"),
-                          use_container_width=True):
+                          use_container_width=True,
+                          disabled=selected is None):
             apply_issue_decision(orch, issue, "Picked", value=selected)
             orch["issue_ptr"] += 1
             st.rerun()
@@ -2078,7 +2312,8 @@ def render_intake_issue(orch, issue):
         st.rerun()
 
 
-def _decision_buttons(orch, what, exc_type, kind, reason="", auto_findings=None):
+def _decision_buttons(orch, what, exc_type, kind, reason="", auto_findings=None,
+                      stage_key=None):
     """Shared Approve(override) / Reject / Escalate controls for a paused
     exception. `kind` is 'stage' or 'account' and drives the resume transition.
 
@@ -2090,7 +2325,11 @@ def _decision_buttons(orch, what, exc_type, kind, reason="", auto_findings=None)
     scroll_to_csr_top(
         f"csr-stage-{po_id}-{orch.get('stage_index', 0)}-{exc_type}-{kind}"
     )
-    st.warning("🟡  CSR DECISION NEEDED — the agent paused on this exception.")
+    # For PRICING_EXCEPTION the top banner already reads "CSR DECISION NEEDED —
+    # PRICING_EXCEPTION", so this second banner would be redundant.
+    if exc_type != "PRICING_EXCEPTION":
+        agent = agent_name(stage_key).lower() if stage_key else "agent"
+        st.warning(f"🟡  CSR DECISION NEEDED — the {agent} paused on this exception.")
     st.caption("Approve to override and continue, Reject to stop the order, or "
                "Notify to customer to route it to the responsible team.")
     cols = st.columns(3)
@@ -2143,7 +2382,8 @@ def render_pending_exception(orch, res):
     """Render a paused stage exception with Approve(override) / Reject / Escalate."""
     render_stage_result(res)
     _decision_buttons(orch, f"{res.title} — {res.exception_type}", res.exception_type,
-                      "stage", reason=res.headline, auto_findings=list(res.audit_trail))
+                      "stage", reason=res.headline, auto_findings=list(res.audit_trail),
+                      stage_key=getattr(res, "stage_key", None))
 
 
 def _narrate_intake_review(orch, po):
@@ -2522,7 +2762,8 @@ def drive_orchestration():
                 _decision_buttons(orch, f"Account validation — {orch['av'].exception_type}",
                                   f"ACCOUNT_{orch['av'].exception_type}", "account",
                                   reason=orch["av"].headline,
-                                  auto_findings=list(orch["av"].audit_trail))
+                                  auto_findings=list(orch["av"].audit_trail),
+                                  stage_key=getattr(orch["av"], "stage_key", "account"))
         return
 
     # ---- pipeline: decision layers  +  execution ----

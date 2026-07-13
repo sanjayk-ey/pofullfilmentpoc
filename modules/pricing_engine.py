@@ -267,15 +267,16 @@ class PricingEngine:
         r.data["pricing_tax_region"] = region
         r.data["price_waterfall_lines"] = waterfall
 
-        def _emit_common_tables():
+        def _emit_common_tables(include_waterfall: bool = True):
             r.table("Line pricing breakdown",
                     ["SKU", "List", "Base source", "Base", "Disc% (tier/promo/rebate)", "Net unit", "Qty", "Line total"],
                     breakdown)
-            r.table("Price waterfall (per-line build-up)",
-                    ["Order line", "Seq", "Component", "Label", "Amount / %", "Resulting unit price"],
-                    [[w["order_line_id"], w["component_sequence"], w["component_type"],
-                      w["component_label"], f'{w["amount_or_pct"]:g}',
-                      f'${w["resulting_unit_price"]:,.4f}'] for w in waterfall])
+            if include_waterfall:
+                r.table("Price waterfall (per-line build-up)",
+                        ["Order line", "Seq", "Component", "Label", "Amount / %", "Resulting unit price"],
+                        [[w["order_line_id"], w["component_sequence"], w["component_type"],
+                          w["component_label"], f'{w["amount_or_pct"]:g}',
+                          f'${w["resulting_unit_price"]:,.4f}'] for w in waterfall])
             if surcharge_rows:
                 r.table("Surcharges", ["Type", "Rate", "Amount", "Reason"], surcharge_rows)
             # Explicit tax & shipping breakdown (always shown per business feedback).
@@ -322,7 +323,7 @@ class PricingEngine:
                 ("Order total (if approved)", f"${order_total:,.2f}"),
                 ("Escalation target", b["approver_role"]),
             ])
-            _emit_common_tables()
+            _emit_common_tables(include_waterfall=False)
             r.data["pricing_margin_impact"] = b["margin_impact"]
             r.data["pricing_approver_role"] = b["approver_role"]
             r.log(f"SKU '{b['sku']}' discount {b['eff_from_list']}%>{b['max_disc']}% -> pricing exception "
