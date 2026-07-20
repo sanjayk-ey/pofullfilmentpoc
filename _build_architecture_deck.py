@@ -202,7 +202,6 @@ def divider(kicker, title, subtitle=""):
     s = slide(BG2)
     accent_bar(s)
     box(s, 0, 7.34, 13.333, 0.16, fill=YELLOW, radius=False)
-    txt(s, 1.1, 2.35, 4.0, 1.5, [[(f"{_SEC[0]:02d}", 96, PANEL2, True, False)]])
     txt(s, 1.15, 2.9, 11.0, 0.5, [[("SECTION " + kicker.upper(), 13, YELLOW, True, False)]])
     txt(s, 1.15, 3.3, 11.0, 1.0, [[(title, 38, WHITE, True, False)]])
     box(s, 1.18, 4.55, 3.0, 0.04, fill=YELLOW, radius=False)
