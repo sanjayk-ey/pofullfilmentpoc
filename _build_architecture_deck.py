@@ -1,6 +1,6 @@
 """
 Generate a client-ready architecture slide deck for the
-Order Assistant AI — PO-to-Fulfillment Orchestration Accelerator (Kohler).
+Order Assistant AI — PO-to-Fulfillment Orchestration Accelerator.
 
 Structure:
   1. Business context  (need / problem, solution, impact)
@@ -139,7 +139,7 @@ def header(s, kicker, title):
     txt(s, 12.2, 6.95, 0.9, 0.4, [[(f"{_IDX[0]:02d}", 10, DGREY, False, False)]],
         align=PP_ALIGN.RIGHT)
     txt(s, 0.6, 6.95, 9.0, 0.4,
-        [[("Order Assistant AI  ·  PO-to-Fulfillment Orchestration  ·  Kohler", 9, DGREY, False, False)]])
+        [[("Order Assistant AI  ·  PO-to-Fulfillment Orchestration", 9, DGREY, False, False)]])
 
 
 def chip(s, x, y, w, h, label, color, txtcolor=None, size=10.5):
@@ -217,13 +217,13 @@ def divider(kicker, title, subtitle=""):
 s = slide()
 box(s, 0, 0, 13.333, 0.16, fill=YELLOW, radius=False)
 box(s, 0, 7.34, 13.333, 0.16, fill=YELLOW, radius=False)
-txt(s, 0.9, 1.85, 11.5, 0.5, [[("ORDER ASSISTANT AI  ·  FOR KOHLER ORDER FULFILLMENT", 14, YELLOW, True, False)]])
+txt(s, 0.9, 1.85, 11.5, 0.5, [[("ORDER ASSISTANT AI  ·  FOR KITCHEN & BATH ORDER FULFILLMENT", 14, YELLOW, True, False)]])
 txt(s, 0.9, 2.45, 11.6, 1.8,
     [[("Autonomous Purchase Order", 42, WHITE, True, False)],
      [("to Fulfillment Orchestration", 42, WHITE, True, False)]], line_spacing=1.0)
 box(s, 0.94, 4.3, 3.0, 0.04, fill=YELLOW, radius=False)
 txt(s, 0.9, 4.5, 11.6, 1.4,
-    [[("An Order Assistant AI that turns every distributor purchase order Kohler receives \u2014 ", 15, GREY, False, False)],
+    [[("An Order Assistant AI that turns every distributor purchase order the business receives \u2014 ", 15, GREY, False, False)],
      [("from intake to shipment \u2014 into a fast, accurate, self-validating workflow, with a ", 15, GREY, False, False)],
      [("team of specialised AI agents and human-in-the-loop control on exceptions.", 15, GREY, False, False)]],
     line_spacing=1.05)
@@ -234,20 +234,20 @@ txt(s, 0.9, 6.5, 11.4, 0.5,
 # SECTION 1 — BUSINESS CONTEXT
 # ══════════════════════════════════════════════════════════════════════════════
 divider("business context", "Business context",
-        "The business need and problem, the solution approach, and the impact for Kohler.")
+        "The business need and problem, the solution approach, and the business impact.")
 
 # ── Business need & problem ───────────────────────────────────────────────────
 s = slide()
-header(s, "Business need & problem  \u00b7  Kohler", "From distributor PO to shipment \u2014 the manual bottleneck")
+header(s, "Business need & problem", "From distributor PO to shipment \u2014 the manual bottleneck")
 band = box(s, 0.6, 1.8, 12.13, 1.0, fill=PANEL2)
 box(s, 0.6, 1.8, 0.1, 1.0, fill=YELLOW, radius=False)
 txt(s, 0.9, 1.93, 11.6, 0.85,
-    [[("Kohler receives a high volume of purchase orders from wholesale distributors, showrooms and retailers ", 12.5, WHITE, False, False)],
+    [[("The business receives a high volume of purchase orders from wholesale distributors, showrooms and retailers ", 12.5, WHITE, False, False)],
      [("(e.g. Great Lakes Plumbing) across email, EDI and portals. Every order must be validated, priced, sourced "
        "and approved before it can ship \u2014 today that work lands on customer-service reps, order by order, line by line.",
        12.5, GREY, False, False)]], line_spacing=1.05)
 probs = [
-    ("Constant product churn", "Kohler continually supersedes fixtures, cartridges and finishes. CSRs must catch obsolete SKUs and find the approved replacement on every order."),
+    ("Constant product churn", "The catalog continually supersedes fixtures, cartridges and finishes. CSRs must catch obsolete SKUs and find the approved replacement on every order."),
     ("Mixed units of measure", "Items sell in each, kits and cases (e.g. Clearflo drain kits). Ordered quantities must be converted correctly or shipments and invoices go wrong."),
     ("Contract & margin complexity", "Distributor-specific contract pricing, promos and rebates \u2014 plus family-level discount / margin policies that must not be breached."),
     ("Account, credit & approval", "Validating the distributor account, the ordering buyer, credit limits and spend approvals \u2014 by hand, across multiple systems."),
@@ -290,7 +290,7 @@ for i, (t, d, col) in enumerate(cards):
 
 # ── Business impact ───────────────────────────────────────────────────────────
 s = slide()
-header(s, "Business impact  \u00b7  Kohler", "How the Order Assistant AI improves the business")
+header(s, "Business impact", "How the Order Assistant AI improves the business")
 bx = box(s, 0.6, 1.85, 6.0, 3.45, fill=PANEL)
 box(s, 0.6, 1.85, 6.0, 0.12, fill=RED, radius=False)
 txt(s, 0.9, 2.07, 5.5, 0.4, [[("TODAY  \u2014  MANUAL", 11, RED, True, False)]])
@@ -313,7 +313,7 @@ for i, t in enumerate(["Clean orders auto-processed end-to-end",
     yy = 2.55 + i*0.52
     d = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(7.08), Inches(yy+0.05), Inches(0.14), Inches(0.14)); _set_fill(d, GREEN)
     txt(s, 7.35, yy, 5.1, 0.5, [[(t, 12, GREY, False, False)]])
-txt(s, 0.6, 5.55, 12.0, 0.4, [[("Business outcomes for Kohler", 15, WHITE, True, False)]])
+txt(s, 0.6, 5.55, 12.0, 0.4, [[("Business outcomes", 15, WHITE, True, False)]])
 outs = ["Faster distributor turnaround", "Fewer returns & wrong shipments", "Protected margins",
         "Higher CSR productivity", "Consistent, governed decisions"]
 cw = 2.35; gap = 0.12; x0 = 0.6; y0 = 6.05
@@ -769,7 +769,7 @@ txt(s, 0.9, 2.95, 11.5, 1.2, [[("Autonomous PO-to-Fulfillment Orchestration", 34
 box(s, 0.94, 4.15, 3.0, 0.04, fill=YELLOW, radius=False)
 txt(s, 0.9, 4.4, 11.4, 1.0,
     [[("A working accelerator today \u2014 a clear path to production.", 15, GREY, False, False)],
-     [("Next: connect live systems, add LLM-assisted reasoning, and pilot with real Kohler POs.", 13, DGREY, False, True)]],
+     [("Next: connect live systems, add LLM-assisted reasoning, and pilot with real production POs.", 13, DGREY, False, True)]],
     line_spacing=1.2)
 
 # ── Save ──────────────────────────────────────────────────────────────────────
