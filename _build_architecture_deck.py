@@ -216,15 +216,15 @@ def divider(kicker, title, subtitle=""):
 s = slide()
 box(s, 0, 0, 13.333, 0.16, fill=YELLOW, radius=False)
 box(s, 0, 7.34, 13.333, 0.16, fill=YELLOW, radius=False)
-txt(s, 0.9, 1.85, 11.5, 0.5, [[("ORDER ASSISTANT AI  ·  FOR KITCHEN & BATH ORDER FULFILLMENT", 14, YELLOW, True, False)]])
+txt(s, 0.9, 1.85, 11.5, 0.5, [[("ORDER ASSISTANT AI  ·  FOR PURCHASE-ORDER FULFILLMENT", 14, YELLOW, True, False)]])
 txt(s, 0.9, 2.45, 11.6, 1.8,
     [[("Autonomous Purchase Order", 42, WHITE, True, False)],
      [("to Fulfillment Orchestration", 42, WHITE, True, False)]], line_spacing=1.0)
 box(s, 0.94, 4.3, 3.0, 0.04, fill=YELLOW, radius=False)
 txt(s, 0.9, 4.5, 11.6, 1.4,
-    [[("An Order Assistant AI that turns every distributor purchase order the business receives \u2014 ", 15, GREY, False, False)],
-     [("from intake to shipment \u2014 into a fast, accurate, self-validating workflow, with a ", 15, GREY, False, False)],
-     [("team of specialised AI agents and human-in-the-loop control on exceptions.", 15, GREY, False, False)]],
+    [[("An intelligent Order Assistant AI that transforms every incoming purchase order \u2014 from ", 15, GREY, False, False)],
+     [("intake through to shipment \u2014 into a fast, accurate and self-validating workflow, powered by a ", 15, GREY, False, False)],
+     [("team of specialised AI agents, with human judgement applied only where it truly matters.", 15, GREY, False, False)]],
     line_spacing=1.05)
 txt(s, 0.9, 6.5, 11.4, 0.5,
     [[("Business case  \u00b7  Solution architecture  \u00b7  The AI tool we built", 12, DGREY, False, True)]])
@@ -237,19 +237,19 @@ divider("business context", "Business context",
 
 # ── Business need & problem ───────────────────────────────────────────────────
 s = slide()
-header(s, "Business need & problem", "From distributor PO to shipment \u2014 the manual bottleneck")
+header(s, "Business need & problem", "From purchase order to shipment \u2014 the manual bottleneck")
 band = box(s, 0.6, 1.8, 12.13, 1.0, fill=PANEL2)
 box(s, 0.6, 1.8, 0.1, 1.0, fill=YELLOW, radius=False)
 txt(s, 0.9, 1.93, 11.6, 0.85,
-    [[("The business receives a high volume of purchase orders from wholesale distributors, showrooms and retailers ", 12.5, WHITE, False, False)],
-     [("(e.g. Great Lakes Plumbing) across email, EDI and portals. Every order must be validated, priced, sourced "
-       "and approved before it can ship \u2014 today that work lands on customer-service reps, order by order, line by line.",
+    [[("The business receives a high volume of purchase orders from its customers across ", 12.5, WHITE, False, False)],
+     [("email, EDI and portals. Every order must be validated, priced, sourced and approved before it can ship "
+       "\u2014 today that work lands on customer-service reps, order by order, line by line.",
        12.5, GREY, False, False)]], line_spacing=1.05)
 probs = [
-    ("Constant product churn", "The catalog continually supersedes fixtures, cartridges and finishes. CSRs must catch obsolete SKUs and find the approved replacement on every order."),
-    ("Mixed units of measure", "Items sell in each, kits and cases (e.g. Clearflo drain kits). Ordered quantities must be converted correctly or shipments and invoices go wrong."),
-    ("Contract & margin complexity", "Distributor-specific contract pricing, promos and rebates \u2014 plus family-level discount / margin policies that must not be breached."),
-    ("Account, credit & approval", "Validating the distributor account, the ordering buyer, credit limits and spend approvals \u2014 by hand, across multiple systems."),
+    ("Constant product churn", "The catalog is continually refreshed and older SKUs are superseded. CSRs must catch obsolete items and find the approved replacement on every order."),
+    ("Mixed units of measure", "Items sell in different units \u2014 each, kits and cases. Ordered quantities must be converted correctly or shipments and invoices go wrong."),
+    ("Contract & margin complexity", "Customer-specific contract pricing, promos and rebates \u2014 plus family-level discount / margin policies that must not be breached."),
+    ("Account, credit & approval", "Validating the customer account, the ordering buyer, credit limits and spend approvals \u2014 by hand, across multiple systems."),
 ]
 cw = 5.9; ch = 1.5; gap = 0.35; x0 = 0.6; y0 = 3.05
 pos = [(x0, y0), (x0+cw+gap, y0), (x0, y0+ch+0.2), (x0+cw+gap, y0+ch+0.2)]
@@ -313,7 +313,7 @@ for i, t in enumerate(["Clean orders auto-processed end-to-end",
     d = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(7.08), Inches(yy+0.05), Inches(0.14), Inches(0.14)); _set_fill(d, GREEN)
     txt(s, 7.35, yy, 5.1, 0.5, [[(t, 12, GREY, False, False)]])
 txt(s, 0.6, 5.55, 12.0, 0.4, [[("Business outcomes", 15, WHITE, True, False)]])
-outs = ["Faster distributor turnaround", "Fewer returns & wrong shipments", "Protected margins",
+outs = ["Faster order turnaround", "Fewer returns & wrong shipments", "Protected margins",
         "Higher CSR productivity", "Consistent, governed decisions"]
 cw = 2.35; gap = 0.12; x0 = 0.6; y0 = 6.05
 for i, o in enumerate(outs):
@@ -639,9 +639,9 @@ txt(s, 0.62, 3.1, 12.0, 0.3, [[("All checks pass automatically \u2014 no ", 12, 
     ("CSR DECISION NEEDED", 12, GREEN, True, False), (" banners appear.", 12, GREY, False, False)]])
 box(s, 0.6, 3.6, 6.5, 2.95, fill=PANEL)
 txt(s, 0.85, 3.78, 6.0, 0.4, [[("EXAMPLE PO  \u2014  PO-2026-30001", 11, YELLOW, True, False)]])
-lines = ["Great Lakes Plumbing Supply Co  \u00b7  john.miller@glps.com", "Ship to: Chicago DC, IL 60639", "",
-         "1  SKU-CTG-4520  Ceramic Disc Cartridge     100 EA", "2  SKU-SEL-1150  Tank-to-Bowl Gasket Kit    120 EA",
-         "3  SKU-VLV-2201  Pressure-Balancing Valve    15 EA"]
+lines = ["Great Lakes Supply Co  \u00b7  john.miller@glps.com", "Ship to: Chicago DC, IL 60639", "",
+         "1  SKU-CTG-4520  Catalog item A     100 EA", "2  SKU-SEL-1150  Catalog item B     120 EA",
+         "3  SKU-VLV-2201  Catalog item C      15 EA"]
 txt(s, 0.85, 4.2, 6.0, 2.2, [[(l, 11, GREY if not l.startswith(("1", "2", "3")) else WHITE, False, False)] for l in lines], line_spacing=1.15)
 box(s, 7.28, 3.6, 5.45, 2.95, fill=PANEL2)
 box(s, 7.28, 3.6, 0.1, 2.95, fill=GREEN, radius=False)
