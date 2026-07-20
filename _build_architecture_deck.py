@@ -6,8 +6,8 @@ Structure:
   1. Business context  (need / problem, solution, impact)
   2. Solution architecture & design  (reference architecture, component view,
      process flowchart, sequence diagram)
-  3. The AI tool we built  (agents, master data, pipeline, demos, governance,
-     technology)
+  3. The AI tool we built  (agents, master data, pipeline, scenarios, governance,
+     platform & enterprise readiness)
 
 Output: demo/PO-Fulfillment-Orchestration-Architecture.pptx
 """
@@ -241,8 +241,8 @@ header(s, "Business need & problem", "From purchase order to shipment \u2014 the
 band = box(s, 0.6, 1.8, 12.13, 1.0, fill=PANEL2)
 box(s, 0.6, 1.8, 0.1, 1.0, fill=YELLOW, radius=False)
 txt(s, 0.9, 1.93, 11.6, 0.85,
-    [[("The business receives a high volume of purchase orders from its customers across ", 12.5, WHITE, False, False)],
-     [("email, EDI and portals. Every order must be validated, priced, sourced and approved before it can ship "
+    [[("The business receives a high volume of purchase orders from its customers as ", 12.5, WHITE, False, False)],
+     [("email, PDF, Excel and scanned documents. Every order must be validated, priced, sourced and approved before it can ship "
        "\u2014 today that work lands on customer-service reps, order by order, line by line.",
        12.5, GREY, False, False)]], line_spacing=1.05)
 probs = [
@@ -353,12 +353,12 @@ def tiles(y, h, items, fill=PANEL2, line=LINE, tcol=WHITE, fs=9.5):
 
 
 # tiers
-tier_label(1.85, 0.6, "CHANNELS &\nINGESTION", BLUE)
-tiles(1.85, 0.6, ["Email / PDF", "EDI", "Web portal", "Manual entry"])
+tier_label(1.85, 0.6, "CUSTOMER\nINTERACTION", BLUE)
+tiles(1.85, 0.6, ["Email PO", "PDF PO", "Excel PO", "Scanned PO"])
 
 tier_label(2.57, 0.62, "EXPERIENCE\nLAYER", TEAL)
 eb = box(s, CX, 2.57, CW, 0.62, fill=PANEL2, line_color=YELLOW, line_w=1)
-fill_text(eb, [[("CSR Workspace  \u00b7  Streamlit", 11, WHITE, True, False)],
+fill_text(eb, [[("CSR Workspace & Console", 11, WHITE, True, False)],
                [("PO intake  \u00b7  live agent panels  \u00b7  one-click decisions  \u00b7  audit viewer", 8.5, GREY, False, False)]])
 
 tier_label(3.31, 1.16, "AI\nORCHESTRATION", YELLOW)
@@ -408,19 +408,19 @@ for gy in (2.47, 3.20, 4.48, 5.22):
     down_arrow(s, 1.29, gy, 0.24, 0.1, color=YELLOW)
 txt(s, 0.6, 6.5, 12.1, 0.35,
     [[("Logical reference architecture.  ", 9.5, YELLOW, True, True),
-      ("POC runs on Streamlit + Python with master data as workbooks; production maps to enterprise ERP / MDM, identity and cloud services.",
+      ("Governed master data drives every decision; the platform integrates with enterprise ERP / MDM, identity and cloud services.",
        9.5, DGREY, False, True)]])
 
 # ── Component & data-flow view ────────────────────────────────────────────────
 s = slide()
 header(s, "Runtime view", "Component & data-flow architecture")
-src = box(s, 0.6, 1.95, 2.55, 1.35, fill=PANEL2)
-txt(s, 0.78, 2.05, 2.2, 0.3, [[("PO SOURCES", 10, YELLOW, True, False)]])
-for i, t in enumerate(["Email / PDF", "EDI", "Portal / Manual"]):
+src = box(s, 0.6, 1.95, 2.55, 1.6, fill=PANEL2)
+txt(s, 0.78, 2.05, 2.2, 0.3, [[("CUSTOMER INTERACTION", 9.5, YELLOW, True, False)]])
+for i, t in enumerate(["Email PO", "PDF PO", "Excel PO", "Scanned PO"]):
     chip(s, 0.78, 2.42 + i*0.28, 2.2, 0.24, t, BG, GREY, size=9)
 ui = box(s, 3.55, 1.95, 6.35, 0.95, fill=PANEL2, line_color=YELLOW, line_w=1)
 txt(s, 3.75, 2.05, 6.0, 0.3, [[("EXPERIENCE LAYER", 10, YELLOW, True, False)]])
-txt(s, 3.75, 2.34, 6.0, 0.5, [[("CSR Workspace  \u2014  Streamlit UI  (intake \u00b7 live agent panels \u00b7 one-click decisions \u00b7 audit)", 11, WHITE, True, False)]], line_spacing=0.95)
+txt(s, 3.75, 2.34, 6.0, 0.5, [[("CSR Workspace & Console  (intake \u00b7 live agent panels \u00b7 one-click decisions \u00b7 audit)", 11, WHITE, True, False)]], line_spacing=0.95)
 integ = box(s, 10.25, 1.95, 2.45, 3.95, fill=PANEL2)
 txt(s, 10.43, 2.05, 2.1, 0.3, [[("INTEGRATIONS", 10, YELLOW, True, False)]])
 for i, t in enumerate(["ERP / Order Mgmt", "Email / SMTP", "Approval routing", "Audit store"]):
@@ -447,37 +447,61 @@ txt(s, 0.6, 7.02, 9.5, 0.3, [[("Data-driven decisions read governed master data;
 
 # ── Process flowchart ─────────────────────────────────────────────────────────
 s = slide()
-header(s, "Process design", "Process flowchart")
+header(s, "Process design", "Process flowchart \u2014 end to end")
 FT = MSO_SHAPE.FLOWCHART_TERMINATOR
 FP = MSO_SHAPE.FLOWCHART_PROCESS
 FD = MSO_SHAPE.FLOWCHART_DECISION
-cx = 2.35; cw = 3.9; cxc = cx + cw/2
-fbox(s, FT, cx, 1.8, cw, 0.5, GREEN, ["PO received"], BG)
-fbox(s, FP, cx, 2.42, cw, 0.6, PANEL2, ["Intake \u2014 extract & reconcile vs master data"], WHITE, LINE)
-fbox(s, FD, cx+0.45, 3.12, cw-0.9, 0.85, PANEL, ["Intake issues?"], WHITE, BLUE)
-fbox(s, FP, cx, 4.08, cw, 0.6, PANEL2, ["Run decision pipeline (Customer \u2192 \u2026 \u2192 Approvals)"], WHITE, LINE)
-fbox(s, FD, cx+0.45, 4.78, cw-0.9, 0.85, PANEL, ["Policy exception?"], WHITE, AMBER)
-fbox(s, FP, cx, 5.74, cw, 0.55, PANEL2, ["Order Execution \u2014 create sales order"], WHITE, LINE)
-fbox(s, FT, cx, 6.4, cw, 0.5, GREEN, ["Order created + full audit trail"], BG)
-rx = 7.9; rw = 4.2
-fbox(s, FP, rx, 3.02, rw, 0.9, PANEL, ["CSR resolves gate(s):", "substitute \u00b7 qty \u00b7 UOM \u00b7 buyer"], WHITE, BLUE, 10)
-fbox(s, FP, rx, 4.68, rw, 0.9, PANEL, ["CSR decides:", "Approve \u00b7 Reject \u00b7 Notify"], WHITE, AMBER, 10)
-fbox(s, FT, rx, 5.9, rw, 0.55, RED, ["Order stopped / routed to team"], WHITE)
-connector(s, cxc, 2.3, cxc, 2.42, color=YELLOW, tail=True)
-connector(s, cxc, 3.02, cxc, 3.12, color=YELLOW, tail=True)
-connector(s, cxc, 3.97, cxc, 4.08, color=YELLOW, tail=True); label(s, cxc+0.08, 3.99, 0.6, "No", GREY, 8.5)
-connector(s, cxc, 4.68, cxc, 4.78, color=YELLOW, tail=True)
-connector(s, cxc, 5.63, cxc, 5.74, color=YELLOW, tail=True); label(s, cxc+0.08, 5.64, 0.6, "No", GREY, 8.5)
-connector(s, cxc, 6.29, cxc, 6.4, color=YELLOW, tail=True)
-connector(s, cx+cw-0.45, 3.545, rx, 3.47, color=BLUE, tail=True); label(s, cx+cw-0.3, 3.2, 0.7, "Yes", BLUE, 8.5)
-connector(s, rx, 3.9, rx-0.35, 3.9, color=BLUE, tail=False)
-connector(s, rx-0.35, 3.9, rx-0.35, 4.38, color=BLUE, tail=False)
-connector(s, rx-0.35, 4.38, cxc, 4.38, color=BLUE, tail=True); label(s, cxc+1.6, 4.14, 1.6, "resolved \u2192 continue", BLUE, 8)
-connector(s, cx+cw-0.45, 5.205, rx, 5.13, color=AMBER, tail=True); label(s, cx+cw-0.3, 4.86, 0.7, "Yes", AMBER, 8.5)
-connector(s, rx, 5.58, rx-0.35, 5.58, color=AMBER, tail=False)
-connector(s, rx-0.35, 5.58, rx-0.35, 6.015, color=AMBER, tail=False)
-connector(s, rx-0.35, 6.015, cx+cw, 6.015, color=AMBER, tail=True); label(s, cx+cw+0.15, 5.78, 1.5, "approve \u2192 continue", AMBER, 8)
-connector(s, rx+rw/2, 5.58, rx+rw/2, 5.9, color=RED, tail=True); label(s, rx+rw/2+0.1, 5.6, 0.9, "reject", RED, 8.5)
+
+cx = 1.7; cw = 4.0; cxc = cx + cw/2          # main flow column
+rx = 8.4; rw = 4.3; rxc = rx + rw/2          # human-in-the-loop lane
+
+# ── intake channels band ──
+band = box(s, 0.6, 1.68, 7.5, 0.5, fill=PANEL2)
+txt(s, 0.75, 1.79, 1.5, 0.3, [[("PO INTAKE", 9.5, YELLOW, True, False)]])
+for i, t in enumerate(["Email PO", "PDF PO", "Excel PO", "Scanned PO"]):
+    chip(s, 2.25 + i*1.42, 1.76, 1.3, 0.34, t, BG, GREY, size=9)
+
+# ── main flow nodes ──
+fbox(s, FP, cx, 2.42, cw, 0.44, PANEL2, ["Intake \u2014 digitise & extract PO"], WHITE, LINE, 9.5)
+fbox(s, FP, cx, 2.98, cw, 0.44, PANEL2, ["Reconcile every line vs master data"], WHITE, LINE, 9.5)
+fbox(s, FD, cx, 3.54, cw, 0.74, PANEL, ["Intake issues?  (obsolete SKU \u00b7 qty \u00b7 UOM \u00b7 buyer)"], WHITE, BLUE, 9.5)
+fbox(s, FP, cx, 4.42, cw, 0.44, PANEL2, ["Validate customer, buyer & product match"], WHITE, LINE, 9.5)
+fbox(s, FP, cx, 4.98, cw, 0.44, PANEL2, ["Price \u00b7 credit \u00b7 inventory \u00b7 logistics checks"], WHITE, LINE, 9.5)
+fbox(s, FD, cx, 5.54, cw, 0.74, PANEL, ["Policy / approval exception?  (margin \u00b7 credit \u00b7 budget)"], WHITE, AMBER, 9.5)
+fbox(s, FT, cx, 6.42, cw, 0.46, GREEN, ["Sales order created  \u00b7  notify  \u00b7  audit trail"], BG, None, 9.5)
+
+# ── human-in-the-loop lane ──
+txt(s, rx, 2.46, rw, 0.3, [[("HUMAN-IN-THE-LOOP  \u00b7  CSR", 10, YELLOW, True, False)]])
+txt(s, rx, 2.78, rw, 0.3, [[("Blue = intake resolution    Amber = approval    Red = stop", 8, GREY, False, True)]])
+fbox(s, FP, rx, 3.54, rw, 0.74, PANEL, ["CSR resolves the gate", "substitute \u00b7 qty \u00b7 UOM \u00b7 buyer pick"], WHITE, BLUE, 10)
+fbox(s, FP, rx, 5.54, rw, 0.74, PANEL, ["CSR decides", "Approve \u00b7 Reject \u00b7 Escalate"], WHITE, AMBER, 10)
+fbox(s, FT, rx, 6.42, rw, 0.46, RED, ["Order stopped / routed to responsible team"], WHITE, None, 9.5)
+
+# ── vertical main flow ──
+down_arrow(s, cxc-0.17, 2.18, 0.34, 0.2, color=YELLOW)
+connector(s, cxc, 2.86, cxc, 2.98, color=YELLOW, tail=True)
+connector(s, cxc, 3.42, cxc, 3.54, color=YELLOW, tail=True)
+connector(s, cxc, 4.28, cxc, 4.42, color=YELLOW, tail=True); label(s, cxc+0.1, 4.29, 0.5, "No", GREY, 8.5)
+connector(s, cxc, 4.86, cxc, 4.98, color=YELLOW, tail=True)
+connector(s, cxc, 5.42, cxc, 5.54, color=YELLOW, tail=True)
+connector(s, cxc, 6.28, cxc, 6.42, color=YELLOW, tail=True); label(s, cxc+0.1, 6.29, 0.5, "No", GREY, 8.5)
+
+# ── intake exception branch (blue) ──
+connector(s, cx+cw, 3.91, rx, 3.91, color=BLUE, tail=True); label(s, cx+cw+0.08, 3.66, 0.6, "Yes", BLUE, 8.5)
+connector(s, rx, 4.15, 6.6, 4.15, color=BLUE, tail=False)
+connector(s, 6.6, 4.15, 6.6, 4.64, color=BLUE, tail=False)
+connector(s, 6.6, 4.64, cx+cw, 4.64, color=BLUE, tail=True)
+label(s, 5.95, 3.94, 1.7, "resolved \u2192 continue", BLUE, 8)
+
+# ── policy exception branch (amber) ──
+connector(s, cx+cw, 5.91, rx, 5.91, color=AMBER, tail=True); label(s, cx+cw+0.08, 5.66, 0.6, "Yes", AMBER, 8.5)
+connector(s, rx, 6.15, 6.6, 6.15, color=AMBER, tail=False)
+connector(s, 6.6, 6.15, 6.6, 6.65, color=AMBER, tail=False)
+connector(s, 6.6, 6.65, cx+cw, 6.65, color=AMBER, tail=True)
+label(s, 5.95, 6.66, 1.7, "approve \u2192 continue", AMBER, 8)
+
+# ── reject branch (red) ──
+connector(s, rxc, 6.28, rxc, 6.42, color=RED, tail=True); label(s, rxc+0.1, 6.28, 0.7, "reject", RED, 8.5)
 
 # ── Sequence diagram ──────────────────────────────────────────────────────────
 s = slide()
@@ -543,7 +567,7 @@ for i, (t, d, tag) in enumerate(team):
 s = slide()
 header(s, "What we built", "Master data drives every decision")
 txt(s, 0.6, 1.75, 12.0, 0.5,
-    [[("Each agent reads governed master data (mock Excel workbooks in the POC; enterprise systems in production). "
+    [[("Each agent reads governed master data sourced from the enterprise systems of record. "
        "Change the data, not the code, to change behaviour.", 13, GREY, False, False)]], line_spacing=1.1)
 data = [
     ("Customer", "Account hierarchy, tiers, buying history, fulfillment rules"),
@@ -624,7 +648,7 @@ chip(s, 7.08, 6.05, 5.3, 0.42, "Outcome:  CSR decides only the exceptions", PANE
 
 # ── Happy Flow detail ─────────────────────────────────────────────────────────
 s = slide()
-header(s, "Demo 1", "Happy Flow \u2014 straight-through processing")
+header(s, "Scenario 1", "Happy Flow \u2014 straight-through processing")
 steps = ["Submit\nPO", "Intake\nextract + review", "Customer\nValidation", "Product\nMatching", "Pricing",
          "Credit", "Inventory", "Shipments", "Approvals", "Order\nCreated"]
 bw = 1.12; bh = 0.95; gap = 0.055; x0 = 0.62; y0 = 2.0
@@ -656,7 +680,7 @@ txt(s, 10.0, 5.85, 2.5, 0.4, [[("$3,529.53", 15, YELLOW, True, False)]], align=P
 
 # ── CSR Approval Flow detail ──────────────────────────────────────────────────
 s = slide()
-header(s, "Demo 2", "CSR Approval Flow \u2014 five decision gates")
+header(s, "Scenario 2", "CSR Approval Flow \u2014 five decision gates")
 txt(s, 0.6, 1.72, 12.1, 0.4,
     [[("A single PO engineered to trigger five gates. The AI investigates, presents a one-click choice, captures the decision, and resumes.", 12, GREY, False, False)]], line_spacing=1.05)
 gates = [
@@ -737,13 +761,13 @@ for i, (t, d) in enumerate([("Governance", "Consistent, policy-aligned decisions
 
 # ── Technology & deployment ───────────────────────────────────────────────────
 s = slide()
-header(s, "What we built", "Technology & deployment")
+header(s, "What we built", "Platform & enterprise readiness")
 cols = [
-    ("POC (today)", GREEN, ["Python orchestration engine", "Streamlit CSR workspace UI", "Master data as Excel workbooks",
-                            "Mock integrations (email / ERP)", "Runs locally \u2014 fast to demo & iterate"]),
+    ("Solution components", GREEN, ["Agent orchestration engine", "CSR workspace & console", "Governed master-data foundation",
+                            "ERP & email integrations", "Audit & governance store"]),
     ("Architecture principles", YELLOW, ["Modular agents & decision layers", "Resumable pipeline / state machine",
                             "Data-driven, not hard-coded rules", "Human-in-the-loop by design", "Audit-first for governance"]),
-    ("Production path", BLUE, ["Connect to ERP / MDM / pricing systems", "Swap workbooks for live master data",
+    ("Enterprise readiness", BLUE, ["Integrates with ERP / MDM / pricing", "Live master-data connectivity",
                             "LLM-assisted extraction & reasoning", "Enterprise auth, roles & SLAs", "Cloud deployment & monitoring"]),
 ]
 cw = 3.95; gap = 0.13; x0 = 0.6; y0 = 1.95; chh = 4.5
@@ -767,8 +791,8 @@ txt(s, 0.9, 2.4, 11.5, 0.5, [[("THANK YOU", 14, YELLOW, True, False)]])
 txt(s, 0.9, 2.95, 11.5, 1.2, [[("Autonomous PO-to-Fulfillment Orchestration", 34, WHITE, True, False)]])
 box(s, 0.94, 4.15, 3.0, 0.04, fill=YELLOW, radius=False)
 txt(s, 0.9, 4.4, 11.4, 1.0,
-    [[("A working accelerator today \u2014 a clear path to production.", 15, GREY, False, False)],
-     [("Next: connect live systems, add LLM-assisted reasoning, and pilot with real production POs.", 13, DGREY, False, True)]],
+    [[("An intelligent orchestration platform for PO-to-fulfillment.", 15, GREY, False, False)],
+     [("Faster orders, protected margins and governed decisions \u2014 with human judgement where it matters.", 13, DGREY, False, True)]],
     line_spacing=1.2)
 
 # ── Save ──────────────────────────────────────────────────────────────────────
