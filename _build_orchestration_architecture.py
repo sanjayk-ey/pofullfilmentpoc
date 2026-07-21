@@ -175,8 +175,7 @@ txt(s, MX + 3.32, y + 0.60, MW - 3.5, 0.38,
 y, h = L2[0], L2[1]
 eb = box(s, MX, y, MW, h, fill=PANEL2, line_color=TEAL, line_w=1)
 fill_text(eb, [[("DECISION LAYER  ", 9.5, WHITE, T, F),
-                ("decision cards \u00b7 one-click actions (Approve \u00b7 Reject \u00b7 Escalate \u00b7 Correct \u00b7 Pick \u00b7 Enter) \u00b7 live agent panels \u00b7 audit viewer",
-                 8, GREY, F, F)]])
+                ("\u00b7 Approve \u00b7 Reject \u00b7 Escalate", 8, GREY, F, F)]])
 
 # ── L3 ORCHESTRATION — multi-agent team ──────────────────────────────────────
 y, h = L3[0], L3[1]
