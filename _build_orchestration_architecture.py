@@ -164,7 +164,7 @@ y, h = L3[0], L3[1]
 box(s, MX, y, MW, h, fill=BG2, line_color=YELLOW, line_w=0.9)
 txt(s, MX + 0.14, y + 0.18, MW - 0.28, 0.26,
     [[(BOT + "  AGENT ORCHESTRATION  ", 9.6, YELLOW, T, F),
-      ("\u2014 a team of specialist AI agents works together to process every order end-to-end", 8, GREY, F, F)]],
+      ("\u2014 multi AI agents works together to process order end-to-end", 8, GREY, F, F)]],
     align=PP_ALIGN.CENTER)
 down(s, MCX - 0.14, y + 0.56, 0.28, 0.12, color=YELLOW)
 
