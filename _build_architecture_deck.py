@@ -461,7 +461,7 @@ for i, t in enumerate(["ERP / Order Mgmt", "Email / SMTP", "Audit store"]):
 # cross-cutting column
 cc = box(s, XR, 1.85, XRW, 4.5, fill=PANEL)
 box(s, XR, 1.85, XRW, 0.1, fill=YELLOW, radius=False)
-txt(s, XR+0.14, 2.0, XRW-0.28, 0.3, [[("CROSS-CUTTING", 9, YELLOW, True, False)]])
+txt(s, XR+0.14, 2.0, XRW-0.28, 0.3, [[("PLATFORM CAPABILITIES", 9, YELLOW, True, False)]])
 for i, (t, sub) in enumerate([("Exception\nGovernance & routing", ""),
                               ("Audit &\nTraceability", ""),
                               ("Security &\nAccess control", ""),

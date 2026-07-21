@@ -258,7 +258,7 @@ conn(s, MX - 0.06, L6[0], MX - 0.06, L3[0] + L3[1], color=PURPLE, w=1.1, dash='d
 cc_y = L1[0]; cc_h = (L5[0] + L5[1]) - L1[0]
 box(s, XR, cc_y, XRW, cc_h, fill=PANEL)
 box(s, XR, cc_y, XRW, 0.09, fill=YELLOW, radius=False)
-txt(s, XR + 0.12, cc_y + 0.12, XRW - 0.24, 0.22, [[("CROSS-CUTTING", 8.5, YELLOW, T, F)]])
+txt(s, XR + 0.12, cc_y + 0.12, XRW - 0.24, 0.22, [[("PLATFORM CAPABILITIES", 8.5, YELLOW, T, F)]])
 cross = [("Multi-agent\norchestration", YELLOW), ("Human-in-the-loop\ncontrol", AMBER),
          ("Exception governance\n& SLA routing", RED), ("Audit &\ntraceability", BLUE),
          ("Pause & resume\nworkflow", GREEN)]
