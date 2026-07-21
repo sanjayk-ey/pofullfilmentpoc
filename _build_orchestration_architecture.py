@@ -143,7 +143,7 @@ def tier(band):
     fill_text(b, [[(w, 8.3, WHITE, T, F)] for w in name.split("\n")], ls=0.98)
 
 
-for b in (L1, L3, L5):
+for b in (L3, L5):
     tier(b)
 
 
@@ -156,11 +156,7 @@ def flowbox(x, y, w, h, title, accent, lines):
 
 # ── L1 PO INTAKE (input) — feeds the orchestration below ──────────────────────
 y = L1[0]
-txt(s, MX + 0.02, y + 0.02, MW - 0.1, 0.2,
-    [[("PO INTAKE \u2014 received via any channel; the ", 8, YELLOW, T, F),
-      (BOT + " Intake Agent", 8, WHITE, T, F),
-      (" is the first agent in the orchestration below", 8, YELLOW, T, F)]])
-flowbox(MX + 0.05, y + 0.26, MW - 0.1, 0.48, "PO INTAKE  \u2014  any channel", BLUE,
+flowbox(MX + 0.05, y + 0.16, MW - 0.1, 0.52, "PO INTAKE  \u2014  any channel", BLUE,
         ["Received as Email PO, Excel PO etc.  \u2192  handed to the orchestration below"])
 
 # ── L3 ORCHESTRATION — all agents contained in one orchestration box ──────────
