@@ -760,27 +760,6 @@ for i, (t, d) in enumerate([("Governance", "Consistent, policy-aligned decisions
     txt(s, 7.03, yy+0.36, 5.4, 0.5, [[(d, 11, GREY, False, False)]], line_spacing=1.0)
 
 # ── Technology & deployment ───────────────────────────────────────────────────
-s = slide()
-header(s, "What we built", "Platform & enterprise readiness")
-cols = [
-    ("Solution components", GREEN, ["Agent orchestration engine", "CSR workspace & console", "Governed master-data foundation",
-                            "ERP & email integrations", "Audit & governance store"]),
-    ("Architecture principles", YELLOW, ["Modular agents & decision layers", "Resumable pipeline / state machine",
-                            "Data-driven, not hard-coded rules", "Human-in-the-loop by design", "Audit-first for governance"]),
-    ("Enterprise readiness", BLUE, ["Integrates with ERP / MDM / pricing", "Live master-data connectivity",
-                            "LLM-assisted extraction & reasoning", "Enterprise auth, roles & SLAs", "Cloud deployment & monitoring"]),
-]
-cw = 3.95; gap = 0.13; x0 = 0.6; y0 = 1.95; chh = 4.5
-for i, (t, col, items) in enumerate(cols):
-    px = x0 + i*(cw+gap)
-    box(s, px, y0, cw, chh, fill=PANEL)
-    box(s, px, y0, cw, 0.12, fill=col, radius=False)
-    txt(s, px+0.3, y0+0.35, cw-0.55, 0.5, [[(t, 15, WHITE, True, False)]])
-    for j, it in enumerate(items):
-        yy = y0 + 1.05 + j*0.68
-        dot = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(px+0.32), Inches(yy+0.05), Inches(0.14), Inches(0.14)); _set_fill(dot, col)
-        txt(s, px+0.6, yy, cw-0.85, 0.6, [[(it, 11.5, GREY, False, False)]], line_spacing=1.0)
-
 # ══════════════════════════════════════════════════════════════════════════════
 # CLOSING
 # ══════════════════════════════════════════════════════════════════════════════
