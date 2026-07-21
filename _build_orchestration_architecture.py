@@ -126,14 +126,15 @@ txt(s, 0.35, 0.32, 12.6, 0.4,
       ("with Human-in-the-Loop Governance", 18, YELLOW, T, F)]])
 
 # ── geometry ──────────────────────────────────────────────────────────────────
-LX, LW = 0.33, 1.34
-MX, MW = 1.82, 11.18
+LX, LW = 0.33, 1.28
+MX = 1.72
+XR, XRW = 11.02, 2.02          # right-side Legacy Data System panel
+MW = XR - MX - 0.16            # main content width
 MCX = MX + MW / 2
 
-L1 = (0.82, 1.02, "INTAKE\n& RESOLUTION", BLUE)
-L3 = (1.90, 2.82, "ORCHESTRATION\n& HUMAN\nDECISIONS", YELLOW)
-L5 = (4.86, 1.02, "ORDER CREATION\n& DOWNSTREAM", GREEN)
-L6 = (6.00, 1.06, "LEGACY DATA\nSYSTEM", PURPLE)
+L1 = (0.82, 0.98, "INTAKE\n& RESOLUTION", BLUE)
+L3 = (1.88, 3.62, "ORCHESTRATION\n& HUMAN\nDECISIONS", YELLOW)
+L5 = (5.58, 1.12, "ORDER CREATION\n& DOWNSTREAM", GREEN)
 
 
 def tier(band):
@@ -143,7 +144,7 @@ def tier(band):
     fill_text(b, [[(w, 8.3, WHITE, T, F)] for w in name.split("\n")], ls=0.98)
 
 
-for b in (L1, L3, L5, L6):
+for b in (L1, L3, L5):
     tier(b)
 
 
@@ -158,55 +159,54 @@ def flowbox(x, y, w, h, title, accent, lines):
 y = L1[0]
 txt(s, MX + 0.02, y + 0.02, 9.0, 0.2, [[("INTAKE \u2014 the ", 8, YELLOW, T, F), (BOT + " Intake Agent", 8, WHITE, T, F),
                                         (" reads every PO and extracts the order fields", 8, YELLOW, T, F)]])
-flowbox(MX + 0.05, y + 0.28, 2.7, 0.72, "PO INTAKE  \u2014  any channel", BLUE,
+flowbox(MX + 0.05, y + 0.26, 2.7, 0.64, "PO INTAKE  \u2014  any channel", BLUE,
         ["Received as Email PO,", "Excel PO etc."])
-chev(s, MX + 2.80, y + 0.56, 0.32, 0.2, color=BLUE)
-ia = box(s, MX + 3.2, y + 0.28, MW - 3.25, 0.72, fill=PANEL, line_color=BLUE, line_w=0.9)
-box(s, MX + 3.2, y + 0.28, MW - 3.25, 0.05, fill=BLUE, radius=False)
-txt(s, MX + 3.32, y + 0.37, MW - 3.5, 0.2, [[(BOT + "  Intake Agent", 8.2, BLUE, T, F)]])
-txt(s, MX + 3.32, y + 0.60, MW - 3.5, 0.38,
+chev(s, MX + 2.80, y + 0.50, 0.32, 0.2, color=BLUE)
+ia = box(s, MX + 3.2, y + 0.26, MW - 3.25, 0.64, fill=PANEL, line_color=BLUE, line_w=0.9)
+box(s, MX + 3.2, y + 0.26, MW - 3.25, 0.05, fill=BLUE, radius=False)
+txt(s, MX + 3.32, y + 0.34, MW - 3.5, 0.2, [[(BOT + "  Intake Agent", 8.2, BLUE, T, F)]])
+txt(s, MX + 3.32, y + 0.55, MW - 3.5, 0.34,
     [[("extracts order fields (rule-based \u00b7 confidence-scored): ", 6.7, GREY, F, F),
-      ("SKU \u00b7 qty \u00b7 UOM \u00b7 ship-to ZIP \u00b7 requested delivery date \u00b7 PO number \u00b7 customer / buyer", 6.7, WHITE, F, F)]], ls=1.03)
+      ("SKU \u00b7 qty \u00b7 UOM \u00b7 ship-to ZIP \u00b7 delivery date \u00b7 PO number \u00b7 customer / buyer", 6.7, WHITE, F, F)]], ls=1.02)
 
-# ── L3 ORCHESTRATION — multi-agent team with CSR decision at EVERY agent ──────
+# ── L3 ORCHESTRATION — all agents contained in one orchestration box ──────────
 y, h = L3[0], L3[1]
-box(s, MX, y, MW, h, fill=BG2, line_color=LINE, line_w=0.8)
-ob = box(s, MX + 0.12, y + 0.06, MW - 0.24, 0.36, fill=PANEL2, line_color=YELLOW, line_w=1)
-fill_text(ob, [[(BOT + "  ORCHESTRATOR  ", 9.2, YELLOW, T, F),
+box(s, MX, y, MW, h, fill=BG2, line_color=YELLOW, line_w=0.9)
+ob = box(s, MX + 0.14, y + 0.12, MW - 0.28, 0.40, fill=PANEL2, line_color=YELLOW, line_w=1)
+fill_text(ob, [[(BOT + "  ORCHESTRATOR  ", 9.4, YELLOW, T, F),
                 ("coordinates a team of specialist AI agents over a shared context \u00b7 resumable, pause-and-resume workflow \u00b7 Approvals runs last",
-                 7.3, GREY, F, F)]], align=PP_ALIGN.LEFT)
-down(s, MCX - 0.14, y + 0.44, 0.28, 0.12, color=YELLOW)
+                 7.4, GREY, F, F)]], align=PP_ALIGN.LEFT)
+down(s, MCX - 0.14, y + 0.56, 0.28, 0.12, color=YELLOW)
 
 agents = [
-    ("Customer", "Validation Agent", "account \u00b7 buyer auth \u00b7 ship-to", "unauthorized \u00b7 cost ctr"),
-    ("Product", "Matching Agent", "catalog \u00b7 compliance & SDS", "obsolete \u00b7 UOM \u00b7 restrict"),
-    ("Pricing &", "Promo Agent", "contract \u00b7 promo \u00b7 margin", "margin \u00b7 discount"),
-    ("Credit", "Agent", "limit \u00b7 terms \u00b7 risk", "credit hold"),
-    ("Inventory", "Agent", "DC stock \u00b7 ATP \u00b7 alloc", "shortage \u00b7 alloc"),
-    ("Shipments", "Agent", "carrier \u00b7 service \u00b7 SLA", "delivery \u00b7 SLA"),
-    ("Optimization", "Agent", "plan A/B/C \u00b7 freight \u00b7 split", "least-cost plan"),
-    ("Approvals", "Agent", "budget \u00b7 matrix (last)", "budget \u00b7 approval"),
+    ("Customer", "Validation Agent", "account \u00b7 buyer auth \u00b7 ship-to"),
+    ("Product", "Matching Agent", "catalog \u00b7 compliance & SDS"),
+    ("Pricing &", "Promo Agent", "contract \u00b7 promo \u00b7 margin"),
+    ("Credit", "Agent", "limit \u00b7 terms \u00b7 risk"),
+    ("Inventory", "Agent", "DC stock \u00b7 ATP \u00b7 alloc"),
+    ("Shipments", "Agent", "carrier \u00b7 service \u00b7 SLA"),
+    ("Optimization", "Agent", "plan A/B/C \u00b7 freight"),
+    ("Approvals", "Agent", "budget \u00b7 matrix (last)"),
 ]
-na = len(agents); ag = 0.09; aw = (MW - 0.24 - ag * (na - 1)) / na; ax0 = MX + 0.12; aty = y + 0.62; ah = 1.02
-for i, (n1, n2, focus, exc) in enumerate(agents):
+na = len(agents); ag = 0.10; aw = (MW - 0.28 - ag * (na - 1)) / na; ax0 = MX + 0.14; aty = y + 0.76; ah = 1.16
+for i, (n1, n2, focus) in enumerate(agents):
     b = box(s, ax0 + i * (aw + ag), aty, aw, ah, fill=PANEL, line_color=YELLOW, line_w=0.8)
-    box(s, ax0 + i * (aw + ag), aty, aw, 0.04, fill=YELLOW, radius=False)
-    fill_text(b, [[(BOT + " ", 8.5, YELLOW, T, F), (n1, 7.2, WHITE, T, F)],
-                  [(n2, 7.2, WHITE, T, F)],
-                  [(focus, 5.7, GREY, F, F)],
-                  [(exc, 5.6, DGREY, F, T)]], ls=0.98)
+    box(s, ax0 + i * (aw + ag), aty, aw, 0.05, fill=YELLOW, radius=False)
+    fill_text(b, [[(BOT + " ", 9, YELLOW, T, F), (n1, 7.4, WHITE, T, F)],
+                  [(n2, 7.4, WHITE, T, F)],
+                  [(focus, 6.0, GREY, F, F)]], ls=1.18)
     if i < na - 1:
-        chev(s, ax0 + i * (aw + ag) + aw - 0.02, aty + 0.42, ag + 0.05, 0.18, color=YELLOW)
+        chev(s, ax0 + i * (aw + ag) + aw - 0.02, aty + 0.49, ag + 0.06, 0.18, color=YELLOW)
 
-# ── CSR DECISION LAYER wired to EVERY agent ──────────────────────────────────
-rail_y = y + 2.18; rail_h = 0.52
+# ── HUMAN DECISION LAYER wired to EVERY agent (inside the orchestration box) ──
+rail_y = y + 2.68; rail_h = 0.62
 for i in range(na):
     cx = ax0 + i * (aw + ag) + aw / 2
     conn(s, cx, aty + ah, cx, rail_y, color=AMBER, w=1.2, dash='dash', tail=True, head=True)
-rb = box(s, MX + 0.12, rail_y, MW - 0.24, rail_h, fill=PANEL, line_color=AMBER, line_w=1.3)
-box(s, MX + 0.12, rail_y, MW - 0.24, 0.06, fill=AMBER, radius=False)
+rb = box(s, MX + 0.14, rail_y, MW - 0.28, rail_h, fill=PANEL, line_color=AMBER, line_w=1.3)
+box(s, MX + 0.14, rail_y, MW - 0.28, 0.06, fill=AMBER, radius=False)
 fill_text(rb, [[("\u26A0  HUMAN DECISION LAYER   ", 9.2, AMBER, T, F),
-                ("\u2014 every agent pauses on exception for a human decision, then the pipeline resumes   (all agents pass \u21d2 straight-through, autonomous)",
+                ("\u2014 every agent pauses on exception for a human decision, then the pipeline resumes   (all agents pass \u21d2 straight-through)",
                  7.6, GREY, F, F)]],
           align=PP_ALIGN.CENTER)
 
@@ -214,35 +214,38 @@ fill_text(rb, [[("\u26A0  HUMAN DECISION LAYER   ", 9.2, AMBER, T, F),
 y, h = L5[0], L5[1]
 txt(s, MX + 0.02, y + 0.04, 9.0, 0.2, [[("ORDER CREATION & DOWNSTREAM \u2014 the ", 8, YELLOW, T, F),
                                         (BOT + " Order Execution Agent", 8, WHITE, T, F)]])
-oe = box(s, MX + 0.05, y + 0.32, 2.35, 0.60, fill=PANEL2, line_color=GREEN, line_w=1.1)
+oe = box(s, MX + 0.05, y + 0.34, 2.35, 0.64, fill=PANEL2, line_color=GREEN, line_w=1.1)
 fill_text(oe, [[(BOT + " Order Execution", 8, WHITE, T, F)], [("Agent \u00b7 create sales order", 7, GREY, F, F)]])
-chev(s, MX + 2.44, y + 0.52, 0.3, 0.2, color=GREEN)
+chev(s, MX + 2.44, y + 0.56, 0.3, 0.2, color=GREEN)
 ds = ["ERP\nsales order", "OMS\nrequest", "WMS\npick ticket", "TMS\nshipment+track", "SMTP\nconfirmation", "Audit\n& documents"]
-dx0 = MX + 2.90; dn = len(ds); dg = 0.08; dw = (MW - 2.90 - 0.05 - dg * (dn - 1)) / dn
+dx0 = MX + 2.90; dn = len(ds); dg = 0.10; dw = (MW - 2.90 - 0.05 - dg * (dn - 1)) / dn
 for i, d in enumerate(ds):
-    b = box(s, dx0 + i * (dw + dg), y + 0.32, dw, 0.60, fill=PANEL2, line_color=LINE, line_w=0.7)
-    fill_text(b, [[(ln, 6.7, WHITE, T, F)] for ln in d.split("\n")], ls=0.95)
+    b = box(s, dx0 + i * (dw + dg), y + 0.34, dw, 0.64, fill=PANEL2, line_color=LINE, line_w=0.7)
+    fill_text(b, [[(ln, 6.8, WHITE, T, F)] for ln in d.split("\n")], ls=0.95)
 
-# ── L6 LEGACY DATA SYSTEM ────────────────────────────────────────────────────
-y, h = L6[0], L6[1]
-box(s, MX, y, MW, h, fill=BG2, line_color=PURPLE, line_w=0.9)
-txt(s, MX + 0.12, y + 0.08, MW - 0.24, 0.2,
-    [[("GOVERNED MASTER DATA  ", 8.5, YELLOW, T, F),
-      ("\u2014 each agent owns its domain and reads governed data (change the data, not the code)", 7.5, GREY, F, T)]])
-ent = ["Product\ncatalog\u00b7subs\u00b7UOM", "Customer\n& Ship-to", "Buyer", "Pricing", "Credit", "Inventory",
-       "Logistics", "Budget &\nApproval", "Compliance\n& SDS", "Execution\nendpoints"]
-en = len(ent); eg = 0.06; ew = (MW - 0.24 - eg * (en - 1)) / en; ex0 = MX + 0.12; ety = y + 0.42
-for i, e in enumerate(ent):
-    b = box(s, ex0 + i * (ew + eg), ety, ew, 0.56, fill=PANEL, line_color=LINE, line_w=0.6)
-    fill_text(b, [[(ln, 6.3, GREY, T, F)] for ln in e.split("\n")], ls=0.95)
+# ── RIGHT PANEL: LEGACY DATA SYSTEM (governed master data) ───────────────────
+dcy = L1[0]; dch = (L5[0] + L5[1]) - L1[0]
+box(s, XR, dcy, XRW, dch, fill=BG2, line_color=PURPLE, line_w=1.0)
+box(s, XR, dcy, XRW, 0.09, fill=PURPLE, radius=False)
+txt(s, XR + 0.12, dcy + 0.15, XRW - 0.24, 0.22, [[("LEGACY DATA SYSTEM", 9.2, PURPLE, T, F)]])
+txt(s, XR + 0.12, dcy + 0.37, XRW - 0.24, 0.28, [[("governed master data \u00b7 read by the agents", 6.8, GREY, F, T)]])
+dent = ["Product catalog \u00b7 subs \u00b7 UOM", "Customer & Ship-to", "Buyer", "Pricing", "Credit",
+        "Inventory", "Logistics", "Budget & Approval", "Compliance & SDS", "Execution endpoints"]
+dn2 = len(dent); dgap = 0.05; d0 = dcy + 0.72; drow = (dch - 0.80 - dgap * (dn2 - 1)) / dn2
+for i, e in enumerate(dent):
+    yy = d0 + i * (drow + dgap)
+    b = box(s, XR + 0.12, yy, XRW - 0.24, drow, fill=PANEL, line_color=LINE, line_w=0.6)
+    box(s, XR + 0.12, yy, 0.05, drow, fill=PURPLE, radius=False)
+    fill_text(b, [[(e, 6.9, WHITE, F, F)]], align=PP_ALIGN.LEFT, ls=0.95)
 
-# ── vertical spine + data-read arrow ──────────────────────────────────────────
+# ── flow arrows: spine + master-data reads ───────────────────────────────────
 for gy in (L1[0] + L1[1], L3[0] + L3[1]):
     down(s, MCX - 0.16, gy - 0.02, 0.32, 0.12, color=YELLOW)
-conn(s, MX - 0.06, L6[0], MX - 0.06, L3[0] + L3[1], color=PURPLE, w=1.1, dash='dash', tail=True)
+conn(s, XR, L3[0] + L3[1] / 2, MX + MW, L3[0] + L3[1] / 2, color=PURPLE, w=1.1, dash='dash', tail=True)
+conn(s, XR, L5[0] + L5[1] / 2, MX + MW, L5[0] + L5[1] / 2, color=PURPLE, w=1.1, dash='dash', tail=True)
 
 # ── footer legend ────────────────────────────────────────────────────────────
-txt(s, 0.35, 7.16, 12.6, 0.24,
+txt(s, 0.35, 6.9, 12.6, 0.24,
     [[(BOT + " = specialist AI agent    \u00b7    ", 8, WHITE, F, T),
       ("green = straight-through (autonomous)    \u00b7    ", 8, GREEN, F, T),
       ("amber = human-in-the-loop decision    \u00b7    ", 8, AMBER, F, T),
