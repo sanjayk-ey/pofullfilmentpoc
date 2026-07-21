@@ -3,13 +3,23 @@ Generate a standalone, single-slide architecture diagram:
 
     "Order Creation & Orchestration - Architecture with Human-in-the-Loop Governance"
 
-Layout follows the business reference diagram:
-  - Customer Interaction Layer  (4 PO intake methods: Email / PDF / Excel / Scanned)
-  - Decision Layer              (9 agent stages, each with what it does + a worked
-                                 example + human-in-the-loop CSR asks where policy
-                                 or ambiguity requires a decision)
-  - Execution Orchestration Layer (Order creation / Communication / Exception handling)
-  - Confirmed order outcome
+This diagram reflects the ACTUAL implementation (as running locally), not a
+generic reference:
+
+  Intake         : PO text / email paste + Excel upload -> rule-based, offline,
+                   confidence-scored extraction -> identity & account resolution
+                   -> intake resolver (obsolete-SKU substitution, SKU match,
+                   invalid qty, UOM conversion, unresolved buyer, ship-to)
+  Experience     : CSR workspace - decision cards, one-click actions, audit viewer
+  Orchestration  : resumable pipeline / state machine running the 8 decision
+                   stages in real order (Buyer Authorization -> Product Match ->
+                   Compliance -> Pricing -> Credit -> Inventory -> Shipments ->
+                   Approval [last]); pauses on first exception, resumes on CSR
+                   decision; straight-through when clean
+  Governance     : Exception Governance & Human-in-the-Loop - routes each
+                   exception to its owner with severity + SLA
+  Order creation : Order Execution -> ERP / OMS / WMS / TMS / SMTP + audit & docs
+  Data           : governed master-data workbooks read by every decision
 
 Output: demo/Order-Creation-Orchestration-Architecture.pptx
 """
@@ -26,11 +36,10 @@ BG     = RGBColor(0x14, 0x14, 0x1E)
 BG2    = RGBColor(0x0E, 0x0E, 0x16)
 PANEL  = RGBColor(0x22, 0x22, 0x30)
 PANEL2 = RGBColor(0x2E, 0x2E, 0x40)
-HDR    = RGBColor(0x30, 0x3B, 0x52)
 YELLOW = RGBColor(0xFF, 0xE6, 0x00)
 WHITE  = RGBColor(0xFF, 0xFF, 0xFF)
 GREY   = RGBColor(0xC2, 0xC2, 0xD0)
-DGREY  = RGBColor(0x8A, 0x8A, 0x99)
+DGREY  = RGBColor(0x8C, 0x8C, 0x9B)
 GREEN  = RGBColor(0x35, 0xC7, 0x59)
 RED    = RGBColor(0xFF, 0x5A, 0x5A)
 AMBER  = RGBColor(0xFF, 0xB0, 0x20)
@@ -39,13 +48,12 @@ TEAL   = RGBColor(0x33, 0xC9, 0xC9)
 PURPLE = RGBColor(0xA9, 0x7B, 0xFF)
 LINE   = RGBColor(0x3C, 0x3C, 0x4E)
 FONT = "Segoe UI"
+T, F = True, False
 
 prs = Presentation()
 prs.slide_width = Inches(13.333); prs.slide_height = Inches(7.5)
 SW, SH = prs.slide_width, prs.slide_height
 BLANK = prs.slide_layouts[6]
-
-T, F = True, False
 
 
 def _fill(shape, color, line_color=None, line_w=None):
@@ -56,7 +64,7 @@ def _fill(shape, color, line_color=None, line_w=None):
     shape.shadow.inherit = False
 
 
-def box(s, x, y, w, h, fill=PANEL, line_color=None, line_w=None, radius=True, adj=0.05):
+def box(s, x, y, w, h, fill=PANEL, line_color=None, line_w=None, radius=True, adj=0.06):
     shp = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE if radius else MSO_SHAPE.RECTANGLE,
                              Inches(x), Inches(y), Inches(w), Inches(h))
     _fill(shp, fill, line_color, line_w)
@@ -67,14 +75,14 @@ def box(s, x, y, w, h, fill=PANEL, line_color=None, line_w=None, radius=True, ad
     return shp
 
 
-def txt(s, x, y, w, h, runs, align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, line_spacing=1.0, space_after=0):
+def txt(s, x, y, w, h, runs, align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, ls=1.0, sa=0):
     tb = s.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
     tf = tb.text_frame; tf.word_wrap = True; tf.vertical_anchor = anchor
     tf.margin_left = 0; tf.margin_right = 0; tf.margin_top = 0; tf.margin_bottom = 0
     first = True
     for para in runs:
         p = tf.paragraphs[0] if first else tf.add_paragraph(); first = False
-        p.alignment = align; p.space_after = Pt(space_after); p.space_before = Pt(0); p.line_spacing = line_spacing
+        p.alignment = align; p.space_after = Pt(sa); p.space_before = Pt(0); p.line_spacing = ls
         if isinstance(para, tuple): para = [para]
         for (t, sz, col, bold, ital) in para:
             r = p.add_run(); r.text = t
@@ -95,140 +103,185 @@ def fill_text(shape, lines, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, ls=
             r.font.size = Pt(sz); r.font.color.rgb = col; r.font.bold = bold; r.font.italic = ital; r.font.name = FONT
 
 
-def _lp(conn, color, w, dash=None, tail=False, head=False):
-    ln = conn.line; ln.color.rgb = color; ln.width = Pt(w)
+def _lp(c, color, w, dash=None, tail=False, head=False):
+    ln = c.line; ln.color.rgb = color; ln.width = Pt(w)
     el = ln._get_or_add_ln()
     if dash: el.append(el.makeelement(qn('a:prstDash'), {'val': dash}))
     if head: el.append(el.makeelement(qn('a:headEnd'), {'type': 'triangle', 'w': 'med', 'len': 'med'}))
     if tail: el.append(el.makeelement(qn('a:tailEnd'), {'type': 'triangle', 'w': 'med', 'len': 'med'}))
 
 
-def down(s, x, y, w=0.34, h=0.16, color=YELLOW):
+def conn(s, x1, y1, x2, y2, color=YELLOW, w=1.4, dash=None, tail=True, head=False):
+    c = s.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(x1), Inches(y1), Inches(x2), Inches(y2))
+    c.shadow.inherit = False; _lp(c, color, w, dash, tail, head); return c
+
+
+def chev(s, x, y, w, h=0.2, color=YELLOW):
+    a = s.shapes.add_shape(MSO_SHAPE.CHEVRON, Inches(x), Inches(y), Inches(w), Inches(h)); _fill(a, color); return a
+
+
+def down(s, x, y, w=0.32, h=0.14, color=YELLOW):
     a = s.shapes.add_shape(MSO_SHAPE.DOWN_ARROW, Inches(x), Inches(y), Inches(w), Inches(h)); _fill(a, color); return a
 
 
-# ── slide bg ──
+# ── slide + title ─────────────────────────────────────────────────────────────
 s = prs.slides.add_slide(BLANK)
 bgr = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SW, SH); _fill(bgr, BG)
 bgr.text_frame.paragraphs[0].text = ""
 box(s, 0, 0, 13.333, 0.10, fill=YELLOW, radius=False)
-
-# ── title ──
-txt(s, 0.4, 0.14, 9.0, 0.22, [[("SOLUTION ARCHITECTURE", 10, YELLOW, T, F)]])
-txt(s, 0.4, 0.34, 12.6, 0.4,
+txt(s, 0.35, 0.13, 9.0, 0.22, [[("SOLUTION ARCHITECTURE", 10, YELLOW, T, F)]])
+txt(s, 0.35, 0.33, 12.6, 0.4,
     [[("Order Creation & Orchestration \u2014 Architecture ", 18, WHITE, T, F),
       ("with Human-in-the-Loop Governance", 18, YELLOW, T, F)]])
 
-# ── CSR persona + speech bubble ──
-head = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(4.55), Inches(0.72), Inches(0.16), Inches(0.16)); _fill(head, YELLOW)
-body = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(4.5), Inches(0.88), Inches(0.26), Inches(0.14)); _fill(body, YELLOW)
-bub = box(s, 4.9, 0.68, 3.95, 0.34, fill=PANEL2, line_color=YELLOW, line_w=0.75)
-fill_text(bub, [[("\u201cNeed 250 units of SKU SV-200  \u00b7  deliver to ZIP 75201\u201d", 8.5, WHITE, F, T)]], align=PP_ALIGN.LEFT)
-txt(s, 4.5, 1.02, 0.5, 0.16, [[("CSR", 6.5, DGREY, T, F)]], align=PP_ALIGN.CENTER)
+# ── geometry ──────────────────────────────────────────────────────────────────
+LX, LW = 0.33, 1.34
+MX, MW = 1.82, 9.18
+XR, XRW = 11.12, 1.9
+MCX = MX + MW / 2
 
-# ── Customer Interaction Layer band ──
-band = box(s, 0.3, 1.10, 12.73, 0.30, fill=BLUE, radius=False)
-txt(s, 5.35, 1.15, 2.6, 0.22, [[("Customer Interaction Layer", 9.5, BG, T, T)]], align=PP_ALIGN.CENTER)
-for x, lbl in [(0.55, "\u2709  Email PO"), (3.05, "\u25A4  PDF PO"), (8.35, "\u25A6  Excel PO"), (10.9, "\u2317  Scanned PO")]:
-    txt(s, x, 1.16, 2.1, 0.22, [[(lbl, 9, BG, T, F)]])
+L1 = (0.98, 1.30, "INTAKE\n& RESOLUTION", BLUE)
+L2 = (2.36, 0.46, "EXPERIENCE\nCSR WORKSPACE", TEAL)
+L3 = (2.90, 1.86, "ORCHESTRATION", YELLOW)
+L4 = (4.84, 0.40, "GOVERNANCE", RED)
+L5 = (5.32, 0.86, "ORDER CREATION\n& DOWNSTREAM", GREEN)
+L6 = (6.26, 0.92, "DATA\nFOUNDATION", PURPLE)
 
-# ── Decision Layer box ──
-DX, DY, DW, DH = 0.3, 1.46, 12.73, 3.94
-box(s, DX, DY, DW, DH, fill=BG2, line_color=LINE, line_w=1)
-txt(s, DX, DY + 0.05, DW, 0.24, [[("\u2699  Decision Layer", 11, YELLOW, T, F)]], align=PP_ALIGN.CENTER)
 
-cols = [
-    ("Intake", BLUE, [
-        ("Extracts:", 6.6, YELLOW, T, F), ("\u2022 SKU", 6.3, GREY, F, F), ("\u2022 Qty", 6.3, GREY, F, F),
-        ("\u2022 Ship-to ZIP", 6.3, GREY, F, F), ("\u2022 Delivery date", 6.3, GREY, F, F),
-        ("Example O/P:", 6.3, YELLOW, T, F), ("SKU \u2192 SV-200", 6.3, WHITE, F, F),
-        ("Qty \u2192 250", 6.3, WHITE, F, F), ("ZIP \u2192 75201", 6.3, WHITE, F, F)]),
-    ("Customer\nValidation", BLUE, [
-        ("Identifies:", 6.6, YELLOW, T, F), ("\u2022 Customer tier", 6.3, GREY, F, F), ("\u2022 Account type", 6.3, GREY, F, F),
-        ("\u2022 Contractor", 6.3, GREY, F, F), ("\u2022 Buying history", 6.3, GREY, F, F),
-        ("Example O/P:", 6.3, YELLOW, T, F), ("ABC Supply Co", 6.3, WHITE, F, F),
-        ("Key account", 6.3, WHITE, F, F), ("Net 45 terms", 6.3, WHITE, F, F)]),
-    ("Product\nMatch", TEAL, [
-        ("Validates:", 6.6, YELLOW, T, F), ("\u2022 SKU active", 6.3, GREY, F, F), ("\u2022 UOM conversion", 6.3, GREY, F, F),
-        ("\u2022 Compatibility", 6.3, GREY, F, F), ("\u2022 Substitutes", 6.3, GREY, F, F),
-        ("Example:", 6.3, YELLOW, T, F), ("AI: SV-200 obsolete", 6.3, WHITE, F, F), ("\u2192 recommend SV-220", 6.3, WHITE, F, F),
-        ("CSR > Approve /", 6.2, AMBER, F, T), ("modify / escalate", 6.2, AMBER, F, T)]),
-    ("Pricing &\nPromo", TEAL, [
-        ("Determines:", 6.6, YELLOW, T, F), ("\u2022 Contract price", 6.3, GREY, F, F), ("\u2022 Rebates", 6.3, GREY, F, F),
-        ("\u2022 Volume discounts", 6.3, GREY, F, F), ("\u2022 Promos", 6.3, GREY, F, F), ("\u2022 Freight terms", 6.3, GREY, F, F),
-        ("Example:", 6.3, YELLOW, T, F), ("List $120 \u00b7 Contract", 6.3, WHITE, F, F), ("$105 \u00b7 Vol 5% \u2192 $99.75", 6.3, WHITE, F, F),
-        ("CSR > discount >10%:", 6.2, AMBER, F, T), ("\u201cmargin impact $12K \u2014", 6.2, AMBER, F, T), ("approve exception?\u201d", 6.2, AMBER, F, T)]),
-    ("Approval", PURPLE, [
-        ("Evaluates:", 6.6, YELLOW, T, F), ("\u2022 Margin rules", 6.3, GREY, F, F), ("\u2022 Discount limits", 6.3, GREY, F, F),
-        ("\u2022 Approval matrix", 6.3, GREY, F, F), ("\u2022 Auto-approval", 6.3, GREY, F, F),
-        ("Example:", 6.3, YELLOW, T, F), ("Order < $100K \u00b7", 6.3, WHITE, F, F), ("Margin > 15% \u2192", 6.3, WHITE, F, F),
-        ("Auto Approval", 6.3, GREEN, T, F)]),
-    ("Credit", GREEN, [
-        ("Checks:", 6.6, YELLOW, T, F), ("\u2022 Credit limit", 6.3, GREY, F, F), ("\u2022 Open invoices", 6.3, GREY, F, F),
-        ("\u2022 Payment risk", 6.3, GREY, F, F), ("\u2022 Fraud signals", 6.3, GREY, F, F),
-        ("Example:", 6.3, YELLOW, T, F), ("Limit $500K \u00b7 avail", 6.3, WHITE, F, F), ("$410K \u2192 PASS", 6.3, WHITE, F, F),
-        ("CSR > credit hold:", 6.2, AMBER, F, T), ("\u201capprove override or", 6.2, AMBER, F, T), ("send to Finance?\u201d", 6.2, AMBER, F, T)]),
-    ("Inventory\nChecks", GREEN, [
-        ("Checks:", 6.6, YELLOW, T, F), ("\u2022 Plant stock", 6.3, GREY, F, F), ("\u2022 DC inventory", 6.3, GREY, F, F),
-        ("\u2022 In-transit", 6.3, GREY, F, F), ("\u2022 ATP", 6.3, GREY, F, F),
-        ("Example:", 6.3, YELLOW, T, F), ("DC-A 350 \u00b7 DC-B 150", 6.3, WHITE, F, F), ("\u2192 avail 500 \u00b7 OK", 6.3, WHITE, F, F),
-        ("CSR > shortage:", 6.2, AMBER, F, T), ("\u201c400 now, 100 next", 6.2, AMBER, F, T), ("week\u201d \u2014 CSR approves", 6.2, AMBER, F, T)]),
-    ("Logistics", AMBER, [
-        ("Determines:", 6.6, YELLOW, T, F), ("\u2022 ZIP serviceability", 6.3, GREY, F, F), ("\u2022 Carrier coverage", 6.3, GREY, F, F),
-        ("\u2022 Delivery SLA", 6.3, GREY, F, F), ("\u2022 ETA prediction", 6.3, GREY, F, F),
-        ("Example:", 6.3, YELLOW, T, F), ("ZIP 75201 \u00b7 carrier set", 6.3, WHITE, F, F), ("\u00b7 ETA Jun 29 \u2192 OK", 6.3, WHITE, F, F),
-        ("CSR > ZIP unsupported:", 6.2, AMBER, F, T), ("suggest pickup; CSR", 6.2, AMBER, F, T), ("reviews customer comms", 6.2, AMBER, F, T)]),
-    ("Optimization", AMBER, [
-        ("Optimizes:", 6.6, YELLOW, T, F), ("\u2022 Warehouse choice", 6.3, GREY, F, F), ("\u2022 Shipment split", 6.3, GREY, F, F),
-        ("\u2022 Freight cost", 6.3, GREY, F, F), ("\u2022 Inventory balance", 6.3, GREY, F, F),
-        ("Example:", 6.3, YELLOW, T, F), ("A: DC-A  $1,200", 6.3, WHITE, F, F), ("B: DC-B  $1,700", 6.3, WHITE, F, F),
-        ("C: split  $1,400", 6.3, WHITE, F, F)]),
+def tier(band):
+    y, h, name, color = band
+    b = box(s, LX, y, LW, h, fill=PANEL)
+    box(s, LX, y, 0.06, h, fill=color, radius=False)
+    fill_text(b, [[(w, 8.5, WHITE, T, F)] for w in name.split("\n")], ls=0.98)
+
+
+for b in (L1, L2, L3, L4, L5, L6):
+    tier(b)
+
+
+def flowbox(x, y, w, h, title, accent, lines):
+    box(s, x, y, w, h, fill=PANEL, line_color=LINE, line_w=0.6)
+    box(s, x, y, w, 0.05, fill=accent, radius=False)
+    txt(s, x + 0.1, y + 0.09, w - 0.2, 0.2, [[(title, 7.6, accent, T, F)]])
+    txt(s, x + 0.1, y + 0.31, w - 0.2, h - 0.35, [[(ln, 6.5, GREY, F, F)] for ln in lines], ls=1.03)
+
+
+# ── L1 INTAKE (4-step horizontal flow) ───────────────────────────────────────
+y = L1[0]
+txt(s, MX + 0.02, y + 0.02, 8.0, 0.2, [[("INTAKE \u2014 raw PO \u2192 extracted \u2192 resolved \u2192 CSR-cleared", 8, YELLOW, T, F)]])
+fbw = 1.98; fby = y + 0.30; fbh = 0.90
+xs = [MX + 0.05, MX + 0.05 + (fbw + 0.36), MX + 0.05 + 2 * (fbw + 0.36), MX + 0.05 + 3 * (fbw + 0.36)]
+flowbox(xs[0], fby, fbw, fbh, "PO INTAKE", BLUE,
+        ["\u2022 PO text / email (paste)", "\u2022 Excel PO (.xlsx / .xls)", "extensible: PDF \u00b7 scan"])
+flowbox(xs[1], fby, fbw, fbh, "EXTRACTION", BLUE,
+        ["Rule-based \u00b7 offline", "confidence-scored", "+ Excel parser"])
+flowbox(xs[2], fby, fbw, fbh, "RESOLUTION", TEAL,
+        ["company/email \u2192 customer", "account hierarchy \u00b7 buyer", "ship-to match"])
+flowbox(xs[3], fby, fbw, fbh, "INTAKE GATES  (CSR)", AMBER,
+        ["obsolete \u2192 substitute \u00b7 SKU", "invalid qty \u00b7 UOM convert", "unresolved buyer \u00b7 ship-to"])
+for i in range(3):
+    chev(s, xs[i] + fbw + 0.02, fby + 0.34, 0.32, 0.22, color=BLUE)
+
+# ── L2 EXPERIENCE ─────────────────────────────────────────────────────────────
+y, h = L2[0], L2[1]
+eb = box(s, MX, y, MW, h, fill=PANEL2, line_color=TEAL, line_w=1)
+fill_text(eb, [[("CSR WORKSPACE  ", 9.5, WHITE, T, F),
+                ("decision cards \u00b7 one-click actions (Approve \u00b7 Reject \u00b7 Escalate \u00b7 Correct \u00b7 Pick \u00b7 Enter) \u00b7 live agent panels \u00b7 audit viewer",
+                 8, GREY, F, F)]])
+
+# ── L3 ORCHESTRATION ─────────────────────────────────────────────────────────
+y, h = L3[0], L3[1]
+box(s, MX, y, MW, h, fill=BG2, line_color=LINE, line_w=0.8)
+txt(s, MX + 0.12, y + 0.05, MW - 0.24, 0.22,
+    [[("ORCHESTRATION ENGINE  ", 9.5, YELLOW, T, F),
+      ("\u2014 resumable pipeline / state machine  \u00b7  pauses on first exception  \u00b7  resumes on CSR decision  \u00b7  Approval runs LAST",
+       7.8, GREY, F, T)]])
+stages = [
+    ("1  Buyer\nAuthorization", "unauthorized \u00b7 cost ctr"),
+    ("2  Product\nMatch", "obsolete \u00b7 UOM"),
+    ("3  Compliance\n& SDS", "restriction \u00b7 SDS"),
+    ("4  Pricing\n& Promo", "margin \u00b7 discount"),
+    ("5  Credit", "credit hold"),
+    ("6  Inventory\nChecks", "shortage \u00b7 alloc"),
+    ("7  Shipments", "serviceability \u00b7 SLA"),
+    ("8  Approval", "budget \u00b7 matrix"),
 ]
+n = len(stages); sg = 0.08; sw = (MW - 0.24 - sg * (n - 1)) / n; sx0 = MX + 0.12; sty = y + 0.36
+for i, (nm, exc) in enumerate(stages):
+    b = box(s, sx0 + i * (sw + sg), sty, sw, 0.74, fill=PANEL2, line_color=YELLOW, line_w=0.7)
+    fill_text(b, [[(ln, 7.2, WHITE, T, F)] for ln in nm.split("\n")] + [[(exc, 5.8, DGREY, F, T)]], ls=0.96)
+    if i < n - 1:
+        chev(s, sx0 + i * (sw + sg) + sw - 0.03, sty + 0.27, sg + 0.05, 0.2, color=YELLOW)
+# two behaviours
+pby = y + 1.24; ph = 0.5; halfw = (MW - 0.24 - 0.16) / 2
+pb1 = box(s, MX + 0.12, pby, halfw, ph, fill=PANEL, line_color=GREEN, line_w=1)
+box(s, MX + 0.12, pby, 0.07, ph, fill=GREEN, radius=False)
+txt(s, MX + 0.28, pby + 0.06, halfw - 0.3, 0.4,
+    [[("\u2713 Straight-through", 8.5, GREEN, T, F), ("  \u2014 all gates pass \u2192 autonomous \u2192 order creation", 7.6, GREY, F, F)]], ls=0.95)
+pb2x = MX + 0.12 + halfw + 0.16
+pb2 = box(s, pb2x, pby, halfw, ph, fill=PANEL, line_color=AMBER, line_w=1)
+box(s, pb2x, pby, 0.07, ph, fill=AMBER, radius=False)
+txt(s, pb2x + 0.16, pby + 0.06, halfw - 0.3, 0.4,
+    [[("\u26A0 Human-in-the-loop", 8.5, AMBER, T, F), ("  \u2014 exception pauses \u2192 CSR decides \u2192 resumes", 7.6, GREY, F, F)]], ls=0.95)
 
-n = len(cols); cw = 1.35; gap = (DW - 0.2 - n * cw) / (n - 1); x0 = DX + 0.1
-hy = DY + 0.34; hh = 0.44; by = hy + hh + 0.04; bh = DH - (hy - DY) - hh - 0.12
-for i, (title, accent, body_runs) in enumerate(cols):
-    cx = x0 + i * (cw + gap)
-    hb = box(s, cx, hy, cw, hh, fill=HDR, line_color=LINE, line_w=0.5)
-    box(s, cx, hy, cw, 0.05, fill=accent, radius=False)
-    fill_text(hb, [[(ln, 8, WHITE, T, F)] for ln in title.split("\n")], ls=0.95)
-    cbb = box(s, cx, by, cw, bh, fill=PANEL, line_color=LINE, line_w=0.5)
-    txt(s, cx + 0.09, by + 0.06, cw - 0.16, bh - 0.1, body_runs, line_spacing=0.98, space_after=0.5)
+# ── L4 GOVERNANCE bar ─────────────────────────────────────────────────────────
+y, h = L4[0], L4[1]
+gb = box(s, MX, y, MW, h, fill=PANEL, line_color=RED, line_w=1)
+box(s, MX, y, 0.07, h, fill=RED, radius=False)
+fill_text(gb, [[("EXCEPTION GOVERNANCE & HUMAN-IN-THE-LOOP   ", 8.5, RED, T, F),
+                ("routes every exception to its owner with severity + SLA (governance master \u00b7 severity matrix \u00b7 role routing)",
+                 7.8, GREY, F, F)]], align=PP_ALIGN.LEFT)
 
-# ── down arrow to execution ──
-ecx = 6.665
-down(s, ecx - 0.17, DY + DH + 0.01, 0.34, 0.14, color=YELLOW)
+# ── L5 ORDER CREATION & DOWNSTREAM ───────────────────────────────────────────
+y, h = L5[0], L5[1]
+txt(s, MX + 0.02, y + 0.02, 8.0, 0.2, [[("ORDER CREATION & DOWNSTREAM", 8, YELLOW, T, F)]])
+oe = box(s, MX + 0.05, y + 0.26, 2.15, 0.52, fill=PANEL2, line_color=GREEN, line_w=1.1)
+fill_text(oe, [[("ORDER EXECUTION", 8.5, WHITE, T, F)], [("create sales order", 7, GREY, F, F)]])
+chev(s, MX + 2.24, y + 0.42, 0.32, 0.2, color=GREEN)
+ds = ["ERP\nsales order", "OMS\nrequest", "WMS\npick ticket", "TMS\nshipment + track", "SMTP\nconfirmation", "Audit\n& documents"]
+dx0 = MX + 2.72; dn = len(ds); dg = 0.08; dw = (MW - 2.72 - 0.05 - dg * (dn - 1)) / dn
+for i, d in enumerate(ds):
+    b = box(s, dx0 + i * (dw + dg), y + 0.26, dw, 0.52, fill=PANEL2, line_color=LINE, line_w=0.7)
+    fill_text(b, [[(ln, 6.8, WHITE, T, F)] for ln in d.split("\n")], ls=0.95)
 
-# ── Execution Orchestration Layer ──
-EX, EY_, EW, EH = 3.25, 5.54, 6.83, 0.98
-box(s, EX, EY_, EW, EH, fill=BG2, line_color=YELLOW, line_w=1)
-txt(s, EX, EY_ + 0.04, EW, 0.22, [[("\u2699  Execution Orchestration Layer", 10, YELLOW, T, F)]], align=PP_ALIGN.CENTER)
-exec_cols = [
-    ("Order", GREEN, "Creates:", ["ERP sales order", "OMS request", "WMS pick ticket", "Shipment order"]),
-    ("Communication", BLUE, "Creates:", ["Order accepted", "Price confirmed", "ETA confirmed", "Tracking shared"]),
-    ("Exception Handling", AMBER, "Resolves:", ["Inventory shortage", "Product obsolete", "ZIP not serviceable", "Approval escalation"]),
-]
-ecw = 2.16; egap = 0.09; ex0 = EX + 0.15; eby = EY_ + 0.30
-for i, (t, col, lead, items) in enumerate(exec_cols):
-    px = ex0 + i * (ecw + egap)
-    cbb = box(s, px, eby, ecw, 0.60, fill=PANEL, line_color=col, line_w=0.9)
-    txt(s, px + 0.12, eby + 0.05, ecw - 0.24, 0.5,
-        [[(t + "  ", 7.6, WHITE, T, F), (lead, 7, col, T, F)],
-         [("  ".join(items[:2]), 6.6, GREY, F, F)],
-         [("  ".join(items[2:]), 6.6, GREY, F, F)]], line_spacing=0.98)
+# ── L6 DATA FOUNDATION ───────────────────────────────────────────────────────
+y, h = L6[0], L6[1]
+box(s, MX, y, MW, h, fill=BG2, line_color=PURPLE, line_w=0.9)
+txt(s, MX + 0.12, y + 0.06, MW - 0.24, 0.2,
+    [[("GOVERNED MASTER DATA  ", 8.5, YELLOW, T, F),
+      ("\u2014 read by every decision (the data process); change the data, not the code", 7.6, GREY, F, T)]])
+ent = ["Product\ncatalog\u00b7subs\u00b7UOM", "Customer\n& Ship-to", "Buyer", "Pricing", "Credit", "Inventory",
+       "Logistics", "Budget &\nApproval", "Compliance\n& SDS", "Execution\nendpoints", "Governance\nmatrix"]
+en = len(ent); eg = 0.06; ew = (MW - 0.24 - eg * (en - 1)) / en; ex0 = MX + 0.12; ety = y + 0.35
+for i, e in enumerate(ent):
+    b = box(s, ex0 + i * (ew + eg), ety, ew, 0.48, fill=PANEL, line_color=LINE, line_w=0.6)
+    fill_text(b, [[(ln, 6.3, GREY, T, F)] for ln in e.split("\n")], ls=0.95)
 
-# ── exception governance strip ──
-txt(s, 3.25, EY_ + EH + 0.05, 6.83, 0.2,
-    [[("Product Substitution \u00b7 Pricing Exception \u00b7 Credit Hold \u00b7 Inventory Shortage \u00b7 Delivery Constraint \u00b7 Strategic Review",
-       6.6, DGREY, F, T)]], align=PP_ALIGN.CENTER)
+# ── vertical spine + data-read arrow ──────────────────────────────────────────
+for gy in (L1[0] + L1[1], L2[0] + L2[1], L3[0] + L3[1], L4[0] + L4[1]):
+    down(s, MCX - 0.16, gy - 0.02, 0.32, 0.12, color=YELLOW)
+conn(s, MX - 0.06, L6[0], MX - 0.06, L3[0] + L3[1], color=PURPLE, w=1.1, dash='dash', tail=True)
 
-# ── confirmed outcome ──
-down(s, ecx - 0.17, 6.82, 0.34, 0.14, color=GREEN)
-txt(s, 3.25, 6.98, 6.83, 0.24, [[("CUSTOMER RECEIVES CONFIRMED ORDER", 11.5, YELLOW, T, F)]], align=PP_ALIGN.CENTER)
-txt(s, 3.25, 7.22, 6.83, 0.2, [[("Order #SO-98765   \u00b7   ETA Jun 29   \u00b7   Tracking available", 8, GREY, F, F)]], align=PP_ALIGN.CENTER)
+# ── cross-cutting rail ───────────────────────────────────────────────────────
+cc_y = L1[0]; cc_h = (L5[0] + L5[1]) - L1[0]
+box(s, XR, cc_y, XRW, cc_h, fill=PANEL)
+box(s, XR, cc_y, XRW, 0.09, fill=YELLOW, radius=False)
+txt(s, XR + 0.12, cc_y + 0.13, XRW - 0.24, 0.22, [[("CROSS-CUTTING", 8.5, YELLOW, T, F)]])
+cross = [("Human-in-the-loop\ncontrol", AMBER), ("Exception governance\n& SLA routing", RED),
+         ("Audit &\ntraceability", BLUE), ("Confidence\nscoring", TEAL), ("Resumable\nstate machine", GREEN)]
+inner = cc_h - 0.46; ch = (inner - 0.4) / 5
+for i, (t, col) in enumerate(cross):
+    yy = cc_y + 0.44 + i * (ch + 0.1)
+    b = box(s, XR + 0.12, yy, XRW - 0.24, ch, fill=PANEL2, line_color=LINE, line_w=0.6)
+    box(s, XR + 0.12, yy, 0.05, ch, fill=col, radius=False)
+    fill_text(b, [[(ln, 7.6, WHITE, T, F)] for ln in t.split("\n")], ls=0.95)
 
-# ── EY-style mark ──
-txt(s, 12.55, 7.08, 0.6, 0.34, [[("EY", 16, YELLOW, T, F)]], align=PP_ALIGN.RIGHT)
+# ── footer legend ────────────────────────────────────────────────────────────
+txt(s, 0.35, 7.2, 12.6, 0.24,
+    [[("solid = order flow    \u00b7    ", 8, YELLOW, F, T),
+      ("dashed purple = master-data reads    \u00b7    ", 8, PURPLE, F, T),
+      ("green = straight-through (autonomous)    \u00b7    ", 8, GREEN, F, T),
+      ("amber = human-in-the-loop decision", 8, AMBER, F, T)]])
 
 out = os.path.join("demo", "Order-Creation-Orchestration-Architecture.pptx")
 prs.save(out)
