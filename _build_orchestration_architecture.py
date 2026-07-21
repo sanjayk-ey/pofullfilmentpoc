@@ -131,7 +131,7 @@ MX, MW = 1.82, 11.18
 MCX = MX + MW / 2
 
 L1 = (0.82, 1.02, "INTAKE\n& RESOLUTION", BLUE)
-L3 = (1.90, 2.82, "ORCHESTRATION\n& CSR\nDECISIONS", YELLOW)
+L3 = (1.90, 2.82, "ORCHESTRATION\n& HUMAN\nDECISIONS", YELLOW)
 L4 = (4.76, 0.40, "GOVERNANCE", RED)
 L5 = (5.22, 0.86, "ORDER CREATION\n& DOWNSTREAM", GREEN)
 L6 = (6.14, 0.92, "LEGACY DATA\nSYSTEM", PURPLE)
@@ -206,7 +206,7 @@ for i in range(na):
     conn(s, cx, aty + ah, cx, rail_y, color=AMBER, w=1.2, dash='dash', tail=True, head=True)
 rb = box(s, MX + 0.12, rail_y, MW - 0.24, rail_h, fill=PANEL, line_color=AMBER, line_w=1.3)
 box(s, MX + 0.12, rail_y, MW - 0.24, 0.06, fill=AMBER, radius=False)
-fill_text(rb, [[("\u26A0  CSR DECISION LAYER   ", 9.2, AMBER, T, F),
+fill_text(rb, [[("\u26A0  HUMAN DECISION LAYER   ", 9.2, AMBER, T, F),
                 ("\u2014 every agent pauses on exception and hands the decision to the CSR:   ", 7.6, GREY, F, F),
                 ("Approve", 8, GREEN, T, F), ("  \u00b7  ", 7.6, GREY, F, F),
                 ("Reject", 8, RED, T, F), ("  \u00b7  ", 7.6, GREY, F, F),
