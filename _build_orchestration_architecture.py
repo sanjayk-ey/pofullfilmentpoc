@@ -208,7 +208,7 @@ txt(s, MX + 0.02, y + 0.04, 9.0, 0.2, [[("ORDER CREATION & DOWNSTREAM \u2014 the
 oe = box(s, MX + 0.05, y + 0.34, 2.35, 0.64, fill=PANEL2, line_color=GREEN, line_w=1.1)
 fill_text(oe, [[(BOT + " Order Execution", 8, WHITE, T, F)], [("Agent \u00b7 create sales order", 7, GREY, F, F)]])
 chev(s, MX + 2.44, y + 0.56, 0.3, 0.2, color=GREEN)
-ds = ["ERP\nsales order", "OMS\nrequest", "WMS\npick ticket", "TMS\nshipment+track", "SMTP\nconfirmation", "Audit\n& documents"]
+ds = ["ERP\nsales order", "OMS\nrequest", "WMS\npick ticket", "TMS\nshipment+track", "SMTP\nconfirmation"]
 dx0 = MX + 2.90; dn = len(ds); dg = 0.10; dw = (MW - 2.90 - 0.05 - dg * (dn - 1)) / dn
 for i, d in enumerate(ds):
     b = box(s, dx0 + i * (dw + dg), y + 0.34, dw, 0.64, fill=PANEL2, line_color=LINE, line_w=0.7)
