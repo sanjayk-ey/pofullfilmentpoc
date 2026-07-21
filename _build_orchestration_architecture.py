@@ -203,8 +203,7 @@ fill_text(rb, [[("\u26A0  HUMAN DECISION LAYER   ", 9.2, AMBER, T, F),
 
 # ── L5 ORDER CREATION & DOWNSTREAM ───────────────────────────────────────────
 y, h = L5[0], L5[1]
-txt(s, MX + 0.02, y + 0.04, 9.0, 0.2, [[("ORDER CREATION & DOWNSTREAM \u2014 the ", 8, YELLOW, T, F),
-                                        (BOT + " Order Execution Agent", 8, WHITE, T, F)]])
+txt(s, MX + 0.02, y + 0.04, 9.0, 0.2, [[("ORDER CREATION & DOWNSTREAM", 8, YELLOW, T, F)]])
 oe = box(s, MX + 0.05, y + 0.34, 2.35, 0.64, fill=PANEL2, line_color=GREEN, line_w=1.1)
 fill_text(oe, [[(BOT + " Order Execution", 8, WHITE, T, F)], [("Agent \u00b7 create sales order", 7, GREY, F, F)]])
 chev(s, MX + 2.44, y + 0.56, 0.3, 0.2, color=GREEN)
