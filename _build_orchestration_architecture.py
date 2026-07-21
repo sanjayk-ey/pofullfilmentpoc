@@ -150,8 +150,8 @@ for b in (L1, L3, L5):
 def flowbox(x, y, w, h, title, accent, lines):
     box(s, x, y, w, h, fill=PANEL, line_color=LINE, line_w=0.6)
     box(s, x, y, w, 0.05, fill=accent, radius=False)
-    txt(s, x + 0.1, y + 0.09, w - 0.2, 0.2, [[(title, 7.8, accent, T, F)]])
-    txt(s, x + 0.1, y + 0.31, w - 0.2, h - 0.35, [[(ln, 6.6, GREY, F, F)] for ln in lines], ls=1.04)
+    txt(s, x + 0.1, y + 0.09, w - 0.2, 0.2, [[(title, 7.8, accent, T, F)]], align=PP_ALIGN.CENTER)
+    txt(s, x + 0.1, y + 0.31, w - 0.2, h - 0.35, [[(ln, 6.6, GREY, F, F)] for ln in lines], ls=1.04, align=PP_ALIGN.CENTER)
 
 
 # ── L1 PO INTAKE (input) — feeds the orchestration below ──────────────────────
