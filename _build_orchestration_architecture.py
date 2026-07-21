@@ -166,10 +166,10 @@ flowbox(MX + 0.05, y + 0.26, MW - 0.1, 0.48, "PO INTAKE  \u2014  any channel", B
 # ── L3 ORCHESTRATION — all agents contained in one orchestration box ──────────
 y, h = L3[0], L3[1]
 box(s, MX, y, MW, h, fill=BG2, line_color=YELLOW, line_w=0.9)
-ob = box(s, MX + 0.14, y + 0.12, MW - 0.28, 0.40, fill=PANEL2, line_color=YELLOW, line_w=1)
-fill_text(ob, [[(BOT + "  ORCHESTRATOR  ", 9.4, YELLOW, T, F),
-                ("coordinates a team of specialist AI agents over a shared context \u00b7 resumable, pause-and-resume workflow \u00b7 Approvals runs last",
-                 7.4, GREY, F, F)]], align=PP_ALIGN.LEFT)
+txt(s, MX + 0.14, y + 0.18, MW - 0.28, 0.26,
+    [[(BOT + "  ORCHESTRATOR  ", 9.6, YELLOW, T, F),
+      ("\u2014 coordinates the specialist AI agents over a shared context", 8, GREY, F, F)]],
+    align=PP_ALIGN.CENTER)
 down(s, MCX - 0.14, y + 0.56, 0.28, 0.12, color=YELLOW)
 
 agents = [
