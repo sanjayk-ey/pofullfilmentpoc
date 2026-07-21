@@ -159,8 +159,8 @@ def flowbox(x, y, w, h, title, accent, lines):
 y = L1[0]
 txt(s, MX + 0.02, y + 0.02, 9.0, 0.2, [[("INTAKE \u2014 the ", 8, YELLOW, T, F), (BOT + " Intake Agent", 8, WHITE, T, F),
                                         (" reads every PO and extracts the order fields", 8, YELLOW, T, F)]])
-flowbox(MX + 0.05, y + 0.28, 2.7, 0.72, "PO INTAKE  \u2014  4 methods", BLUE,
-        ["\u2022 Email PO      \u2022 PDF PO", "\u2022 Excel PO (.xlsx/.xls)", "\u2022 Scanned PO"])
+flowbox(MX + 0.05, y + 0.28, 2.7, 0.72, "PO INTAKE  \u2014  any channel", BLUE,
+        ["Received as Email PO,", "Excel PO, PDF PO,", "Scanned PO, etc."])
 chev(s, MX + 2.80, y + 0.56, 0.32, 0.2, color=BLUE)
 ia = box(s, MX + 3.2, y + 0.28, MW - 3.25, 0.72, fill=PANEL, line_color=BLUE, line_w=0.9)
 box(s, MX + 3.2, y + 0.28, MW - 3.25, 0.05, fill=BLUE, radius=False)
