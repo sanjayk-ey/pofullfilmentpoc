@@ -194,6 +194,7 @@ agents = [
     ("Credit", "Agent", "limit \u00b7 terms \u00b7 risk", "credit hold"),
     ("Inventory", "Agent", "DC stock \u00b7 ATP \u00b7 alloc", "shortage \u00b7 alloc"),
     ("Shipments", "Agent", "carrier \u00b7 service \u00b7 SLA", "delivery \u00b7 SLA"),
+    ("Optimization", "Agent", "plan A/B/C \u00b7 freight \u00b7 split", "least-cost plan"),
     ("Approvals", "Agent", "budget \u00b7 matrix (last)", "budget \u00b7 approval"),
 ]
 na = len(agents); ag = 0.09; aw = (MW - 0.24 - ag * (na - 1)) / na; ax0 = MX + 0.12; aty = y + 0.68; ah = 1.02
