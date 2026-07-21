@@ -132,9 +132,9 @@ XR, XRW = 11.02, 2.02          # right-side Legacy Data System panel
 MW = XR - MX - 0.16            # main content width
 MCX = MX + MW / 2
 
-L1 = (0.82, 0.98, "INTAKE\n& RESOLUTION", BLUE)
-L3 = (1.88, 3.62, "ORCHESTRATION\n& HUMAN\nDECISIONS", YELLOW)
-L5 = (5.58, 1.12, "ORDER CREATION\n& DOWNSTREAM", GREEN)
+L1 = (0.82, 0.80, "PO\nINTAKE", BLUE)
+L3 = (1.72, 3.50, "ORCHESTRATION\n& HUMAN\nDECISIONS", YELLOW)
+L5 = (5.34, 1.12, "ORDER CREATION\n& DOWNSTREAM", GREEN)
 
 
 def tier(band):
@@ -155,19 +155,19 @@ def flowbox(x, y, w, h, title, accent, lines):
     txt(s, x + 0.1, y + 0.31, w - 0.2, h - 0.35, [[(ln, 6.6, GREY, F, F)] for ln in lines], ls=1.04)
 
 
-# ── L1 INTAKE: channels -> Intake Agent ───────────────────────────────────────
+# ── L1 PO INTAKE (input) — feeds the orchestration below ──────────────────────
 y = L1[0]
-txt(s, MX + 0.02, y + 0.02, 9.0, 0.2, [[("INTAKE \u2014 the ", 8, YELLOW, T, F), (BOT + " Intake Agent", 8, WHITE, T, F),
-                                        (" reads every PO and extracts the order fields", 8, YELLOW, T, F)]])
-flowbox(MX + 0.05, y + 0.26, 2.7, 0.64, "PO INTAKE  \u2014  any channel", BLUE,
-        ["Received as Email PO,", "Excel PO etc."])
-chev(s, MX + 2.80, y + 0.50, 0.32, 0.2, color=BLUE)
-ia = box(s, MX + 3.2, y + 0.26, MW - 3.25, 0.64, fill=PANEL, line_color=BLUE, line_w=0.9)
-box(s, MX + 3.2, y + 0.26, MW - 3.25, 0.05, fill=BLUE, radius=False)
-txt(s, MX + 3.32, y + 0.34, MW - 3.5, 0.2, [[(BOT + "  Intake Agent", 8.2, BLUE, T, F)]])
-txt(s, MX + 3.32, y + 0.55, MW - 3.5, 0.34,
-    [[("extracts order fields (rule-based \u00b7 confidence-scored): ", 6.7, GREY, F, F),
-      ("SKU \u00b7 qty \u00b7 UOM \u00b7 ship-to ZIP \u00b7 delivery date \u00b7 PO number \u00b7 customer / buyer", 6.7, WHITE, F, F)]], ls=1.02)
+txt(s, MX + 0.02, y + 0.02, MW - 0.1, 0.2,
+    [[("PO INTAKE \u2014 received via any channel; the ", 8, YELLOW, T, F),
+      (BOT + " Intake Agent", 8, WHITE, T, F),
+      (" is the first agent in the orchestration below", 8, YELLOW, T, F)]])
+flowbox(MX + 0.05, y + 0.26, 2.9, 0.48, "PO INTAKE  \u2014  any channel", BLUE,
+        ["Received as Email PO, Excel PO etc."])
+ib = box(s, MX + 3.35, y + 0.26, MW - 3.40, 0.48, fill=PANEL, line_color=BLUE, line_w=0.9)
+box(s, MX + 3.35, y + 0.26, MW - 3.40, 0.05, fill=BLUE, radius=False)
+txt(s, MX + 3.47, y + 0.36, MW - 3.6, 0.36,
+    [[("The ", 7, GREY, F, F), (BOT + " Intake Agent", 7, BLUE, T, F),
+      (" reads every PO and extracts: SKU \u00b7 qty \u00b7 UOM \u00b7 ship-to ZIP \u00b7 delivery date \u00b7 PO number \u00b7 customer / buyer", 7, WHITE, F, F)]], ls=1.02)
 
 # ── L3 ORCHESTRATION — all agents contained in one orchestration box ──────────
 y, h = L3[0], L3[1]
@@ -179,8 +179,9 @@ fill_text(ob, [[(BOT + "  ORCHESTRATOR  ", 9.4, YELLOW, T, F),
 down(s, MCX - 0.14, y + 0.56, 0.28, 0.12, color=YELLOW)
 
 agents = [
+    ("Intake", "Agent", "reads PO \u00b7 extracts fields"),
     ("Customer", "Validation Agent", "account \u00b7 buyer auth \u00b7 ship-to"),
-    ("Product", "Matching Agent", "catalog \u00b7 compliance & SDS"),
+    ("Product", "Matching Agent", "catalog \u00b7 compliance"),
     ("Pricing &", "Promo Agent", "contract \u00b7 promo \u00b7 margin"),
     ("Credit", "Agent", "limit \u00b7 terms \u00b7 risk"),
     ("Inventory", "Agent", "DC stock \u00b7 ATP \u00b7 alloc"),
@@ -188,18 +189,18 @@ agents = [
     ("Optimization", "Agent", "plan A/B/C \u00b7 freight"),
     ("Approvals", "Agent", "budget \u00b7 matrix (last)"),
 ]
-na = len(agents); ag = 0.10; aw = (MW - 0.28 - ag * (na - 1)) / na; ax0 = MX + 0.14; aty = y + 0.76; ah = 1.16
+na = len(agents); ag = 0.08; aw = (MW - 0.28 - ag * (na - 1)) / na; ax0 = MX + 0.14; aty = y + 0.74; ah = 1.16
 for i, (n1, n2, focus) in enumerate(agents):
     b = box(s, ax0 + i * (aw + ag), aty, aw, ah, fill=PANEL, line_color=YELLOW, line_w=0.8)
     box(s, ax0 + i * (aw + ag), aty, aw, 0.05, fill=YELLOW, radius=False)
-    fill_text(b, [[(BOT + " ", 9, YELLOW, T, F), (n1, 7.4, WHITE, T, F)],
-                  [(n2, 7.4, WHITE, T, F)],
-                  [(focus, 6.0, GREY, F, F)]], ls=1.18)
+    fill_text(b, [[(BOT + " ", 8.3, YELLOW, T, F), (n1, 6.8, WHITE, T, F)],
+                  [(n2, 6.8, WHITE, T, F)],
+                  [(focus, 5.6, GREY, F, F)]], ls=1.16)
     if i < na - 1:
         chev(s, ax0 + i * (aw + ag) + aw - 0.02, aty + 0.49, ag + 0.06, 0.18, color=YELLOW)
 
 # ── HUMAN DECISION LAYER wired to EVERY agent (inside the orchestration box) ──
-rail_y = y + 2.68; rail_h = 0.62
+rail_y = y + 2.55; rail_h = 0.62
 for i in range(na):
     cx = ax0 + i * (aw + ag) + aw / 2
     conn(s, cx, aty + ah, cx, rail_y, color=AMBER, w=1.2, dash='dash', tail=True, head=True)
@@ -245,7 +246,7 @@ conn(s, XR, L3[0] + L3[1] / 2, MX + MW, L3[0] + L3[1] / 2, color=PURPLE, w=1.1, 
 conn(s, XR, L5[0] + L5[1] / 2, MX + MW, L5[0] + L5[1] / 2, color=PURPLE, w=1.1, dash='dash', tail=True)
 
 # ── footer legend ────────────────────────────────────────────────────────────
-txt(s, 0.35, 6.9, 12.6, 0.24,
+txt(s, 0.35, 6.66, 12.6, 0.24,
     [[(BOT + " = specialist AI agent    \u00b7    ", 8, WHITE, F, T),
       ("green = straight-through (autonomous)    \u00b7    ", 8, GREEN, F, T),
       ("amber = human-in-the-loop decision    \u00b7    ", 8, AMBER, F, T),
