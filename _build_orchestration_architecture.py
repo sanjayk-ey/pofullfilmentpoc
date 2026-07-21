@@ -128,8 +128,7 @@ txt(s, 0.35, 0.32, 12.6, 0.4,
 # ── geometry ──────────────────────────────────────────────────────────────────
 LX, LW = 0.33, 1.28
 MX = 1.72
-XR, XRW = 11.02, 2.02          # right-side Legacy Data System panel
-MW = XR - MX - 0.16            # main content width
+MW = 11.28                     # main content width (full)
 MCX = MX + MW / 2
 
 L1 = (0.82, 0.80, "PO\nINTAKE", BLUE)
@@ -224,33 +223,15 @@ for i, d in enumerate(ds):
     b = box(s, dx0 + i * (dw + dg), y + 0.34, dw, 0.64, fill=PANEL2, line_color=LINE, line_w=0.7)
     fill_text(b, [[(ln, 6.8, WHITE, T, F)] for ln in d.split("\n")], ls=0.95)
 
-# ── RIGHT PANEL: LEGACY DATA SYSTEM (governed master data) ───────────────────
-dcy = L1[0]; dch = (L5[0] + L5[1]) - L1[0]
-box(s, XR, dcy, XRW, dch, fill=BG2, line_color=PURPLE, line_w=1.0)
-box(s, XR, dcy, XRW, 0.09, fill=PURPLE, radius=False)
-txt(s, XR + 0.12, dcy + 0.15, XRW - 0.24, 0.22, [[("LEGACY DATA SYSTEM", 9.2, PURPLE, T, F)]])
-txt(s, XR + 0.12, dcy + 0.37, XRW - 0.24, 0.28, [[("governed data \u00b7 read by the agents", 6.8, GREY, F, T)]])
-dent = ["Master data", "Reference & catalog data", "Business rules & policies",
-        "Limits & thresholds", "Contracts & pricing data", "Integration endpoints"]
-dn2 = len(dent); dgap = 0.05; d0 = dcy + 0.72; drow = (dch - 0.80 - dgap * (dn2 - 1)) / dn2
-for i, e in enumerate(dent):
-    yy = d0 + i * (drow + dgap)
-    b = box(s, XR + 0.12, yy, XRW - 0.24, drow, fill=PANEL, line_color=LINE, line_w=0.6)
-    box(s, XR + 0.12, yy, 0.05, drow, fill=PURPLE, radius=False)
-    fill_text(b, [[(e, 6.9, WHITE, F, F)]], align=PP_ALIGN.LEFT, ls=0.95)
-
-# ── flow arrows: spine + master-data reads ───────────────────────────────────
+# ── vertical spine ────────────────────────────────────────────────────────────
 for gy in (L1[0] + L1[1], L3[0] + L3[1]):
     down(s, MCX - 0.16, gy - 0.02, 0.32, 0.12, color=YELLOW)
-conn(s, XR, L3[0] + L3[1] / 2, MX + MW, L3[0] + L3[1] / 2, color=PURPLE, w=1.1, dash='dash', tail=True)
-conn(s, XR, L5[0] + L5[1] / 2, MX + MW, L5[0] + L5[1] / 2, color=PURPLE, w=1.1, dash='dash', tail=True)
 
 # ── footer legend ────────────────────────────────────────────────────────────
 txt(s, 0.35, 6.66, 12.6, 0.24,
     [[(BOT + " = specialist AI agent    \u00b7    ", 8, WHITE, F, T),
       ("green = straight-through (autonomous)    \u00b7    ", 8, GREEN, F, T),
-      ("amber = human-in-the-loop decision    \u00b7    ", 8, AMBER, F, T),
-      ("dashed purple = master-data reads", 8, PURPLE, F, T)]])
+      ("amber = human-in-the-loop decision", 8, AMBER, F, T)]])
 
 out = os.path.join("demo", "Order-Creation-Orchestration-Architecture.pptx")
 prs.save(out)
