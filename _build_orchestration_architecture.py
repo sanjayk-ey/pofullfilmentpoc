@@ -160,13 +160,8 @@ txt(s, MX + 0.02, y + 0.02, MW - 0.1, 0.2,
     [[("PO INTAKE \u2014 received via any channel; the ", 8, YELLOW, T, F),
       (BOT + " Intake Agent", 8, WHITE, T, F),
       (" is the first agent in the orchestration below", 8, YELLOW, T, F)]])
-flowbox(MX + 0.05, y + 0.26, 2.9, 0.48, "PO INTAKE  \u2014  any channel", BLUE,
-        ["Received as Email PO, Excel PO etc."])
-ib = box(s, MX + 3.35, y + 0.26, MW - 3.40, 0.48, fill=PANEL, line_color=BLUE, line_w=0.9)
-box(s, MX + 3.35, y + 0.26, MW - 3.40, 0.05, fill=BLUE, radius=False)
-txt(s, MX + 3.47, y + 0.36, MW - 3.6, 0.36,
-    [[("The ", 7, GREY, F, F), (BOT + " Intake Agent", 7, BLUE, T, F),
-      (" reads every PO and extracts: SKU \u00b7 qty \u00b7 UOM \u00b7 ship-to ZIP \u00b7 delivery date \u00b7 PO number \u00b7 customer / buyer", 7, WHITE, F, F)]], ls=1.02)
+flowbox(MX + 0.05, y + 0.26, MW - 0.1, 0.48, "PO INTAKE  \u2014  any channel", BLUE,
+        ["Received as Email PO, Excel PO etc.  \u2192  handed to the orchestration below"])
 
 # ── L3 ORCHESTRATION — all agents contained in one orchestration box ──────────
 y, h = L3[0], L3[1]
