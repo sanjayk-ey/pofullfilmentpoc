@@ -160,7 +160,7 @@ def flowbox(x, y, w, h, title, accent, lines):
 # ── L1 INTAKE: channels -> Intake Agent ───────────────────────────────────────
 y = L1[0]
 txt(s, MX + 0.02, y + 0.02, 9.0, 0.2, [[("INTAKE \u2014 the ", 8, YELLOW, T, F), (BOT + " Intake Agent", 8, WHITE, T, F),
-                                        (" reads, extracts and resolves every PO", 8, YELLOW, T, F)]])
+                                        (" reads every PO and extracts the order fields", 8, YELLOW, T, F)]])
 flowbox(MX + 0.05, y + 0.28, 2.7, 0.72, "PO INTAKE  \u2014  4 methods", BLUE,
         ["\u2022 Email PO      \u2022 PDF PO", "\u2022 Excel PO (.xlsx/.xls)", "\u2022 Scanned PO"])
 chev(s, MX + 2.80, y + 0.56, 0.32, 0.2, color=BLUE)
@@ -168,8 +168,8 @@ ia = box(s, MX + 3.2, y + 0.28, MW - 3.25, 0.72, fill=PANEL, line_color=BLUE, li
 box(s, MX + 3.2, y + 0.28, MW - 3.25, 0.05, fill=BLUE, radius=False)
 txt(s, MX + 3.32, y + 0.37, MW - 3.5, 0.2, [[(BOT + "  Intake Agent", 8.2, BLUE, T, F)]])
 txt(s, MX + 3.32, y + 0.60, MW - 3.5, 0.38,
-    [[("extract (rule-based \u00b7 confidence-scored) \u00b7 resolve identity / account / ship-to \u00b7 ", 6.7, GREY, F, F),
-      ("intake gates for CSR: obsolete\u2192substitute \u00b7 SKU \u00b7 qty \u00b7 UOM \u00b7 buyer \u00b7 ship-to", 6.7, AMBER, F, F)]], ls=1.03)
+    [[("extracts order fields (rule-based \u00b7 confidence-scored): ", 6.7, GREY, F, F),
+      ("SKU \u00b7 qty \u00b7 UOM \u00b7 ship-to ZIP \u00b7 requested delivery date \u00b7 PO number \u00b7 customer / buyer", 6.7, WHITE, F, F)]], ls=1.03)
 
 # ── L2 EXPERIENCE ─────────────────────────────────────────────────────────────
 y, h = L2[0], L2[1]
