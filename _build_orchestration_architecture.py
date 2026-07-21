@@ -233,7 +233,7 @@ txt(s, MX + 0.12, y + 0.08, MW - 0.24, 0.2,
     [[("GOVERNED MASTER DATA  ", 8.5, YELLOW, T, F),
       ("\u2014 each agent owns its domain and reads governed data (change the data, not the code)", 7.5, GREY, F, T)]])
 ent = ["Product\ncatalog\u00b7subs\u00b7UOM", "Customer\n& Ship-to", "Buyer", "Pricing", "Credit", "Inventory",
-       "Logistics", "Budget &\nApproval", "Compliance\n& SDS", "Execution\nendpoints", "Governance\nmatrix"]
+       "Logistics", "Budget &\nApproval", "Compliance\n& SDS", "Execution\nendpoints"]
 en = len(ent); eg = 0.06; ew = (MW - 0.24 - eg * (en - 1)) / en; ex0 = MX + 0.12; ety = y + 0.42
 for i, e in enumerate(ent):
     b = box(s, ex0 + i * (ew + eg), ety, ew, 0.56, fill=PANEL, line_color=LINE, line_w=0.6)
