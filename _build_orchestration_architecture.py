@@ -228,9 +228,9 @@ dcy = L1[0]; dch = (L5[0] + L5[1]) - L1[0]
 box(s, XR, dcy, XRW, dch, fill=BG2, line_color=PURPLE, line_w=1.0)
 box(s, XR, dcy, XRW, 0.09, fill=PURPLE, radius=False)
 txt(s, XR + 0.12, dcy + 0.15, XRW - 0.24, 0.22, [[("LEGACY DATA SYSTEM", 9.2, PURPLE, T, F)]])
-txt(s, XR + 0.12, dcy + 0.37, XRW - 0.24, 0.28, [[("governed master data \u00b7 read by the agents", 6.8, GREY, F, T)]])
-dent = ["Product catalog \u00b7 subs \u00b7 UOM", "Customer & Ship-to", "Buyer", "Pricing", "Credit",
-        "Inventory", "Logistics", "Budget & Approval", "Compliance & SDS", "Execution endpoints"]
+txt(s, XR + 0.12, dcy + 0.37, XRW - 0.24, 0.28, [[("governed data \u00b7 read by the agents", 6.8, GREY, F, T)]])
+dent = ["Master data", "Reference & catalog data", "Business rules & policies",
+        "Limits & thresholds", "Contracts & pricing data", "Integration endpoints"]
 dn2 = len(dent); dgap = 0.05; d0 = dcy + 0.72; drow = (dch - 0.80 - dgap * (dn2 - 1)) / dn2
 for i, e in enumerate(dent):
     yy = d0 + i * (drow + dgap)
