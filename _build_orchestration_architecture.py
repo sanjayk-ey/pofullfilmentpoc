@@ -206,11 +206,8 @@ for i in range(na):
 rb = box(s, MX + 0.12, rail_y, MW - 0.24, rail_h, fill=PANEL, line_color=AMBER, line_w=1.3)
 box(s, MX + 0.12, rail_y, MW - 0.24, 0.06, fill=AMBER, radius=False)
 fill_text(rb, [[("\u26A0  HUMAN DECISION LAYER   ", 9.2, AMBER, T, F),
-                ("\u2014 every agent pauses on exception and hands the decision to the CSR:   ", 7.6, GREY, F, F),
-                ("Approve", 8, GREEN, T, F), ("  \u00b7  ", 7.6, GREY, F, F),
-                ("Reject", 8, RED, T, F), ("  \u00b7  ", 7.6, GREY, F, F),
-                ("Escalate", 8, AMBER, T, F),
-                ("   \u2192 the pipeline resumes        (all agents pass \u21d2 straight-through, autonomous)", 7.6, GREY, F, F)]],
+                ("\u2014 every agent pauses on exception for a human decision, then the pipeline resumes   (all agents pass \u21d2 straight-through, autonomous)",
+                 7.6, GREY, F, F)]],
           align=PP_ALIGN.CENTER)
 
 # ── L5 ORDER CREATION & DOWNSTREAM ───────────────────────────────────────────
