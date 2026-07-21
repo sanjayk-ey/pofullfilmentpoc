@@ -156,7 +156,7 @@ def flowbox(x, y, w, h, title, accent, lines):
 
 # ── L1 PO INTAKE (input) — feeds the orchestration below ──────────────────────
 y = L1[0]
-flowbox(MX + 0.05, y + 0.16, MW - 0.1, 0.52, "PO INTAKE  \u2014  any channel", BLUE,
+flowbox(MX + 0.05, y + 0.16, MW - 0.1, 0.52, "CUSTOMER INTERACTION LAYER", BLUE,
         ["Received as Email PO, Excel PO etc.  \u2192  handed to the orchestration below"])
 
 # ── L3 ORCHESTRATION — all agents contained in one orchestration box ──────────
