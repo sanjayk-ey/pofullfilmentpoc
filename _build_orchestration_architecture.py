@@ -175,7 +175,7 @@ y, h = L3[0], L3[1]
 box(s, MX, y, MW, h, fill=BG2, line_color=LINE, line_w=0.8)
 ob = box(s, MX + 0.12, y + 0.06, MW - 0.24, 0.36, fill=PANEL2, line_color=YELLOW, line_w=1)
 fill_text(ob, [[(BOT + "  ORCHESTRATOR  ", 9.2, YELLOW, T, F),
-                ("coordinates a team of specialist AI agents over a shared context \u00b7 resumable pipeline / state machine \u00b7 Approvals runs last",
+                ("coordinates a team of specialist AI agents over a shared context \u00b7 resumable, pause-and-resume workflow \u00b7 Approvals runs last",
                  7.3, GREY, F, F)]], align=PP_ALIGN.LEFT)
 down(s, MCX - 0.14, y + 0.44, 0.28, 0.12, color=YELLOW)
 
@@ -261,7 +261,7 @@ box(s, XR, cc_y, XRW, 0.09, fill=YELLOW, radius=False)
 txt(s, XR + 0.12, cc_y + 0.12, XRW - 0.24, 0.22, [[("CROSS-CUTTING", 8.5, YELLOW, T, F)]])
 cross = [("Multi-agent\norchestration", YELLOW), ("Human-in-the-loop\ncontrol", AMBER),
          ("Exception governance\n& SLA routing", RED), ("Audit &\ntraceability", BLUE),
-         ("Resumable\nstate machine", GREEN)]
+         ("Pause & resume\nworkflow", GREEN)]
 inner = cc_h - 0.44; ch = (inner - 0.4) / 5
 for i, (t, col) in enumerate(cross):
     yy = cc_y + 0.42 + i * (ch + 0.1)

@@ -430,7 +430,7 @@ fill_text(eb, [[("CSR Workspace & Console", 11, WHITE, True, False)],
 
 tier_label(3.31, 1.16, "AI\nORCHESTRATION", YELLOW)
 ob = box(s, CX, 3.31, CW, 1.16, fill=PANEL)
-txt(s, CX+0.15, 3.37, CW-0.3, 0.3, [[("Orchestrator  \u2014  resumable pipeline / state machine  (pause on exception \u00b7 resume on decision)", 9.5, YELLOW, True, False)]])
+txt(s, CX+0.15, 3.37, CW-0.3, 0.3, [[("Orchestrator  \u2014  resumable, pause-and-resume workflow  (pause on exception \u00b7 resume on decision)", 9.5, YELLOW, True, False)]])
 agents = ["Intake", "Customer\nValidation", "Product\nMatching", "Pricing &\nPromo", "Credit",
           "Inventory", "Shipments", "Approvals", "Order\nExecution"]
 n = len(agents); g = 0.08; aw = (CW-0.3 - g*(n-1))/n
@@ -495,7 +495,7 @@ for i, t in enumerate(["ERP / Order Mgmt", "Email / SMTP", "Approval routing", "
 eng = box(s, 3.55, 3.2, 6.35, 2.7, fill=PANEL)
 box(s, 3.55, 3.2, 6.35, 0.1, fill=YELLOW, radius=False)
 txt(s, 3.75, 3.34, 6.0, 0.3, [[("ORCHESTRATION ENGINE", 10.5, YELLOW, True, False),
-    ("   (resumable pipeline / state machine)", 9, DGREY, False, True)]])
+    ("   (resumable, pause-and-resume workflow)", 9, DGREY, False, True)]])
 comp = [("PO Extractor", 3.72, 3.75), ("Intake Resolver", 5.87, 3.75), ("Account Validator", 8.02, 3.75),
         ("Decision Pipeline\n(9 agents)", 3.72, 4.5), ("Exception\nGovernance", 5.87, 4.5), ("Order\nExecution", 8.02, 4.5)]
 for (t, px, py) in comp:
