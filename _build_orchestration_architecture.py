@@ -217,12 +217,6 @@ for i, d in enumerate(ds):
 for gy in (L1[0] + L1[1], L3[0] + L3[1]):
     down(s, MCX - 0.16, gy - 0.02, 0.32, 0.12, color=YELLOW)
 
-# ── footer legend ────────────────────────────────────────────────────────────
-txt(s, 0.35, 6.66, 12.6, 0.24,
-    [[(BOT + " = specialist AI agent    \u00b7    ", 8, WHITE, F, T),
-      ("green = straight-through (autonomous)    \u00b7    ", 8, GREEN, F, T),
-      ("amber = human-in-the-loop decision", 8, AMBER, F, T)]])
-
 out = os.path.join("demo", "Order-Creation-Orchestration-Architecture.pptx")
 prs.save(out)
 print("Saved:", out, "slides:", len(prs.slides._sldIdLst))
