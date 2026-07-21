@@ -132,8 +132,7 @@ XR, XRW = 11.12, 1.9
 MCX = MX + MW / 2
 
 L1 = (0.82, 1.02, "INTAKE\n& RESOLUTION", BLUE)
-L2 = (1.90, 0.42, "DECISION\nLAYER", TEAL)
-L3 = (2.38, 2.32, "ORCHESTRATION\nAGENT TEAM", YELLOW)
+L3 = (1.90, 2.82, "ORCHESTRATION\n& CSR\nDECISIONS", YELLOW)
 L4 = (4.76, 0.40, "GOVERNANCE", RED)
 L5 = (5.22, 0.86, "ORDER CREATION\n& DOWNSTREAM", GREEN)
 L6 = (6.14, 0.92, "DATA\nFOUNDATION", PURPLE)
@@ -146,7 +145,7 @@ def tier(band):
     fill_text(b, [[(w, 8.3, WHITE, T, F)] for w in name.split("\n")], ls=0.98)
 
 
-for b in (L1, L2, L3, L4, L5, L6):
+for b in (L1, L3, L4, L5, L6):
     tier(b)
 
 
@@ -171,20 +170,14 @@ txt(s, MX + 3.32, y + 0.60, MW - 3.5, 0.38,
     [[("extracts order fields (rule-based \u00b7 confidence-scored): ", 6.7, GREY, F, F),
       ("SKU \u00b7 qty \u00b7 UOM \u00b7 ship-to ZIP \u00b7 requested delivery date \u00b7 PO number \u00b7 customer / buyer", 6.7, WHITE, F, F)]], ls=1.03)
 
-# ── L2 EXPERIENCE ─────────────────────────────────────────────────────────────
-y, h = L2[0], L2[1]
-eb = box(s, MX, y, MW, h, fill=PANEL2, line_color=TEAL, line_w=1)
-fill_text(eb, [[("DECISION LAYER  ", 9.5, WHITE, T, F),
-                ("\u00b7 Approve \u00b7 Reject \u00b7 Escalate", 8, GREY, F, F)]])
-
-# ── L3 ORCHESTRATION — multi-agent team ──────────────────────────────────────
+# ── L3 ORCHESTRATION — multi-agent team with CSR decision at EVERY agent ──────
 y, h = L3[0], L3[1]
 box(s, MX, y, MW, h, fill=BG2, line_color=LINE, line_w=0.8)
-ob = box(s, MX + 0.12, y + 0.06, MW - 0.24, 0.40, fill=PANEL2, line_color=YELLOW, line_w=1)
+ob = box(s, MX + 0.12, y + 0.06, MW - 0.24, 0.36, fill=PANEL2, line_color=YELLOW, line_w=1)
 fill_text(ob, [[(BOT + "  ORCHESTRATOR  ", 9.2, YELLOW, T, F),
-                ("coordinates a team of specialist AI agents over a shared context \u00b7 resumable pipeline / state machine \u00b7 pauses on exception, resumes on CSR decision \u00b7 Approvals runs last",
-                 7.4, GREY, F, F)]], align=PP_ALIGN.LEFT)
-down(s, MCX - 0.14, y + 0.47, 0.28, 0.12, color=YELLOW)
+                ("coordinates a team of specialist AI agents over a shared context \u00b7 resumable pipeline / state machine \u00b7 Approvals runs last",
+                 7.3, GREY, F, F)]], align=PP_ALIGN.LEFT)
+down(s, MCX - 0.14, y + 0.44, 0.28, 0.12, color=YELLOW)
 
 agents = [
     ("Customer", "Validation Agent", "account \u00b7 buyer auth \u00b7 ship-to", "unauthorized \u00b7 cost ctr"),
@@ -196,7 +189,7 @@ agents = [
     ("Optimization", "Agent", "plan A/B/C \u00b7 freight \u00b7 split", "least-cost plan"),
     ("Approvals", "Agent", "budget \u00b7 matrix (last)", "budget \u00b7 approval"),
 ]
-na = len(agents); ag = 0.09; aw = (MW - 0.24 - ag * (na - 1)) / na; ax0 = MX + 0.12; aty = y + 0.68; ah = 1.02
+na = len(agents); ag = 0.09; aw = (MW - 0.24 - ag * (na - 1)) / na; ax0 = MX + 0.12; aty = y + 0.62; ah = 1.02
 for i, (n1, n2, focus, exc) in enumerate(agents):
     b = box(s, ax0 + i * (aw + ag), aty, aw, ah, fill=PANEL, line_color=YELLOW, line_w=0.8)
     box(s, ax0 + i * (aw + ag), aty, aw, 0.04, fill=YELLOW, radius=False)
@@ -207,17 +200,20 @@ for i, (n1, n2, focus, exc) in enumerate(agents):
     if i < na - 1:
         chev(s, ax0 + i * (aw + ag) + aw - 0.02, aty + 0.42, ag + 0.05, 0.18, color=YELLOW)
 
-# behaviours
-pby = y + 1.80; ph = 0.46; halfw = (MW - 0.24 - 0.16) / 2
-box(s, MX + 0.12, pby, halfw, ph, fill=PANEL, line_color=GREEN, line_w=1)
-box(s, MX + 0.12, pby, 0.07, ph, fill=GREEN, radius=False)
-txt(s, MX + 0.28, pby + 0.05, halfw - 0.3, 0.36,
-    [[("\u2713 Straight-through", 8.3, GREEN, T, F), ("  \u2014 all agents pass \u2192 autonomous \u2192 order creation", 7.4, GREY, F, F)]], ls=0.95)
-pb2x = MX + 0.12 + halfw + 0.16
-box(s, pb2x, pby, halfw, ph, fill=PANEL, line_color=AMBER, line_w=1)
-box(s, pb2x, pby, 0.07, ph, fill=AMBER, radius=False)
-txt(s, pb2x + 0.16, pby + 0.05, halfw - 0.3, 0.36,
-    [[("\u26A0 Human-in-the-loop", 8.3, AMBER, T, F), ("  \u2014 an agent raises an exception \u2192 CSR decides \u2192 resumes", 7.4, GREY, F, F)]], ls=0.95)
+# ── CSR DECISION LAYER wired to EVERY agent ──────────────────────────────────
+rail_y = y + 2.18; rail_h = 0.52
+for i in range(na):
+    cx = ax0 + i * (aw + ag) + aw / 2
+    conn(s, cx, aty + ah, cx, rail_y, color=AMBER, w=1.2, dash='dash', tail=True, head=True)
+rb = box(s, MX + 0.12, rail_y, MW - 0.24, rail_h, fill=PANEL, line_color=AMBER, line_w=1.3)
+box(s, MX + 0.12, rail_y, MW - 0.24, 0.06, fill=AMBER, radius=False)
+fill_text(rb, [[("\u26A0  CSR DECISION LAYER   ", 9.2, AMBER, T, F),
+                ("\u2014 every agent pauses on exception and hands the decision to the CSR:   ", 7.6, GREY, F, F),
+                ("Approve", 8, GREEN, T, F), ("  \u00b7  ", 7.6, GREY, F, F),
+                ("Reject", 8, RED, T, F), ("  \u00b7  ", 7.6, GREY, F, F),
+                ("Escalate", 8, AMBER, T, F),
+                ("   \u2192 the pipeline resumes        (all agents pass \u21d2 straight-through, autonomous)", 7.6, GREY, F, F)]],
+          align=PP_ALIGN.CENTER)
 
 # ── L4 GOVERNANCE agent ───────────────────────────────────────────────────────
 y, h = L4[0], L4[1]
@@ -254,7 +250,7 @@ for i, e in enumerate(ent):
     fill_text(b, [[(ln, 6.3, GREY, T, F)] for ln in e.split("\n")], ls=0.95)
 
 # ── vertical spine + data-read arrow ──────────────────────────────────────────
-for gy in (L1[0] + L1[1], L2[0] + L2[1], L3[0] + L3[1], L4[0] + L4[1]):
+for gy in (L1[0] + L1[1], L3[0] + L3[1], L4[0] + L4[1]):
     down(s, MCX - 0.16, gy - 0.02, 0.32, 0.12, color=YELLOW)
 conn(s, MX - 0.06, L6[0], MX - 0.06, L3[0] + L3[1], color=PURPLE, w=1.1, dash='dash', tail=True)
 
