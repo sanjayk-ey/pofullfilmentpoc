@@ -132,9 +132,8 @@ MCX = MX + MW / 2
 
 L1 = (0.82, 1.02, "INTAKE\n& RESOLUTION", BLUE)
 L3 = (1.90, 2.82, "ORCHESTRATION\n& HUMAN\nDECISIONS", YELLOW)
-L4 = (4.76, 0.40, "GOVERNANCE", RED)
-L5 = (5.22, 0.86, "ORDER CREATION\n& DOWNSTREAM", GREEN)
-L6 = (6.14, 0.92, "LEGACY DATA\nSYSTEM", PURPLE)
+L5 = (4.86, 1.02, "ORDER CREATION\n& DOWNSTREAM", GREEN)
+L6 = (6.00, 1.06, "LEGACY DATA\nSYSTEM", PURPLE)
 
 
 def tier(band):
@@ -144,7 +143,7 @@ def tier(band):
     fill_text(b, [[(w, 8.3, WHITE, T, F)] for w in name.split("\n")], ls=0.98)
 
 
-for b in (L1, L3, L4, L5, L6):
+for b in (L1, L3, L5, L6):
     tier(b)
 
 
@@ -214,42 +213,34 @@ fill_text(rb, [[("\u26A0  HUMAN DECISION LAYER   ", 9.2, AMBER, T, F),
                 ("   \u2192 the pipeline resumes        (all agents pass \u21d2 straight-through, autonomous)", 7.6, GREY, F, F)]],
           align=PP_ALIGN.CENTER)
 
-# ── L4 GOVERNANCE agent ───────────────────────────────────────────────────────
-y, h = L4[0], L4[1]
-gb = box(s, MX, y, MW, h, fill=PANEL, line_color=RED, line_w=1)
-box(s, MX, y, 0.07, h, fill=RED, radius=False)
-fill_text(gb, [[(BOT + "  EXCEPTION GOVERNANCE AGENT   ", 8.5, RED, T, F),
-                ("routes every exception to its owner with severity + SLA (governance master \u00b7 severity matrix \u00b7 role routing)",
-                 7.6, GREY, F, F)]], align=PP_ALIGN.LEFT)
-
 # ── L5 ORDER CREATION & DOWNSTREAM ───────────────────────────────────────────
 y, h = L5[0], L5[1]
-txt(s, MX + 0.02, y + 0.02, 9.0, 0.2, [[("ORDER CREATION & DOWNSTREAM \u2014 the ", 8, YELLOW, T, F),
+txt(s, MX + 0.02, y + 0.04, 9.0, 0.2, [[("ORDER CREATION & DOWNSTREAM \u2014 the ", 8, YELLOW, T, F),
                                         (BOT + " Order Execution Agent", 8, WHITE, T, F)]])
-oe = box(s, MX + 0.05, y + 0.26, 2.35, 0.52, fill=PANEL2, line_color=GREEN, line_w=1.1)
+oe = box(s, MX + 0.05, y + 0.32, 2.35, 0.60, fill=PANEL2, line_color=GREEN, line_w=1.1)
 fill_text(oe, [[(BOT + " Order Execution", 8, WHITE, T, F)], [("Agent \u00b7 create sales order", 7, GREY, F, F)]])
-chev(s, MX + 2.44, y + 0.42, 0.3, 0.2, color=GREEN)
+chev(s, MX + 2.44, y + 0.52, 0.3, 0.2, color=GREEN)
 ds = ["ERP\nsales order", "OMS\nrequest", "WMS\npick ticket", "TMS\nshipment+track", "SMTP\nconfirmation", "Audit\n& documents"]
 dx0 = MX + 2.90; dn = len(ds); dg = 0.08; dw = (MW - 2.90 - 0.05 - dg * (dn - 1)) / dn
 for i, d in enumerate(ds):
-    b = box(s, dx0 + i * (dw + dg), y + 0.26, dw, 0.52, fill=PANEL2, line_color=LINE, line_w=0.7)
+    b = box(s, dx0 + i * (dw + dg), y + 0.32, dw, 0.60, fill=PANEL2, line_color=LINE, line_w=0.7)
     fill_text(b, [[(ln, 6.7, WHITE, T, F)] for ln in d.split("\n")], ls=0.95)
 
-# ── L6 DATA FOUNDATION ───────────────────────────────────────────────────────
+# ── L6 LEGACY DATA SYSTEM ────────────────────────────────────────────────────
 y, h = L6[0], L6[1]
 box(s, MX, y, MW, h, fill=BG2, line_color=PURPLE, line_w=0.9)
-txt(s, MX + 0.12, y + 0.06, MW - 0.24, 0.2,
+txt(s, MX + 0.12, y + 0.08, MW - 0.24, 0.2,
     [[("GOVERNED MASTER DATA  ", 8.5, YELLOW, T, F),
       ("\u2014 each agent owns its domain and reads governed data (change the data, not the code)", 7.5, GREY, F, T)]])
 ent = ["Product\ncatalog\u00b7subs\u00b7UOM", "Customer\n& Ship-to", "Buyer", "Pricing", "Credit", "Inventory",
        "Logistics", "Budget &\nApproval", "Compliance\n& SDS", "Execution\nendpoints", "Governance\nmatrix"]
-en = len(ent); eg = 0.06; ew = (MW - 0.24 - eg * (en - 1)) / en; ex0 = MX + 0.12; ety = y + 0.35
+en = len(ent); eg = 0.06; ew = (MW - 0.24 - eg * (en - 1)) / en; ex0 = MX + 0.12; ety = y + 0.42
 for i, e in enumerate(ent):
-    b = box(s, ex0 + i * (ew + eg), ety, ew, 0.48, fill=PANEL, line_color=LINE, line_w=0.6)
+    b = box(s, ex0 + i * (ew + eg), ety, ew, 0.56, fill=PANEL, line_color=LINE, line_w=0.6)
     fill_text(b, [[(ln, 6.3, GREY, T, F)] for ln in e.split("\n")], ls=0.95)
 
 # ── vertical spine + data-read arrow ──────────────────────────────────────────
-for gy in (L1[0] + L1[1], L3[0] + L3[1], L4[0] + L4[1]):
+for gy in (L1[0] + L1[1], L3[0] + L3[1]):
     down(s, MCX - 0.16, gy - 0.02, 0.32, 0.12, color=YELLOW)
 conn(s, MX - 0.06, L6[0], MX - 0.06, L3[0] + L3[1], color=PURPLE, w=1.1, dash='dash', tail=True)
 
