@@ -143,11 +143,10 @@ _fill(bgr, BG); bgr.text_frame.paragraphs[0].text = ""
 # title bar
 box(s, 0, 0, 13.333, 0.12, fill=YELLOW, radius=False)
 box(s, 0, 0.12, 0.16, 0.86, fill=YELLOW, radius=False)
-txt(s, 0.45, 0.16, 9.5, 0.4, [[("SOLUTION ARCHITECTURE", 11, YELLOW, True, False)]])
-txt(s, 0.45, 0.42, 11.8, 0.5, [[("Order Creation & Orchestration \u2014 Architecture", 25, WHITE, True, False)]])
-txt(s, 9.7, 0.2, 3.4, 0.7,
-    [[("Upstream  \u2192  Orchestration  \u2192", 9.5, DGREY, False, True)],
-     [("Order creation  \u2192  Downstream", 9.5, DGREY, False, True)]], align=PP_ALIGN.RIGHT, line_spacing=1.05)
+txt(s, 0.45, 0.14, 9.5, 0.4, [[("SOLUTION ARCHITECTURE", 11, YELLOW, True, False)]])
+txt(s, 0.45, 0.38, 12.5, 0.55,
+    [[("Order Creation & Orchestration \u2014 Architecture ", 22, WHITE, True, False),
+      ("with Human-in-the-Loop Governance", 22, YELLOW, True, False)]])
 
 # geometry
 LX, LW = 0.4, 1.5           # tier-label column
