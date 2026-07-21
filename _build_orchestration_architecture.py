@@ -127,8 +127,7 @@ txt(s, 0.35, 0.32, 12.6, 0.4,
 
 # ── geometry ──────────────────────────────────────────────────────────────────
 LX, LW = 0.33, 1.34
-MX, MW = 1.82, 9.18
-XR, XRW = 11.12, 1.9
+MX, MW = 1.82, 11.18
 MCX = MX + MW / 2
 
 L1 = (0.82, 1.02, "INTAKE\n& RESOLUTION", BLUE)
@@ -253,21 +252,6 @@ for i, e in enumerate(ent):
 for gy in (L1[0] + L1[1], L3[0] + L3[1], L4[0] + L4[1]):
     down(s, MCX - 0.16, gy - 0.02, 0.32, 0.12, color=YELLOW)
 conn(s, MX - 0.06, L6[0], MX - 0.06, L3[0] + L3[1], color=PURPLE, w=1.1, dash='dash', tail=True)
-
-# ── cross-cutting rail ───────────────────────────────────────────────────────
-cc_y = L1[0]; cc_h = (L5[0] + L5[1]) - L1[0]
-box(s, XR, cc_y, XRW, cc_h, fill=PANEL)
-box(s, XR, cc_y, XRW, 0.09, fill=YELLOW, radius=False)
-txt(s, XR + 0.12, cc_y + 0.12, XRW - 0.24, 0.22, [[("PLATFORM CAPABILITIES", 8.5, YELLOW, T, F)]])
-cross = [("Multi-agent\norchestration", YELLOW), ("Human-in-the-loop\ncontrol", AMBER),
-         ("Exception governance\n& SLA routing", RED), ("Audit &\ntraceability", BLUE),
-         ("Pause & resume\nworkflow", GREEN)]
-inner = cc_h - 0.44; ch = (inner - 0.4) / 5
-for i, (t, col) in enumerate(cross):
-    yy = cc_y + 0.42 + i * (ch + 0.1)
-    b = box(s, XR + 0.12, yy, XRW - 0.24, ch, fill=PANEL2, line_color=LINE, line_w=0.6)
-    box(s, XR + 0.12, yy, 0.05, ch, fill=col, radius=False)
-    fill_text(b, [[(ln, 7.5, WHITE, T, F)] for ln in t.split("\n")], ls=0.95)
 
 # ── footer legend ────────────────────────────────────────────────────────────
 txt(s, 0.35, 7.16, 12.6, 0.24,
