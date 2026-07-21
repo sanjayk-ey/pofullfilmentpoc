@@ -325,7 +325,74 @@ for i, o in enumerate(outs):
 # SECTION 2 — SOLUTION ARCHITECTURE & DESIGN
 # ══════════════════════════════════════════════════════════════════════════════
 divider("solution architecture & design", "Solution architecture & design",
-        "The reference architecture, the runtime component & data-flow view, the process flow, and the request sequence.")
+        "The data model, the reference architecture, the runtime component & data-flow view, the process flow, and the request sequence.")
+
+# ── Data model ────────────────────────────────────────────────────────────────
+s = slide()
+header(s, "Data design", "Data model \u2014 entities & relationships")
+txt(s, 0.6, 1.6, 12.1, 0.35,
+    [[("The order aggregate sits at the centre; every decision is driven by governed master-data entities linked to it.", 11.5, GREY, False, True)]])
+
+
+def entity(x, y, w, h, name, color, attrs):
+    box(s, x, y, w, h, fill=PANEL2, line_color=color, line_w=1)
+    box(s, x, y, w, 0.26, fill=color, radius=False)
+    txt(s, x+0.12, y+0.03, w-0.24, 0.22, [[(name, 9.5, BG, True, False)]])
+    txt(s, x+0.12, y+0.32, w-0.24, h-0.36,
+        [[(a, 8.3, GREY, False, False)] for a in attrs], line_spacing=1.02)
+
+
+# central order aggregate
+hx, hw = 5.0, 3.35
+po_y, ln_y = 2.7, 4.15
+poB = box(s, hx, po_y, hw, 1.15, fill=PANEL, line_color=YELLOW, line_w=1.5)
+box(s, hx, po_y, hw, 0.3, fill=YELLOW, radius=False)
+txt(s, hx+0.14, po_y+0.04, hw-0.28, 0.24, [[("PURCHASE ORDER  (header)", 10, BG, True, False)]])
+txt(s, hx+0.14, po_y+0.36, hw-0.28, 0.75,
+    [[("PK  po_no", 8.6, WHITE, False, False)],
+     [("FK  customer_id \u00b7 buyer_id \u00b7 ship_to_id", 8.6, GREY, False, False)],
+     [("order_date \u00b7 channel \u00b7 status \u00b7 totals", 8.6, GREY, False, False)]], line_spacing=1.05)
+lnB = box(s, hx, ln_y, hw, 1.05, fill=PANEL, line_color=YELLOW, line_w=1.5)
+box(s, hx, ln_y, hw, 0.3, fill=YELLOW, radius=False)
+txt(s, hx+0.14, ln_y+0.04, hw-0.28, 0.24, [[("ORDER LINE", 10, BG, True, False)]])
+txt(s, hx+0.14, ln_y+0.36, hw-0.28, 0.65,
+    [[("PK  po_no + line_no", 8.6, WHITE, False, False)],
+     [("FK  sku \u00b7 uom \u00b7 qty \u00b7 unit_price \u00b7 line_total", 8.6, GREY, False, False)]], line_spacing=1.05)
+connector(s, hx+hw/2, po_y+1.15, hx+hw/2, ln_y, color=YELLOW, w=1.5, tail=True, head=True)
+label(s, hx+hw/2+0.1, po_y+1.16, 0.9, "1 : \u221e", YELLOW, 8.5)
+
+# left master-data entities
+lx, lw = 0.6, 3.0
+left = [
+    (2.0, "CUSTOMER", BLUE, ["PK customer_id", "account tier \u00b7 hierarchy", "ship-to \u00b7 fulfillment rules"]),
+    (3.22, "BUYER", BLUE, ["PK buyer_id  FK customer_id", "role \u00b7 permissions", "authority \u00b7 self-approval"]),
+    (4.44, "CREDIT", TEAL, ["PK customer_id", "credit limit \u00b7 available", "payment terms \u00b7 risk"]),
+    (5.66, "BUDGET & APPROVAL", PURPLE, ["PK cost_centre", "budget \u00b7 approval matrix", "buyer authority"]),
+]
+for (yy, nm, col, at) in left:
+    entity(lx, yy, lw, 1.05, nm, col, at)
+    connector(s, lx+lw, yy+0.5, hx, po_y+0.5 if yy < 4.0 else ln_y+0.45, color=col, w=1.1, tail=True)
+
+# right master-data entities
+rx, rw = 9.75, 3.0
+right = [
+    (2.0, "PRODUCT", GREEN, ["PK sku", "lifecycle \u00b7 substitute_sku", "uom \u00b7 conversions"]),
+    (3.22, "PRICING", GREEN, ["FK sku \u00b7 customer_id", "list \u00b7 contract \u00b7 tier", "promo \u00b7 rebate"]),
+    (4.44, "INVENTORY", AMBER, ["FK sku \u00b7 dc_id", "on-hand \u00b7 in-transit \u00b7 ATP", "allocation"]),
+    (5.66, "LOGISTICS", AMBER, ["FK ship_to_id \u00b7 carrier", "serviceability \u00b7 freight", "delivery SLA \u00b7 ETA"]),
+]
+for (yy, nm, col, at) in right:
+    entity(rx, yy, rw, 1.05, nm, col, at)
+    connector(s, rx, yy+0.5, hx+hw, po_y+0.5 if yy < 4.0 else ln_y+0.45, color=col, w=1.1, tail=True)
+
+# governance strip
+gv = box(s, hx-0.55, 6.35, hw+1.1, 0.55, fill=PANEL2, line_color=RED, line_w=1)
+txt(s, hx-0.4, 6.44, hw+0.9, 0.4,
+    [[("EXCEPTION GOVERNANCE", 8.8, RED, True, False),
+      ("   exception_type \u2192 owner \u00b7 escalation \u00b7 SLA", 8.5, GREY, False, False)]], align=PP_ALIGN.CENTER)
+connector(s, hx+hw/2, ln_y+1.05, hx+hw/2, 6.35, color=RED, w=1.1, dash='dash', tail=True)
+txt(s, 0.6, 7.02, 12.0, 0.3,
+    [[("PK = primary key   \u00b7   FK = foreign key   \u00b7   1 : \u221e = one-to-many.  Master data is governed centrally and referenced by every order.", 9, DGREY, False, True)]])
 
 # ── Flagship reference architecture ───────────────────────────────────────────
 s = slide()
