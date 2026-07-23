@@ -34,7 +34,8 @@ Existing exception paths are preserved:
 """
 from datetime import date, timedelta
 from modules.stage_result import StageResult
-from modules.xlsx_util import load_sheets, clean, to_num
+from modules.xlsx_util import clean, to_num
+from modules.integrations import SHIPPING, ERP
 
 
 # Minimal ship-to ZIP prefix -> state mapping (kept in sync with pipeline.py).
@@ -73,6 +74,9 @@ class LogisticsValidator:
     stage_key = "logistics"
     title = "Shipments"
     icon = "🎯"
+    # Mock systems: the Shipping provider serves carrier coverage / freight /
+    # SLA; ERP is checked for per-DC stock feasibility of each candidate plan.
+    systems = ("SHIPPING", "ERP")
     steps = [
         (0.30, "📍", "Validating ship-to ZIP serviceability..."),
         (0.30, "🏭", "Enumerating candidate fulfillment plans (preferred / alternate / split)..."),
@@ -82,9 +86,9 @@ class LogisticsValidator:
     ]
 
     def __init__(self):
-        log = load_sheets("logistics-master-data.xlsx",
-                          ["Carrier_Coverage", "Freight_Rating", "SLA_Rules",
-                           "Warehouse_Master", "Delivery_Calendar"])
+        log = SHIPPING.get_logistics(
+            ["Carrier_Coverage", "Freight_Rating", "SLA_Rules",
+             "Warehouse_Master", "Delivery_Calendar"])
         self.coverage = log["Carrier_Coverage"]
         self.rating = log["Freight_Rating"]
         self.sla = log["SLA_Rules"]
@@ -94,7 +98,7 @@ class LogisticsValidator:
 
         # Inventory master — required to check per-DC availability for each
         # candidate plan (allocatable = on_hand - reserved).
-        inv = load_sheets("inventory-master-data.xlsx", ["DC_Stock"])
+        inv = ERP.get_inventory(["DC_Stock"])
         self.dc_stock = {}
         for d in inv["DC_Stock"]:
             sku = clean(d.get("sku"))

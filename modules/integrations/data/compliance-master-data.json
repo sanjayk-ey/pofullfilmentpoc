@@ -1,0 +1,162 @@
+{
+ "Compliance_Rules": [
+  {
+   "rule_id": "CMP-001",
+   "sku": "SKU-FIN-9100",
+   "product_family": "FINISH",
+   "restriction_type": "REGIONAL",
+   "region_state": "CA",
+   "status": "RESTRICTED",
+   "reason": "VOC limits in California (CARB)",
+   "approval_required": "Y",
+   "authority": "EPA/CARB",
+   "eligible_flag": "N",
+   "required_doc_type": "SDS"
+  },
+  {
+   "rule_id": "CMP-002",
+   "sku": "SKU-FIN-9100",
+   "product_family": "FINISH",
+   "restriction_type": "REGIONAL",
+   "region_state": "NY",
+   "status": "ALLOWED",
+   "reason": "Permitted with SDS attached",
+   "approval_required": "N",
+   "authority": "EPA",
+   "eligible_flag": "Y",
+   "required_doc_type": "SDS"
+  },
+  {
+   "rule_id": "CMP-003",
+   "sku": null,
+   "product_family": "FINISH",
+   "restriction_type": "EXPORT",
+   "region_state": "MX",
+   "status": "PROHIBITED",
+   "reason": "Export licence required - not held",
+   "approval_required": "Y",
+   "authority": "Customs",
+   "eligible_flag": "N",
+   "required_doc_type": "Export Licence"
+  },
+  {
+   "rule_id": "CMP-004",
+   "sku": "SKU-SHS-7700",
+   "product_family": "SHOWERSYS",
+   "restriction_type": "REGIONAL",
+   "region_state": "ALL",
+   "status": "ALLOWED",
+   "reason": "No restriction",
+   "approval_required": "N",
+   "authority": "-",
+   "eligible_flag": "Y",
+   "required_doc_type": null
+  }
+ ],
+ "Regional_Restrictions": [
+  {
+   "region_code": "IL",
+   "region_name": "Illinois",
+   "restricted_families": null,
+   "notes": "No regional product restrictions"
+  },
+  {
+   "region_code": "MI",
+   "region_name": "Michigan",
+   "restricted_families": null,
+   "notes": "No regional product restrictions"
+  },
+  {
+   "region_code": "NY",
+   "region_name": "New York",
+   "restricted_families": null,
+   "notes": "Finishes allowed with SDS attached"
+  },
+  {
+   "region_code": "CA",
+   "region_name": "California",
+   "restricted_families": "FINISH",
+   "notes": "VOC-restricted finishes require approval (CARB)"
+  },
+  {
+   "region_code": "MX",
+   "region_name": "Mexico",
+   "restricted_families": "FINISH",
+   "notes": "Export licence required for finishes"
+  }
+ ],
+ "SDS_Repository": [
+  {
+   "sku": "SKU-FIN-9100",
+   "sds_document_id": "SDS-FIN-9100",
+   "sds_version": "v4.2",
+   "issue_date": "2025-02-01",
+   "expiry_date": "2027-02-01",
+   "hazard_class": "Class 3 Flammable",
+   "required": "Y",
+   "file_ref": "sds/SKU-FIN-9100_v4.2.pdf"
+  }
+ ],
+ "Product_Eligibility": [
+  {
+   "sku": "SKU-CTG-4520",
+   "region": "ALL",
+   "eligible": "Y",
+   "conditions": "None"
+  },
+  {
+   "sku": "SKU-CTG-1017",
+   "region": "ALL",
+   "eligible": "Y",
+   "conditions": "None"
+  },
+  {
+   "sku": "SKU-DRN-3010",
+   "region": "ALL",
+   "eligible": "Y",
+   "conditions": "None"
+  },
+  {
+   "sku": "SKU-DRN-7213",
+   "region": "ALL",
+   "eligible": "Y",
+   "conditions": "None"
+  },
+  {
+   "sku": "SKU-VLV-2201",
+   "region": "ALL",
+   "eligible": "Y",
+   "conditions": "None"
+  },
+  {
+   "sku": "SKU-SHS-7700",
+   "region": "ALL",
+   "eligible": "Y",
+   "conditions": "None"
+  },
+  {
+   "sku": "SKU-SEL-1150",
+   "region": "ALL",
+   "eligible": "Y",
+   "conditions": "None"
+  },
+  {
+   "sku": "SKU-FIN-9100",
+   "region": "IL",
+   "eligible": "Y",
+   "conditions": "SDS must be attached"
+  },
+  {
+   "sku": "SKU-FIN-9100",
+   "region": "CA",
+   "eligible": "N",
+   "conditions": "Restricted - requires compliance approval"
+  },
+  {
+   "sku": "SKU-FIN-9100",
+   "region": "MX",
+   "eligible": "N",
+   "conditions": "Export prohibited without licence"
+  }
+ ]
+}

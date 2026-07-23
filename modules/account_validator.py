@@ -24,7 +24,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Tuple
 
-import openpyxl
+from modules.integrations import COMMERCE, OMS
 
 MOCK_DIR             = os.path.join(os.path.dirname(__file__), "..", "mock-data")
 CUSTOMER_MASTER_XLSX = os.path.join(MOCK_DIR, "customer-master-data.xlsx")
@@ -107,27 +107,28 @@ def _clean(v):
 
 class AccountValidator:
     def __init__(self, master_path: str = CUSTOMER_MASTER_XLSX):
-        wb = openpyxl.load_workbook(master_path, data_only=True)
-        self._customer_rows  = _read_sheet(wb, "Customer_Master")
-        self._hierarchy_rows = _read_sheet(wb, "Account_Hierarchy")
-        self._shipto_rows    = _read_sheet(wb, "Ship_To_Master")
-        self._rule_rows      = _read_sheet(wb, "Hierarchy_Rules")
-        # Buying history is stored as transactional past orders (header + lines),
-        # mirroring the reference data model. The per-customer buying-history
-        # summary used by Customer Validation + Product Match is DERIVED from
-        # these transactions at load time (see _build_indexes).
-        self._order_history_rows = _read_sheet(wb, "Order_History") \
-            if "Order_History" in wb.sheetnames else []
-        self._order_history_line_rows = _read_sheet(wb, "Order_History_Lines") \
-            if "Order_History_Lines" in wb.sheetnames else []
-        # Fulfillment rule profiles (added in feat/fulfillment-rules-business-semantics)
-        # Each profile defines: preferred warehouse, alternates, restricted DCs,
-        # split-shipment flag, backorder flag, MOQ, delivery SLA, allocation priority.
-        # Hierarchy_Rules.fulfillment_rule stores the rule_id; the validator resolves
-        # the full profile and exposes it to downstream stages.
-        self._fulfillment_rule_rows = _read_sheet(wb, "Fulfillment_Rules") \
-            if "Fulfillment_Rules" in wb.sheetnames else []
-        wb.close()
+        # Customer identity, corporate hierarchy, ship-to master, hierarchy rules
+        # and fulfillment-rule profiles are fetched from the Mock Commerce
+        # platform. (``master_path`` is retained for backward compatibility but
+        # the data now flows through the mock system clients.)
+        c = COMMERCE.get_customer(
+            ["Customer_Master", "Account_Hierarchy", "Ship_To_Master",
+             "Hierarchy_Rules", "Fulfillment_Rules"])
+        self._customer_rows  = c["Customer_Master"]
+        self._hierarchy_rows = c["Account_Hierarchy"]
+        self._shipto_rows    = c["Ship_To_Master"]
+        self._rule_rows      = c["Hierarchy_Rules"]
+        # Fulfillment rule profiles: preferred warehouse, alternates, restricted
+        # DCs, split-shipment / backorder flags, MOQ, delivery SLA, allocation
+        # priority. Hierarchy_Rules.fulfillment_rule stores the rule_id.
+        self._fulfillment_rule_rows = c["Fulfillment_Rules"]
+        # Buying history is stored as transactional past orders (header + lines)
+        # in the Mock OMS. The per-customer buying-history summary used by
+        # Customer Validation + Product Match is DERIVED from these transactions
+        # at load time (see _build_indexes / _build_buying_history).
+        o = OMS.get_order_history(["Order_History", "Order_History_Lines"])
+        self._order_history_rows = o["Order_History"]
+        self._order_history_line_rows = o["Order_History_Lines"]
         self._build_indexes()
         self._build_fulfillment_rule_index()
 

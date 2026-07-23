@@ -29,7 +29,8 @@ from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import List, Optional, Dict, Any
 
-from modules.xlsx_util import load_sheets, clean, to_num
+from modules.xlsx_util import clean, to_num
+from modules.integrations import PIM, COMMERCE
 
 
 def _norm(s) -> str:
@@ -103,9 +104,9 @@ class IntakeResolver:
     MAX_SHIPTO_OPTIONS = 10   # cap on ship-to locations offered in the CSR picker
 
     def __init__(self):
-        p = load_sheets("product-master-data.xlsx",
-                        ["Product_Master", "Substitution_Rules", "UOM_Conversions",
-                         "Product_Attributes"])
+        p = PIM.get_product_catalog(
+            ["Product_Master", "Substitution_Rules", "UOM_Conversions",
+             "Product_Attributes"])
         self.products = {clean(r.get("sku")): r
                          for r in p["Product_Master"] if clean(r.get("sku"))}
         # First approved substitute per original SKU (kept for backward compat)…
@@ -142,14 +143,14 @@ class IntakeResolver:
                     {"from_uom": frm, "to_uom": to, "factor": fac, "notes": note}
                 )
 
-        c = load_sheets("customer-master-data.xlsx", ["Ship_To_Master"])
+        c = COMMERCE.get_customer(["Ship_To_Master"])
         self.shiptos = [r for r in c["Ship_To_Master"] if clean(r.get("ship_to_id"))]
 
         # Buyer directory — used to detect UNRESOLVED_BUYER (the PO's buyer
         # email is not in Buyer_Profiles, or company + email cannot be linked
         # to any registered buyer).
         try:
-            b = load_sheets("buyer-master-data.xlsx", ["Buyer_Profiles"])
+            b = COMMERCE.get_buyer(["Buyer_Profiles"])
             self.buyers = [r for r in b["Buyer_Profiles"] if clean(r.get("buyer_id"))]
         except Exception:
             self.buyers = []

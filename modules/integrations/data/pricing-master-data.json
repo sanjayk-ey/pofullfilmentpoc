@@ -1,0 +1,431 @@
+{
+ "Price_List": [
+  {
+   "sku": "SKU-CTG-4520",
+   "currency": "USD",
+   "list_price": 12.5,
+   "uom": "EA",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  },
+  {
+   "sku": "SKU-CTG-4600",
+   "currency": "USD",
+   "list_price": 13.75,
+   "uom": "EA",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  },
+  {
+   "sku": "SKU-CTG-4800",
+   "currency": "USD",
+   "list_price": 15.9,
+   "uom": "EA",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  },
+  {
+   "sku": "SKU-DRN-3010",
+   "currency": "USD",
+   "list_price": 45,
+   "uom": "EA",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  },
+  {
+   "sku": "SKU-VLV-2201",
+   "currency": "USD",
+   "list_price": 88,
+   "uom": "EA",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  },
+  {
+   "sku": "SKU-SHS-7700",
+   "currency": "USD",
+   "list_price": 1450,
+   "uom": "EA",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  },
+  {
+   "sku": "SKU-FIN-9100",
+   "currency": "USD",
+   "list_price": 9.75,
+   "uom": "GAL",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  },
+  {
+   "sku": "SKU-FIN-9200",
+   "currency": "USD",
+   "list_price": 14,
+   "uom": "GAL",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  },
+  {
+   "sku": "SKU-SEL-1150",
+   "currency": "USD",
+   "list_price": 6.25,
+   "uom": "EA",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  },
+  {
+   "sku": "SKU-CTG-1017",
+   "currency": "USD",
+   "list_price": 16.8,
+   "uom": "EA",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  },
+  {
+   "sku": "SKU-DRN-7213",
+   "currency": "USD",
+   "list_price": 128,
+   "uom": "KIT",
+   "effective_from": "2026-01-01",
+   "effective_to": "2026-12-31",
+   "price_list_id": "PL-2026"
+  }
+ ],
+ "Contracts": [
+  {
+   "contract_reference": "CONTRACT-GLP-2026-007",
+   "customer_account": "CUST-1001",
+   "scope_type": "sku",
+   "scope_id": "SKU-SHS-7700",
+   "contract_price": 1350,
+   "currency": "USD",
+   "valid_from": "2026-01-01",
+   "valid_to": "2026-12-31",
+   "status": "ACTIVE",
+   "margin_floor_pct": 22
+  },
+  {
+   "contract_reference": "CONTRACT-GLP-2026-007",
+   "customer_account": "CUST-1001",
+   "scope_type": "sku",
+   "scope_id": "SKU-DRN-3010",
+   "contract_price": 39.5,
+   "currency": "USD",
+   "valid_from": "2026-01-01",
+   "valid_to": "2026-12-31",
+   "status": "ACTIVE",
+   "margin_floor_pct": 20
+  },
+  {
+   "contract_reference": "CONTRACT-GLP-2026-007",
+   "customer_account": "CUST-1001",
+   "scope_type": "family",
+   "scope_id": "VALVE",
+   "contract_price": 80,
+   "currency": "USD",
+   "valid_from": "2026-01-01",
+   "valid_to": "2026-12-31",
+   "status": "ACTIVE",
+   "margin_floor_pct": 22
+  },
+  {
+   "contract_reference": "CONTRACT-GLP-2025-099",
+   "customer_account": "CUST-1001",
+   "scope_type": "sku",
+   "scope_id": "SKU-SHS-7700",
+   "contract_price": 1300,
+   "currency": "USD",
+   "valid_from": "2025-01-01",
+   "valid_to": "2025-12-31",
+   "status": "EXPIRED",
+   "margin_floor_pct": 15
+  },
+  {
+   "contract_reference": "CONTRACT-PCBK-2026-010",
+   "customer_account": "CUST-5001",
+   "scope_type": "family",
+   "scope_id": "CARTRIDGE",
+   "contract_price": 11.9,
+   "currency": "USD",
+   "valid_from": "2026-01-01",
+   "valid_to": "2026-12-31",
+   "status": "ACTIVE",
+   "margin_floor_pct": 18
+  }
+ ],
+ "Volume_Tiers": [
+  {
+   "tier_id": "VT-CTG-1",
+   "scope_type": "family",
+   "scope_id": "CARTRIDGE",
+   "min_qty": 0,
+   "max_qty": 499,
+   "discount_pct": 0,
+   "uom": "EA"
+  },
+  {
+   "tier_id": "VT-CTG-2",
+   "scope_type": "family",
+   "scope_id": "CARTRIDGE",
+   "min_qty": 500,
+   "max_qty": 1999,
+   "discount_pct": 5,
+   "uom": "EA"
+  },
+  {
+   "tier_id": "VT-CTG-3",
+   "scope_type": "family",
+   "scope_id": "CARTRIDGE",
+   "min_qty": 2000,
+   "max_qty": 999999,
+   "discount_pct": 10,
+   "uom": "EA"
+  },
+  {
+   "tier_id": "VT-DRN-1",
+   "scope_type": "family",
+   "scope_id": "DRAIN",
+   "min_qty": 0,
+   "max_qty": 99,
+   "discount_pct": 0,
+   "uom": "EA"
+  },
+  {
+   "tier_id": "VT-DRN-2",
+   "scope_type": "family",
+   "scope_id": "DRAIN",
+   "min_qty": 100,
+   "max_qty": 999,
+   "discount_pct": 4,
+   "uom": "EA"
+  },
+  {
+   "tier_id": "VT-VLV-1",
+   "scope_type": "family",
+   "scope_id": "VALVE",
+   "min_qty": 0,
+   "max_qty": 49,
+   "discount_pct": 0,
+   "uom": "EA"
+  },
+  {
+   "tier_id": "VT-VLV-2",
+   "scope_type": "family",
+   "scope_id": "VALVE",
+   "min_qty": 50,
+   "max_qty": 999,
+   "discount_pct": 6,
+   "uom": "EA"
+  }
+ ],
+ "Rebates": [
+  {
+   "rebate_id": "RB-GLP-01",
+   "customer_account": "CUST-1001",
+   "product_family": "CARTRIDGE",
+   "rebate_pct": 2,
+   "condition": "Annual volume > 10000 EA"
+  },
+  {
+   "rebate_id": "RB-GLP-02",
+   "customer_account": "CUST-1001",
+   "product_family": "ALL",
+   "rebate_pct": 1,
+   "condition": "Loyalty rebate"
+  }
+ ],
+ "Promotions": [
+  {
+   "promo_id": "PROMO-Q3-SEAL",
+   "scope_type": "family",
+   "scope_id": "SEAL",
+   "discount_pct": 8,
+   "valid_from": "2026-06-01",
+   "valid_to": "2026-09-30",
+   "description": "Q3 seal kit promotion"
+  }
+ ],
+ "Surcharges": [
+  {
+   "surcharge_id": "SUR-LA-001",
+   "scope_type": "zip",
+   "scope_id": "90001",
+   "surcharge_type": "REGIONAL_FEE",
+   "amount_type": "PCT",
+   "amount": 1.5,
+   "reason": "West coast handling surcharge",
+   "region": "West",
+   "valid_from": "2026-01-01",
+   "valid_to": "2026-12-31"
+  },
+  {
+   "surcharge_id": "SUR-FUEL-01",
+   "scope_type": "ALL",
+   "scope_id": "ALL",
+   "surcharge_type": "FUEL",
+   "amount_type": "PCT",
+   "amount": 0.75,
+   "reason": "Fuel adjustment",
+   "region": "ALL",
+   "valid_from": "2026-01-01",
+   "valid_to": "2026-12-31"
+  }
+ ],
+ "Freight_Terms": [
+  {
+   "scope_type": "customer",
+   "scope_id": "CUST-1001",
+   "incoterm": "FOB Destination",
+   "freight_payer": "SELLER",
+   "base_freight": 150,
+   "min_freight": 150,
+   "per_kg_rate": 0.85,
+   "notes": "Prepaid & add; billed per KG above minimum"
+  },
+  {
+   "scope_type": "customer",
+   "scope_id": "CUST-5001",
+   "incoterm": "FOB Origin",
+   "freight_payer": "BUYER",
+   "base_freight": 0,
+   "min_freight": 0,
+   "per_kg_rate": 0,
+   "notes": "Collect — buyer arranges carrier"
+  },
+  {
+   "scope_type": "default",
+   "scope_id": "ALL",
+   "incoterm": "FOB Destination",
+   "freight_payer": "SELLER",
+   "base_freight": 200,
+   "min_freight": 200,
+   "per_kg_rate": 1,
+   "notes": "Default freight; billed per KG above minimum"
+  }
+ ],
+ "Tax_Rates": [
+  {
+   "region_code": "IL",
+   "region_name": "Illinois",
+   "tax_type": "SALES_TAX",
+   "tax_pct": 8.75,
+   "notes": "6.25% state + ~2.5% local (Chicago typical)"
+  },
+  {
+   "region_code": "CA",
+   "region_name": "California",
+   "tax_type": "SALES_TAX",
+   "tax_pct": 9.5,
+   "notes": "7.25% state + ~2.25% local (LA typical)"
+  },
+  {
+   "region_code": "NY",
+   "region_name": "New York",
+   "tax_type": "SALES_TAX",
+   "tax_pct": 8.875,
+   "notes": "4% state + 4.875% local (NYC)"
+  },
+  {
+   "region_code": "MI",
+   "region_name": "Michigan",
+   "tax_type": "SALES_TAX",
+   "tax_pct": 6,
+   "notes": "6% state (no local sales tax)"
+  },
+  {
+   "region_code": "TX",
+   "region_name": "Texas",
+   "tax_type": "SALES_TAX",
+   "tax_pct": 8.25,
+   "notes": "6.25% state + ~2% local"
+  },
+  {
+   "region_code": "FL",
+   "region_name": "Florida",
+   "tax_type": "SALES_TAX",
+   "tax_pct": 7,
+   "notes": "6% state + ~1% local"
+  },
+  {
+   "region_code": "UK",
+   "region_name": "United Kingdom",
+   "tax_type": "VAT",
+   "tax_pct": 20,
+   "notes": "Standard VAT rate"
+  },
+  {
+   "region_code": "ALL",
+   "region_name": "Default",
+   "tax_type": "SALES_TAX",
+   "tax_pct": 6,
+   "notes": "Fallback when ship-to state is unknown"
+  }
+ ],
+ "Margin_Policy": [
+  {
+   "product_family": "CARTRIDGE",
+   "min_margin_pct": 15,
+   "max_discount_pct": 18,
+   "approver_role": "PRICING_MANAGER"
+  },
+  {
+   "product_family": "DRAIN",
+   "min_margin_pct": 18,
+   "max_discount_pct": 15,
+   "approver_role": "PRICING_MANAGER"
+  },
+  {
+   "product_family": "VALVE",
+   "min_margin_pct": 20,
+   "max_discount_pct": 12,
+   "approver_role": "PRICING_MANAGER"
+  },
+  {
+   "product_family": "SHOWERSYS",
+   "min_margin_pct": 22,
+   "max_discount_pct": 10,
+   "approver_role": "PRICING_DIRECTOR"
+  },
+  {
+   "product_family": "SEAL",
+   "min_margin_pct": 25,
+   "max_discount_pct": 20,
+   "approver_role": "PRICING_MANAGER"
+  },
+  {
+   "product_family": "FINISH",
+   "min_margin_pct": 12,
+   "max_discount_pct": 8,
+   "approver_role": "PRICING_MANAGER"
+  }
+ ],
+ "Raw_Material_Index": [
+  {
+   "material": "Brass",
+   "index_date": "2026-06-01",
+   "index_pct_adjustment": 1.5,
+   "notes": "Brass index up 1.5%"
+  },
+  {
+   "material": "Ceramic",
+   "index_date": "2026-06-01",
+   "index_pct_adjustment": 0.8,
+   "notes": "Ceramic surcharge"
+  },
+  {
+   "material": "Enameled Cast Iron",
+   "index_date": "2026-06-01",
+   "index_pct_adjustment": 0,
+   "notes": "No change"
+  }
+ ]
+}

@@ -1,0 +1,197 @@
+{
+ "Carrier_Coverage": [
+  {
+   "carrier": "FedEx Freight",
+   "zip_prefix": "606",
+   "serviceable": "Y",
+   "service_level": "GROUND",
+   "transit_days": 2
+  },
+  {
+   "carrier": "FedEx Freight",
+   "zip_prefix": "482",
+   "serviceable": "Y",
+   "service_level": "GROUND",
+   "transit_days": 3
+  },
+  {
+   "carrier": "FedEx Freight",
+   "zip_prefix": "100",
+   "serviceable": "Y",
+   "service_level": "GROUND",
+   "transit_days": 3
+  },
+  {
+   "carrier": "FedEx Freight",
+   "zip_prefix": "752",
+   "serviceable": "Y",
+   "service_level": "GROUND",
+   "transit_days": 3
+  },
+  {
+   "carrier": "FedEx Freight",
+   "zip_prefix": "900",
+   "serviceable": "Y",
+   "service_level": "GROUND",
+   "transit_days": 4
+  },
+  {
+   "carrier": "FedEx Freight",
+   "zip_prefix": "902",
+   "serviceable": "Y",
+   "service_level": "GROUND",
+   "transit_days": 4
+  },
+  {
+   "carrier": "FedEx Express",
+   "zip_prefix": "606",
+   "serviceable": "Y",
+   "service_level": "EXPRESS",
+   "transit_days": 1
+  },
+  {
+   "carrier": "FedEx Express",
+   "zip_prefix": "100",
+   "serviceable": "Y",
+   "service_level": "EXPRESS",
+   "transit_days": 1
+  },
+  {
+   "carrier": "FedEx Express",
+   "zip_prefix": "752",
+   "serviceable": "Y",
+   "service_level": "EXPRESS",
+   "transit_days": 2
+  },
+  {
+   "carrier": "RegionalCarrier",
+   "zip_prefix": "999",
+   "serviceable": "N",
+   "service_level": "GROUND",
+   "transit_days": 0
+  }
+ ],
+ "Freight_Rating": [
+  {
+   "carrier": "FedEx Freight",
+   "zone": "Z1",
+   "weight_min": 0,
+   "weight_max": 100,
+   "base_rate": 50,
+   "per_kg_rate": 0.8
+  },
+  {
+   "carrier": "FedEx Freight",
+   "zone": "Z2",
+   "weight_min": 0,
+   "weight_max": 100,
+   "base_rate": 75,
+   "per_kg_rate": 1.1
+  },
+  {
+   "carrier": "FedEx Freight",
+   "zone": "Z3",
+   "weight_min": 0,
+   "weight_max": 100,
+   "base_rate": 110,
+   "per_kg_rate": 1.5
+  },
+  {
+   "carrier": "FedEx Express",
+   "zone": "Z1",
+   "weight_min": 0,
+   "weight_max": 100,
+   "base_rate": 120,
+   "per_kg_rate": 2
+  },
+  {
+   "carrier": "FedEx Express",
+   "zone": "Z2",
+   "weight_min": 0,
+   "weight_max": 100,
+   "base_rate": 150,
+   "per_kg_rate": 2.5
+  }
+ ],
+ "SLA_Rules": [
+  {
+   "scope_type": "customer",
+   "scope_id": "CUST-1001",
+   "service_level": "GROUND",
+   "max_transit_days": 3,
+   "on_time_target_pct": 98
+  },
+  {
+   "scope_type": "customer",
+   "scope_id": "CUST-5001",
+   "service_level": "GROUND",
+   "max_transit_days": 4,
+   "on_time_target_pct": 95
+  },
+  {
+   "scope_type": "default",
+   "scope_id": "ALL",
+   "service_level": "GROUND",
+   "max_transit_days": 5,
+   "on_time_target_pct": 95
+  }
+ ],
+ "Warehouse_Master": [
+  {
+   "warehouse_id": "DC-CHI-01",
+   "name": "Chicago DC",
+   "zip": "60639",
+   "region": "Midwest",
+   "capacity": "HIGH",
+   "cutoff_time": "16:00",
+   "carriers": "FedEx Freight,FedEx Express",
+   "supports_hazmat": "N",
+   "priority_rank": 1
+  },
+  {
+   "warehouse_id": "DC-DET-02",
+   "name": "Detroit DC",
+   "zip": "48201",
+   "region": "Midwest",
+   "capacity": "MEDIUM",
+   "cutoff_time": "15:00",
+   "carriers": "FedEx Freight",
+   "supports_hazmat": "Y",
+   "priority_rank": 2
+  },
+  {
+   "warehouse_id": "DC-LA-05",
+   "name": "Los Angeles DC",
+   "zip": "90001",
+   "region": "West",
+   "capacity": "HIGH",
+   "cutoff_time": "17:00",
+   "carriers": "FedEx Freight",
+   "supports_hazmat": "Y",
+   "priority_rank": 3
+  }
+ ],
+ "Delivery_Calendar": [
+  {
+   "warehouse_id": "DC-CHI-01",
+   "weekday": "Mon-Fri",
+   "cutoff_time": "16:00",
+   "ships": "Y",
+   "holiday_dates": "2026-07-04,2026-12-25"
+  },
+  {
+   "warehouse_id": "DC-DET-02",
+   "weekday": "Mon-Fri",
+   "cutoff_time": "15:00",
+   "ships": "Y",
+   "holiday_dates": "2026-07-04,2026-12-25"
+  },
+  {
+   "warehouse_id": "DC-LA-05",
+   "weekday": "Mon-Sat",
+   "cutoff_time": "17:00",
+   "ships": "Y",
+   "holiday_dates": "2026-12-25"
+  }
+ ]
+}

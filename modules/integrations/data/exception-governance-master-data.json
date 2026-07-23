@@ -1,0 +1,236 @@
+{
+ "Severity_Matrix": [
+  {
+   "exception_type": "MISSING_FIELDS",
+   "severity": "MEDIUM",
+   "category": "INTAKE",
+   "default_role": "CSR"
+  },
+  {
+   "exception_type": "DUPLICATE_PO",
+   "severity": "MEDIUM",
+   "category": "INTAKE",
+   "default_role": "CSR"
+  },
+  {
+   "exception_type": "UNMATCHED_CUSTOMER",
+   "severity": "HIGH",
+   "category": "CUSTOMER",
+   "default_role": "CSR"
+  },
+  {
+   "exception_type": "DUPLICATE_CUSTOMER",
+   "severity": "HIGH",
+   "category": "CUSTOMER",
+   "default_role": "CSR"
+  },
+  {
+   "exception_type": "INVALID_SHIP_TO",
+   "severity": "MEDIUM",
+   "category": "CUSTOMER",
+   "default_role": "CSR"
+  },
+  {
+   "exception_type": "HIERARCHY_MISMATCH",
+   "severity": "HIGH",
+   "category": "CUSTOMER",
+   "default_role": "ACCOUNT_MANAGER"
+  },
+  {
+   "exception_type": "UNAUTHORIZED_BUYER",
+   "severity": "HIGH",
+   "category": "AUTHORIZATION",
+   "default_role": "ACCOUNT_MANAGER"
+  },
+  {
+   "exception_type": "RESTRICTED_PRODUCT",
+   "severity": "MEDIUM",
+   "category": "AUTHORIZATION",
+   "default_role": "ACCOUNT_MANAGER"
+  },
+  {
+   "exception_type": "INVALID_COST_CENTER",
+   "severity": "MEDIUM",
+   "category": "AUTHORIZATION",
+   "default_role": "CSR"
+  },
+  {
+   "exception_type": "PRODUCT_CONFIG_EXCEPTION",
+   "severity": "MEDIUM",
+   "category": "PRODUCT",
+   "default_role": "PRODUCT_SPECIALIST"
+  },
+  {
+   "exception_type": "OBSOLETE_SKU",
+   "severity": "LOW",
+   "category": "PRODUCT",
+   "default_role": "PRODUCT_SPECIALIST"
+  },
+  {
+   "exception_type": "INVALID_UOM",
+   "severity": "MEDIUM",
+   "category": "PRODUCT",
+   "default_role": "PRODUCT_SPECIALIST"
+  },
+  {
+   "exception_type": "COMPLIANCE_RESTRICTION",
+   "severity": "HIGH",
+   "category": "COMPLIANCE",
+   "default_role": "COMPLIANCE_APPROVER"
+  },
+  {
+   "exception_type": "MISSING_SDS",
+   "severity": "MEDIUM",
+   "category": "COMPLIANCE",
+   "default_role": "COMPLIANCE_APPROVER"
+  },
+  {
+   "exception_type": "PRICING_EXCEPTION",
+   "severity": "HIGH",
+   "category": "PRICING",
+   "default_role": "PRICING_APPROVER"
+  },
+  {
+   "exception_type": "EXPIRED_CONTRACT",
+   "severity": "MEDIUM",
+   "category": "PRICING",
+   "default_role": "PRICING_APPROVER"
+  },
+  {
+   "exception_type": "BUDGET_EXCEEDED",
+   "severity": "HIGH",
+   "category": "APPROVAL",
+   "default_role": "APPROVER"
+  },
+  {
+   "exception_type": "APPROVAL_REQUIRED",
+   "severity": "MEDIUM",
+   "category": "APPROVAL",
+   "default_role": "APPROVER"
+  },
+  {
+   "exception_type": "CREDIT_HOLD",
+   "severity": "HIGH",
+   "category": "CREDIT",
+   "default_role": "FINANCE"
+  },
+  {
+   "exception_type": "INVENTORY_SHORTAGE",
+   "severity": "MEDIUM",
+   "category": "INVENTORY",
+   "default_role": "FULFILLMENT_PLANNER"
+  },
+  {
+   "exception_type": "ALLOCATION_CONFLICT",
+   "severity": "MEDIUM",
+   "category": "INVENTORY",
+   "default_role": "FULFILLMENT_PLANNER"
+  },
+  {
+   "exception_type": "ZIP_NOT_SERVICEABLE",
+   "severity": "HIGH",
+   "category": "LOGISTICS",
+   "default_role": "LOGISTICS"
+  },
+  {
+   "exception_type": "SLA_MISS",
+   "severity": "MEDIUM",
+   "category": "LOGISTICS",
+   "default_role": "LOGISTICS"
+  },
+  {
+   "exception_type": "EXECUTION_FAILURE",
+   "severity": "HIGH",
+   "category": "EXECUTION",
+   "default_role": "CSR"
+  }
+ ],
+ "Role_Routing": [
+  {
+   "category": "INTAKE",
+   "role": "CSR",
+   "escalation_role": "SUPERVISOR",
+   "queue": "Q-INTAKE"
+  },
+  {
+   "category": "CUSTOMER",
+   "role": "CSR",
+   "escalation_role": "ACCOUNT_MANAGER",
+   "queue": "Q-CUSTOMER"
+  },
+  {
+   "category": "AUTHORIZATION",
+   "role": "ACCOUNT_MANAGER",
+   "escalation_role": "SUPERVISOR",
+   "queue": "Q-AUTH"
+  },
+  {
+   "category": "PRODUCT",
+   "role": "PRODUCT_SPECIALIST",
+   "escalation_role": "SUPERVISOR",
+   "queue": "Q-PRODUCT"
+  },
+  {
+   "category": "COMPLIANCE",
+   "role": "COMPLIANCE_APPROVER",
+   "escalation_role": "COMPLIANCE_HEAD",
+   "queue": "Q-COMPLIANCE"
+  },
+  {
+   "category": "PRICING",
+   "role": "PRICING_APPROVER",
+   "escalation_role": "PRICING_DIRECTOR",
+   "queue": "Q-PRICING"
+  },
+  {
+   "category": "APPROVAL",
+   "role": "APPROVER",
+   "escalation_role": "REGIONAL_MANAGER",
+   "queue": "Q-APPROVAL"
+  },
+  {
+   "category": "CREDIT",
+   "role": "FINANCE",
+   "escalation_role": "FINANCE_MANAGER",
+   "queue": "Q-CREDIT"
+  },
+  {
+   "category": "INVENTORY",
+   "role": "FULFILLMENT_PLANNER",
+   "escalation_role": "SUPERVISOR",
+   "queue": "Q-INVENTORY"
+  },
+  {
+   "category": "LOGISTICS",
+   "role": "LOGISTICS",
+   "escalation_role": "LOGISTICS_MANAGER",
+   "queue": "Q-LOGISTICS"
+  },
+  {
+   "category": "EXECUTION",
+   "role": "CSR",
+   "escalation_role": "IT_SUPPORT",
+   "queue": "Q-EXECUTION"
+  }
+ ],
+ "SLA_Thresholds": [
+  {
+   "severity": "HIGH",
+   "sla_hours": 4,
+   "escalation_hours": 8,
+   "notify_channel": "EMAIL+SMS"
+  },
+  {
+   "severity": "MEDIUM",
+   "sla_hours": 24,
+   "escalation_hours": 48,
+   "notify_channel": "EMAIL"
+  },
+  {
+   "severity": "LOW",
+   "sla_hours": 72,
+   "escalation_hours": 120,
+   "notify_channel": "EMAIL"
+  }
+ ]
+}

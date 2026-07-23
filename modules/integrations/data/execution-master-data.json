@@ -1,0 +1,72 @@
+{
+ "Integration_Endpoints": [
+  {
+   "system": "ERP",
+   "record_type": "Sales Order",
+   "endpoint": "mock://erp/salesorder",
+   "mode": "MOCK",
+   "default_status": "SUCCESS",
+   "retry_limit": 3
+  },
+  {
+   "system": "OMS",
+   "record_type": "Order Request",
+   "endpoint": "mock://oms/order",
+   "mode": "MOCK",
+   "default_status": "SUCCESS",
+   "retry_limit": 3
+  },
+  {
+   "system": "WMS",
+   "record_type": "Pick Ticket",
+   "endpoint": "mock://wms/pick",
+   "mode": "MOCK",
+   "default_status": "SUCCESS",
+   "retry_limit": 3
+  },
+  {
+   "system": "TMS",
+   "record_type": "Shipment Order",
+   "endpoint": "mock://tms/shipment",
+   "mode": "MOCK",
+   "default_status": "SUCCESS",
+   "retry_limit": 3
+  },
+  {
+   "system": "SMTP",
+   "record_type": "Confirmation Email",
+   "endpoint": "mock://smtp/send",
+   "mode": "MOCK",
+   "default_status": "SUCCESS",
+   "retry_limit": 2
+  }
+ ],
+ "Communication_Templates": [
+  {
+   "template_id": "TPL-ORDER-CONF",
+   "channel": "EMAIL",
+   "subject": "Your order {order_no} is confirmed",
+   "body_ref": "templates/order_confirmation.txt"
+  },
+  {
+   "template_id": "TPL-EXCEPTION",
+   "channel": "EMAIL",
+   "subject": "Action needed on order {order_no}",
+   "body_ref": "templates/exception_notice.txt"
+  }
+ ],
+ "Document_Repository": [
+  {
+   "doc_id": "DOC-SDS-FIN",
+   "doc_type": "SDS",
+   "linked_to": "SKU-FIN-9100",
+   "file_ref": "sds/SKU-FIN-9100_v4.2.pdf"
+  },
+  {
+   "doc_id": "DOC-TC-2026",
+   "doc_type": "Terms",
+   "linked_to": "ALL",
+   "file_ref": "docs/terms_2026.pdf"
+  }
+ ]
+}

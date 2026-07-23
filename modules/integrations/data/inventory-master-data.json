@@ -1,0 +1,387 @@
+{
+ "Plant_Stock": [
+  {
+   "location_id": "PLANT-SHB",
+   "location_type": "PLANT",
+   "region": "Midwest",
+   "sku": "SKU-CTG-4520",
+   "on_hand_qty": 5000,
+   "uom": "EA"
+  },
+  {
+   "location_id": "PLANT-SHB",
+   "location_type": "PLANT",
+   "region": "Midwest",
+   "sku": "SKU-CTG-4600",
+   "on_hand_qty": 2000,
+   "uom": "EA"
+  },
+  {
+   "location_id": "PLANT-SHB",
+   "location_type": "PLANT",
+   "region": "Midwest",
+   "sku": "SKU-CTG-4800",
+   "on_hand_qty": 800,
+   "uom": "EA"
+  },
+  {
+   "location_id": "PLANT-SHB",
+   "location_type": "PLANT",
+   "region": "Midwest",
+   "sku": "SKU-DRN-3010",
+   "on_hand_qty": 800,
+   "uom": "EA"
+  },
+  {
+   "location_id": "PLANT-SHB",
+   "location_type": "PLANT",
+   "region": "Midwest",
+   "sku": "SKU-VLV-2201",
+   "on_hand_qty": 60,
+   "uom": "EA"
+  },
+  {
+   "location_id": "PLANT-SHB",
+   "location_type": "PLANT",
+   "region": "Midwest",
+   "sku": "SKU-SHS-7700",
+   "on_hand_qty": 4,
+   "uom": "EA"
+  },
+  {
+   "location_id": "PLANT-SHB",
+   "location_type": "PLANT",
+   "region": "Midwest",
+   "sku": "SKU-SEL-1150",
+   "on_hand_qty": 1500,
+   "uom": "EA"
+  },
+  {
+   "location_id": "PLANT-SHB",
+   "location_type": "PLANT",
+   "region": "Midwest",
+   "sku": "SKU-FIN-9100",
+   "on_hand_qty": 900,
+   "uom": "GAL"
+  },
+  {
+   "location_id": "PLANT-SHB",
+   "location_type": "PLANT",
+   "region": "Midwest",
+   "sku": "SKU-CTG-1017",
+   "on_hand_qty": 4000,
+   "uom": "EA"
+  },
+  {
+   "location_id": "PLANT-SHB",
+   "location_type": "PLANT",
+   "region": "Midwest",
+   "sku": "SKU-DRN-7213",
+   "on_hand_qty": 300,
+   "uom": "KIT"
+  }
+ ],
+ "DC_Stock": [
+  {
+   "location_id": "DC-CHI-01",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-CTG-4520",
+   "on_hand_qty": 3000,
+   "uom": "EA",
+   "quantity_reserved": 120,
+   "lead_time_days": 1,
+   "next_available_date": "2026-06-27"
+  },
+  {
+   "location_id": "DC-CHI-01",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-CTG-4600",
+   "on_hand_qty": 1500,
+   "uom": "EA",
+   "quantity_reserved": 40,
+   "lead_time_days": 1,
+   "next_available_date": "2026-06-27"
+  },
+  {
+   "location_id": "DC-CHI-01",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-CTG-4800",
+   "on_hand_qty": 500,
+   "uom": "EA",
+   "quantity_reserved": 20,
+   "lead_time_days": 2,
+   "next_available_date": "2026-06-28"
+  },
+  {
+   "location_id": "DC-CHI-01",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-DRN-3010",
+   "on_hand_qty": 400,
+   "uom": "EA",
+   "quantity_reserved": 30,
+   "lead_time_days": 2,
+   "next_available_date": "2026-06-28"
+  },
+  {
+   "location_id": "DC-CHI-01",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-VLV-2201",
+   "on_hand_qty": 30,
+   "uom": "EA",
+   "quantity_reserved": 5,
+   "lead_time_days": 3,
+   "next_available_date": "2026-06-30"
+  },
+  {
+   "location_id": "DC-CHI-01",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-SEL-1150",
+   "on_hand_qty": 600,
+   "uom": "EA",
+   "quantity_reserved": 25,
+   "lead_time_days": 1,
+   "next_available_date": "2026-06-27"
+  },
+  {
+   "location_id": "DC-CHI-01",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-CTG-1017",
+   "on_hand_qty": 500,
+   "uom": "EA",
+   "quantity_reserved": 30,
+   "lead_time_days": 1,
+   "next_available_date": "2026-06-27"
+  },
+  {
+   "location_id": "DC-CHI-01",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-DRN-7213",
+   "on_hand_qty": 60,
+   "uom": "KIT",
+   "quantity_reserved": 4,
+   "lead_time_days": 2,
+   "next_available_date": "2026-06-28"
+  },
+  {
+   "location_id": "DC-CHI-01",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-SHS-7700",
+   "on_hand_qty": 8,
+   "uom": "EA",
+   "quantity_reserved": 0,
+   "lead_time_days": 5,
+   "next_available_date": "2026-07-02"
+  },
+  {
+   "location_id": "DC-DET-02",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-CTG-4520",
+   "on_hand_qty": 1200,
+   "uom": "EA",
+   "quantity_reserved": 60,
+   "lead_time_days": 2,
+   "next_available_date": "2026-06-28"
+  },
+  {
+   "location_id": "DC-DET-02",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-VLV-2201",
+   "on_hand_qty": 15,
+   "uom": "EA",
+   "quantity_reserved": 2,
+   "lead_time_days": 3,
+   "next_available_date": "2026-06-30"
+  },
+  {
+   "location_id": "DC-DET-02",
+   "location_type": "DC",
+   "region": "Midwest",
+   "sku": "SKU-SHS-7700",
+   "on_hand_qty": 2,
+   "uom": "EA",
+   "quantity_reserved": 0,
+   "lead_time_days": 5,
+   "next_available_date": "2026-07-02"
+  },
+  {
+   "location_id": "DC-LA-05",
+   "location_type": "DC",
+   "region": "West",
+   "sku": "SKU-CTG-4520",
+   "on_hand_qty": 2000,
+   "uom": "EA",
+   "quantity_reserved": 80,
+   "lead_time_days": 4,
+   "next_available_date": "2026-07-01"
+  },
+  {
+   "location_id": "DC-LA-05",
+   "location_type": "DC",
+   "region": "West",
+   "sku": "SKU-DRN-3010",
+   "on_hand_qty": 200,
+   "uom": "EA",
+   "quantity_reserved": 20,
+   "lead_time_days": 4,
+   "next_available_date": "2026-07-01"
+  },
+  {
+   "location_id": "DC-LA-05",
+   "location_type": "DC",
+   "region": "West",
+   "sku": "SKU-SEL-1150",
+   "on_hand_qty": 300,
+   "uom": "EA",
+   "quantity_reserved": 15,
+   "lead_time_days": 4,
+   "next_available_date": "2026-07-01"
+  }
+ ],
+ "In_Transit": [
+  {
+   "sku": "SKU-VLV-2201",
+   "from_location": "PLANT-SHB",
+   "to_location": "DC-CHI-01",
+   "qty": 40,
+   "uom": "EA",
+   "eta_date": "2026-07-05"
+  },
+  {
+   "sku": "SKU-SHS-7700",
+   "from_location": "PLANT-SHB",
+   "to_location": "DC-CHI-01",
+   "qty": 3,
+   "uom": "EA",
+   "eta_date": "2026-07-12"
+  }
+ ],
+ "ATP": [
+  {
+   "sku": "SKU-CTG-4520",
+   "atp_qty": 8000,
+   "uom": "EA",
+   "next_replenishment_date": "2026-07-15",
+   "replenishment_qty": 5000
+  },
+  {
+   "sku": "SKU-CTG-4600",
+   "atp_qty": 3200,
+   "uom": "EA",
+   "next_replenishment_date": "2026-07-15",
+   "replenishment_qty": 1500
+  },
+  {
+   "sku": "SKU-CTG-4800",
+   "atp_qty": 1200,
+   "uom": "EA",
+   "next_replenishment_date": "2026-07-18",
+   "replenishment_qty": 600
+  },
+  {
+   "sku": "SKU-DRN-3010",
+   "atp_qty": 1100,
+   "uom": "EA",
+   "next_replenishment_date": "2026-07-20",
+   "replenishment_qty": 500
+  },
+  {
+   "sku": "SKU-VLV-2201",
+   "atp_qty": 90,
+   "uom": "EA",
+   "next_replenishment_date": "2026-07-05",
+   "replenishment_qty": 40
+  },
+  {
+   "sku": "SKU-SHS-7700",
+   "atp_qty": 10,
+   "uom": "EA",
+   "next_replenishment_date": "2026-07-12",
+   "replenishment_qty": 3
+  },
+  {
+   "sku": "SKU-SEL-1150",
+   "atp_qty": 2100,
+   "uom": "EA",
+   "next_replenishment_date": "2026-07-10",
+   "replenishment_qty": 1000
+  },
+  {
+   "sku": "SKU-FIN-9100",
+   "atp_qty": 900,
+   "uom": "GAL",
+   "next_replenishment_date": "2026-07-08",
+   "replenishment_qty": 500
+  },
+  {
+   "sku": "SKU-CTG-1017",
+   "atp_qty": 800,
+   "uom": "EA",
+   "next_replenishment_date": "2026-07-15",
+   "replenishment_qty": 500
+  },
+  {
+   "sku": "SKU-DRN-7213",
+   "atp_qty": 120,
+   "uom": "KIT",
+   "next_replenishment_date": "2026-07-16",
+   "replenishment_qty": 60
+  }
+ ],
+ "Allocation_Rules": [
+  {
+   "customer_tier": "PLATINUM",
+   "priority": 1,
+   "backorder_tolerance_days": 14,
+   "notes": "Highest allocation priority"
+  },
+  {
+   "customer_tier": "GOLD",
+   "priority": 2,
+   "backorder_tolerance_days": 10,
+   "notes": "Standard contract priority"
+  },
+  {
+   "customer_tier": "SILVER",
+   "priority": 3,
+   "backorder_tolerance_days": 7,
+   "notes": "Best effort"
+  }
+ ],
+ "Fulfillment_Preferences": [
+  {
+   "customer_account": "CUST-1001",
+   "customer_tier": "GOLD",
+   "preferred_warehouse": "DC-CHI-01",
+   "restricted_dc": null,
+   "split_shipment": "ALLOW",
+   "backorder_tolerance_days": 10
+  },
+  {
+   "customer_account": "CUST-1002",
+   "customer_tier": "SILVER",
+   "preferred_warehouse": "DC-CHI-01",
+   "restricted_dc": "DC-LA-05",
+   "split_shipment": "DENY",
+   "backorder_tolerance_days": 5
+  },
+  {
+   "customer_account": "CUST-5001",
+   "customer_tier": "GOLD",
+   "preferred_warehouse": "DC-LA-05",
+   "restricted_dc": null,
+   "split_shipment": "ALLOW",
+   "backorder_tolerance_days": 10
+  }
+ ]
+}

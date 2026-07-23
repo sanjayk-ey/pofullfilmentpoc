@@ -1,0 +1,186 @@
+{
+ "Buyer_Profiles": [
+  {
+   "buyer_id": "BUY-001",
+   "buyer_name": "John Miller",
+   "email": "john.miller@glps.com",
+   "customer_account": "CUST-1001",
+   "branch_id": "BR-GLP-MW",
+   "default_cost_center": "CC-MW-100",
+   "role": "SENIOR_BUYER",
+   "status": "ACTIVE",
+   "max_order_value": 250000,
+   "currency": "USD",
+   "can_self_approve": "Y",
+   "punchout_id": "PUNCH-GL-001",
+   "approver_id": "APR-501",
+   "approval_threshold_amount": 250000
+  },
+  {
+   "buyer_id": "BUY-002",
+   "buyer_name": "Linda Park",
+   "email": "linda.park@glps.com",
+   "customer_account": "CUST-1001",
+   "branch_id": "BR-GLP-MW",
+   "default_cost_center": "CC-MW-200",
+   "role": "SENIOR_BUYER",
+   "status": "ACTIVE",
+   "max_order_value": 200000,
+   "currency": "USD",
+   "can_self_approve": "Y",
+   "punchout_id": "PUNCH-GL-002",
+   "approver_id": "APR-501",
+   "approval_threshold_amount": 200000
+  },
+  {
+   "buyer_id": "BUY-003",
+   "buyer_name": "Mark Snow",
+   "email": "mark.snow@ekbd.com",
+   "customer_account": "CUST-1002",
+   "branch_id": "BR-GLP-NE",
+   "default_cost_center": "CC-NE-100",
+   "role": "BUYER",
+   "status": "ACTIVE",
+   "max_order_value": 75000,
+   "currency": "USD",
+   "can_self_approve": "Y",
+   "punchout_id": "PUNCH-EK-003",
+   "approver_id": "APR-502",
+   "approval_threshold_amount": 50000
+  },
+  {
+   "buyer_id": "BUY-010",
+   "buyer_name": "Sara Lee",
+   "email": "sara.lee@pcbk.com",
+   "customer_account": "CUST-5001",
+   "branch_id": "BR-PCBK-WEST",
+   "default_cost_center": "CC-WEST-100",
+   "role": "BUYER",
+   "status": "ACTIVE",
+   "max_order_value": 120000,
+   "currency": "USD",
+   "can_self_approve": "Y",
+   "punchout_id": "PUNCH-PC-010",
+   "approver_id": "APR-503",
+   "approval_threshold_amount": 75000
+  },
+  {
+   "buyer_id": "BUY-900",
+   "buyer_name": "Tom Gray (suspended)",
+   "email": "tom.gray@glps.com",
+   "customer_account": "CUST-1001",
+   "branch_id": "BR-GLP-MW",
+   "default_cost_center": "CC-MW-100",
+   "role": "BUYER",
+   "status": "SUSPENDED",
+   "max_order_value": 0,
+   "currency": "USD",
+   "can_self_approve": "N",
+   "punchout_id": null,
+   "approver_id": "APR-501",
+   "approval_threshold_amount": 0
+  }
+ ],
+ "User_Permissions": [
+  {
+   "buyer_id": "BUY-001",
+   "permitted_branches": "BR-GLP-MW",
+   "permitted_cost_centers": "CC-MW-100,CC-MW-200",
+   "allowed_product_families": "CARTRIDGE,DRAIN,VALVE,SHOWERSYS,SEAL,FINISH",
+   "denied_product_families": null,
+   "max_line_value": 100000,
+   "requires_approval_above": 250000
+  },
+  {
+   "buyer_id": "BUY-002",
+   "permitted_branches": "BR-GLP-MW",
+   "permitted_cost_centers": "CC-MW-200",
+   "allowed_product_families": "CARTRIDGE,DRAIN,SEAL,VALVE,SHOWERSYS",
+   "denied_product_families": "FINISH",
+   "max_line_value": 100000,
+   "requires_approval_above": 200000
+  },
+  {
+   "buyer_id": "BUY-003",
+   "permitted_branches": "BR-GLP-NE",
+   "permitted_cost_centers": "CC-NE-100",
+   "allowed_product_families": "CARTRIDGE,DRAIN,VALVE,SEAL",
+   "denied_product_families": "FINISH",
+   "max_line_value": 40000,
+   "requires_approval_above": 75000
+  },
+  {
+   "buyer_id": "BUY-010",
+   "permitted_branches": "BR-PCBK-WEST",
+   "permitted_cost_centers": "CC-WEST-100",
+   "allowed_product_families": "CARTRIDGE,VALVE,SHOWERSYS",
+   "denied_product_families": "FINISH",
+   "max_line_value": 60000,
+   "requires_approval_above": 120000
+  }
+ ],
+ "Cost_Centers": [
+  {
+   "cost_center_id": "CC-MW-100",
+   "name": "Midwest Operations",
+   "branch_id": "BR-GLP-MW",
+   "status": "ACTIVE",
+   "owner": "John Miller",
+   "currency": "USD"
+  },
+  {
+   "cost_center_id": "CC-MW-200",
+   "name": "Midwest Maintenance",
+   "branch_id": "BR-GLP-MW",
+   "status": "ACTIVE",
+   "owner": "Linda Park",
+   "currency": "USD"
+  },
+  {
+   "cost_center_id": "CC-NE-100",
+   "name": "Northeast Operations",
+   "branch_id": "BR-GLP-NE",
+   "status": "ACTIVE",
+   "owner": "Mark Snow",
+   "currency": "USD"
+  },
+  {
+   "cost_center_id": "CC-WEST-100",
+   "name": "West Operations",
+   "branch_id": "BR-PCBK-WEST",
+   "status": "ACTIVE",
+   "owner": "Sara Lee",
+   "currency": "USD"
+  },
+  {
+   "cost_center_id": "CC-OLD-900",
+   "name": "Decommissioned Center",
+   "branch_id": "BR-GLP-MW",
+   "status": "INACTIVE",
+   "owner": "-",
+   "currency": "USD"
+  }
+ ],
+ "Product_Visibility_Rules": [
+  {
+   "rule_id": "PV-001",
+   "scope_type": "global_parent",
+   "scope_id": "GP-CONT",
+   "product_family": "ALL",
+   "sku": null,
+   "visibility": "VISIBLE",
+   "min_role": "JUNIOR_BUYER",
+   "reason": "Default catalog"
+  },
+  {
+   "rule_id": "PV-002",
+   "scope_type": "product_family",
+   "scope_id": "FINISH",
+   "product_family": "FINISH",
+   "sku": null,
+   "visibility": "RESTRICTED",
+   "min_role": "SENIOR_BUYER",
+   "reason": "Hazardous finishes - senior buyers only"
+  }
+ ]
+}

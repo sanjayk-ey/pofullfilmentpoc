@@ -292,6 +292,7 @@ from modules                  import duplicate_checker as dup
 from modules.account_validator import AccountValidator, AccountValidationResult
 from modules.pipeline         import build_context, SEQUENTIAL_STAGES, GOVERNANCE, EXECUTION
 from modules.intake_resolver  import IntakeResolver
+from modules.integrations     import system_meta, describe_systems
 # Outlook / Microsoft 365 PO email intake — kept internal but HIDDEN for now.
 # Turn on by setting EMAIL_INTAKE_ENABLED=1 (env) once the Entra app
 # registration (tenant id + client id + Mail.Read consent) is available.
@@ -559,6 +560,79 @@ def render_agent_badge(stage_key):
         unsafe_allow_html=True)
 
 
+# ── Mock enterprise-system connections per agent ────────────────────────────
+# Each agent fetches & validates its data from one or more mock systems (ERP /
+# PIM / Commerce / OMS / Shipping). The pipeline stage classes carry a `systems`
+# attribute; these entries cover the non-stage agents (Customer Validation,
+# buyer authorization sub-check, intake).
+AGENT_SYSTEMS = {
+    "account":             ("COMMERCE", "OMS"),   # customer details + buying history
+    "buyer_authorization": ("COMMERCE", "PIM"),   # buyer directory + SKU family
+    "intake":              (),                     # reads the PO document only
+    "extraction":          (),
+}
+
+
+def _build_stage_systems_map():
+    m = dict(AGENT_SYSTEMS)
+    for s in SEQUENTIAL_STAGES:
+        k = getattr(s, "stage_key", None)
+        sysx = getattr(s, "systems", None)
+        if k and sysx:
+            m[k] = tuple(sysx)
+    return m
+
+
+STAGE_SYSTEMS = _build_stage_systems_map()
+
+
+def systems_for(stage_key) -> tuple:
+    """Mock systems an agent/process connects to (for the 'connecting to…' UI)."""
+    return STAGE_SYSTEMS.get(stage_key, ())
+
+
+def _system_label(code) -> str:
+    m = system_meta(code)
+    host = (m.get("endpoint") or "").split("//")[-1].split("/")[0]
+    return f"{m['icon']} **{m['name']}**" + (f" `{host}`" if host else "")
+
+
+def render_systems_connect(codes):
+    """Live 'connecting to mock system' line rendered inside an agent's running
+    status panel (shows the agent reaching out to ERP / PIM / etc.)."""
+    codes = tuple(codes or ())
+    if not codes:
+        return
+    st.write("🔌 Connecting to " + "  ·  ".join(_system_label(c) for c in codes)
+             + " to fetch & validate data…")
+
+
+def render_systems_validated(codes):
+    """Live 'data validated against …' line shown after the fetch succeeds."""
+    codes = tuple(codes or ())
+    if not codes:
+        return
+    st.write(f"🟢 Data fetched & validated against {describe_systems(list(codes))}.")
+
+
+def render_systems_static(codes):
+    """Persistent 'Data systems' pill row under a settled agent card, so the
+    system connections remain visible after the live animation is gone."""
+    codes = tuple(codes or ())
+    if not codes:
+        return
+    pills = "".join(
+        f"<span style='display:inline-block;background:#0B1F3A;color:#93C5FD;"
+        f"border:1px solid #1D4ED8;border-radius:10px;padding:1px 8px;"
+        f"font-size:0.72rem;margin:0 6px 6px 0;'>"
+        f"{system_meta(c)['icon']} {html_safe(system_meta(c)['name'])}</span>"
+        for c in codes)
+    st.markdown(
+        "<div style='margin:2px 0 8px;'><span style='color:#7C8DA6;"
+        "font-size:0.72rem;'>🔌 Data systems:&nbsp;</span>" + pills + "</div>",
+        unsafe_allow_html=True)
+
+
 def think(title: str, lines, icon: str = "🧠"):
     """Render a slow 'thinking' panel that shows the agent's internal checks
     and decisions, one line at a time. The panel stays expanded after
@@ -752,6 +826,11 @@ def render_po_result(po: ExtractedPO, is_dup: bool, dup_rec: dict = None):
 def render_account_result(av: AccountValidationResult, subchecks=None):
     st.markdown("### 🧭 Customer Validation")
     render_agent_badge("account")
+    # Customer Validation pulls customer details from Mock Commerce and buying
+    # history from Mock OMS (buyer authorization also checks Commerce + PIM).
+    _acct_systems = tuple(dict.fromkeys(
+        systems_for("account") + systems_for("buyer_authorization")))
+    render_systems_static(_acct_systems)
 
     # ── Exception banners ───────────────────────────────────────────────────────
     if av.is_exception:
@@ -1063,6 +1142,7 @@ def render_stage_result(res, divider=True, subchecks=None):
             st.markdown("---")
         st.markdown(f"### {res.icon} {res.title}")
     render_agent_badge(getattr(res, "stage_key", None))
+    render_systems_static(systems_for(getattr(res, "stage_key", None)))
     _render_stage_sections(res)
 
     for sub in subchecks:
@@ -1098,6 +1178,7 @@ def _animate_agent_scan(stage):
     tag = agent_tag(getattr(stage, "stage_key", None))
     with st.status(f"{tag}  ·  {stage.icon} {stage.title}...", expanded=True) as status:
         st.caption(f"{tag} is handling this step.")
+        render_systems_connect(tuple(getattr(stage, "systems", ()) or ()))
         for delay, emoji, text in stage.steps:
             st.write(f"{emoji} {text}")
             nap(paced_delay(delay))
@@ -1128,6 +1209,7 @@ def _render_product_scan_panel_static():
                    state="complete", expanded=True):
         st.caption(f"{tag} scanned each order line against the catalog, product "
                    "lifecycle and units of measure.")
+        render_systems_connect(systems_for("product_match"))
         for _delay, emoji, text in steps:
             st.write(f"{emoji} {text}")
         st.write("🟡 Found line item(s) that need your confirmation below.")
@@ -1155,8 +1237,10 @@ def _run_stage_animation(stage, ctx, subchecks=None, animate_steps=True):
     result = [None]
     folded = []
     tag = agent_tag(getattr(stage, "stage_key", None))
+    _sys = tuple(getattr(stage, "systems", ()) or ())
     with st.status(f"{tag}  ·  {stage.icon} {stage.title}...", expanded=True) as status:
         st.caption(f"{tag} is handling this step.")
+        render_systems_connect(_sys)
         if animate_steps:
             for delay, emoji, text in stage.steps:
                 st.write(f"{emoji} {text}")
@@ -1189,9 +1273,10 @@ def _run_stage_animation(stage, ctx, subchecks=None, animate_steps=True):
                 if sub_res.is_exception:
                     break
 
-        state_txt = ("action required"
-                     if (result[0].is_exception or any(s.is_exception for s in folded))
-                     else "complete")
+        _exc = result[0].is_exception or any(s.is_exception for s in folded)
+        if not _exc:
+            render_systems_validated(_sys)
+        state_txt = "action required" if _exc else "complete"
         status.update(label=f"{tag}  ·  {stage.icon} {stage.title} — {state_txt}",
                       state="complete", expanded=True)
     return result[0], folded
@@ -2668,6 +2753,7 @@ def _run_account_layer(orch):
         st.caption(f"{_tag} is handling this step.")
         # ── Part 1: customer identity + hierarchy (first pass only) ──────────
         if first_pass:
+            render_systems_connect(systems_for("account"))
             for i, (delay, emoji, text) in enumerate(account_steps):
                 st.write(f"{emoji} {text}")
                 nap(paced_delay(delay))
@@ -2696,12 +2782,16 @@ def _run_account_layer(orch):
             # shared context and fold buyer authorization (same agent) into THIS
             # panel as an indented sub-check.
             orch["ctx"] = build_context(po, av)
+            render_systems_validated(systems_for("account"))
             if buyer_stage is not None:
                 st.markdown(f"↳ **{buyer_stage.icon} {buyer_stage.title}**")
+                render_systems_connect(systems_for("buyer_authorization"))
                 for delay, emoji, text in buyer_stage.steps:
                     st.write(f"{emoji} {text}")
                     nap(paced_delay(delay))
                 buyer_holder[0] = buyer_stage.validate(orch["ctx"])
+                if not buyer_holder[0].is_exception:
+                    render_systems_validated(systems_for("buyer_authorization"))
                 # Flag so the pipeline loop skips buyer authorization (it has
                 # already animated inside this Customer Validation panel).
                 orch["buyer_auth_folded"] = True

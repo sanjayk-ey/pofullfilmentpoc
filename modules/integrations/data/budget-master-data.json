@@ -1,0 +1,193 @@
+{
+ "Budget_Master": [
+  {
+   "level_type": "global_parent",
+   "level_id": "GP-CONT",
+   "period": "2026",
+   "budget_amount": 50000000,
+   "consumed_amount": 18000000,
+   "available_amount": 32000000,
+   "currency": "USD"
+  },
+  {
+   "level_type": "regional_division",
+   "level_id": "RD-CONT-NA",
+   "period": "2026",
+   "budget_amount": 12000000,
+   "consumed_amount": 5000000,
+   "available_amount": 7000000,
+   "currency": "USD"
+  },
+  {
+   "level_type": "branch",
+   "level_id": "BR-GLP-MW",
+   "period": "2026",
+   "budget_amount": 2000000,
+   "consumed_amount": 1200000,
+   "available_amount": 800000,
+   "currency": "USD"
+  },
+  {
+   "level_type": "branch",
+   "level_id": "BR-GLP-NE",
+   "period": "2026",
+   "budget_amount": 1500000,
+   "consumed_amount": 1400000,
+   "available_amount": 100000,
+   "currency": "USD"
+  },
+  {
+   "level_type": "branch",
+   "level_id": "BR-PCBK-WEST",
+   "period": "2026",
+   "budget_amount": 1800000,
+   "consumed_amount": 600000,
+   "available_amount": 1200000,
+   "currency": "USD"
+  }
+ ],
+ "Cost_Centers": [
+  {
+   "cost_center_id": "CC-MW-100",
+   "name": "Midwest Operations",
+   "branch_id": "BR-GLP-MW",
+   "status": "ACTIVE",
+   "budget_amount": 600000,
+   "consumed_amount": 250000,
+   "available_amount": 350000,
+   "currency": "USD"
+  },
+  {
+   "cost_center_id": "CC-MW-200",
+   "name": "Midwest Maintenance",
+   "branch_id": "BR-GLP-MW",
+   "status": "ACTIVE",
+   "budget_amount": 300000,
+   "consumed_amount": 100000,
+   "available_amount": 200000,
+   "currency": "USD"
+  },
+  {
+   "cost_center_id": "CC-NE-100",
+   "name": "Northeast Operations",
+   "branch_id": "BR-GLP-NE",
+   "status": "ACTIVE",
+   "budget_amount": 300000,
+   "consumed_amount": 295000,
+   "available_amount": 5000,
+   "currency": "USD"
+  },
+  {
+   "cost_center_id": "CC-WEST-100",
+   "name": "West Operations",
+   "branch_id": "BR-PCBK-WEST",
+   "status": "ACTIVE",
+   "budget_amount": 400000,
+   "consumed_amount": 100000,
+   "available_amount": 300000,
+   "currency": "USD"
+  }
+ ],
+ "Approval_Matrix": [
+  {
+   "level_type": "branch",
+   "level_id": "BR-GLP-MW",
+   "min_amount": 0,
+   "max_amount": 50000,
+   "approver_role": "BRANCH_MANAGER",
+   "approver_name": "Karen Wells",
+   "sla_hours": 24
+  },
+  {
+   "level_type": "regional_division",
+   "level_id": "RD-CONT-NA",
+   "min_amount": 50001,
+   "max_amount": 250000,
+   "approver_role": "REGIONAL_MANAGER",
+   "approver_name": "David Cho",
+   "sla_hours": 48
+  },
+  {
+   "level_type": "global_parent",
+   "level_id": "GP-CONT",
+   "min_amount": 250001,
+   "max_amount": 99999999,
+   "approver_role": "CORPORATE_PROCUREMENT",
+   "approver_name": "Procurement Board",
+   "sla_hours": 72
+  },
+  {
+   "level_type": "branch",
+   "level_id": "BR-PCBK-WEST",
+   "min_amount": 0,
+   "max_amount": 60000,
+   "approver_role": "BRANCH_MANAGER",
+   "approver_name": "Ana Reyes",
+   "sla_hours": 24
+  }
+ ],
+ "Buyer_Authority": [
+  {
+   "buyer_id": "BUY-001",
+   "max_order_value": 250000,
+   "can_self_approve": "Y",
+   "branch_id": "BR-GLP-MW",
+   "cost_centers": "CC-MW-100,CC-MW-200"
+  },
+  {
+   "buyer_id": "BUY-002",
+   "max_order_value": 200000,
+   "can_self_approve": "Y",
+   "branch_id": "BR-GLP-MW",
+   "cost_centers": "CC-MW-200"
+  },
+  {
+   "buyer_id": "BUY-003",
+   "max_order_value": 75000,
+   "can_self_approve": "Y",
+   "branch_id": "BR-GLP-NE",
+   "cost_centers": "CC-NE-100"
+  },
+  {
+   "buyer_id": "BUY-010",
+   "max_order_value": 120000,
+   "can_self_approve": "Y",
+   "branch_id": "BR-PCBK-WEST",
+   "cost_centers": "CC-WEST-100"
+  }
+ ],
+ "Approvers": [
+  {
+   "approver_id": "APR-501",
+   "approver_name": "Karen Wells",
+   "role": "BRANCH_MANAGER",
+   "email": "karen.wells@glps.com",
+   "approval_limit_amount": 50000,
+   "status": "ACTIVE"
+  },
+  {
+   "approver_id": "APR-502",
+   "approver_name": "David Cho",
+   "role": "REGIONAL_MANAGER",
+   "email": "david.cho@glps.com",
+   "approval_limit_amount": 250000,
+   "status": "ACTIVE"
+  },
+  {
+   "approver_id": "APR-503",
+   "approver_name": "Ana Reyes",
+   "role": "BRANCH_MANAGER",
+   "email": "ana.reyes@pcbk.com",
+   "approval_limit_amount": 60000,
+   "status": "ACTIVE"
+  },
+  {
+   "approver_id": "APR-504",
+   "approver_name": "Procurement Board",
+   "role": "CORPORATE_PROCUREMENT",
+   "email": "procurement.board@continental-bpg.com",
+   "approval_limit_amount": 99999999,
+   "status": "ACTIVE"
+  }
+ ]
+}

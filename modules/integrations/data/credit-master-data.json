@@ -1,0 +1,169 @@
+{
+ "Credit_Master": [
+  {
+   "customer_account": "CUST-1001",
+   "credit_limit": 1000000,
+   "available_credit": 30000,
+   "currency": "USD",
+   "payment_terms": "NET30",
+   "credit_status": "GOOD",
+   "risk_rating": "LOW"
+  },
+  {
+   "customer_account": "CUST-1002",
+   "credit_limit": 500000,
+   "available_credit": 20000,
+   "currency": "USD",
+   "payment_terms": "NET45",
+   "credit_status": "WATCH",
+   "risk_rating": "MEDIUM"
+  },
+  {
+   "customer_account": "CUST-2001",
+   "credit_limit": 400000,
+   "available_credit": 250000,
+   "currency": "USD",
+   "payment_terms": "NET30",
+   "credit_status": "GOOD",
+   "risk_rating": "LOW"
+  },
+  {
+   "customer_account": "CUST-5001",
+   "credit_limit": 800000,
+   "available_credit": 500000,
+   "currency": "USD",
+   "payment_terms": "NET60",
+   "credit_status": "GOOD",
+   "risk_rating": "LOW"
+  },
+  {
+   "customer_account": "CUST-7000",
+   "credit_limit": 200000,
+   "available_credit": 0,
+   "currency": "USD",
+   "payment_terms": "PREPAYMENT",
+   "credit_status": "HOLD",
+   "risk_rating": "HIGH"
+  }
+ ],
+ "Invoice_Aging": [
+  {
+   "customer_account": "CUST-1001",
+   "invoice_no": "INV-GL-5501",
+   "amount": 120000,
+   "due_date": "2026-06-30",
+   "days_overdue": 0,
+   "status": "OPEN"
+  },
+  {
+   "customer_account": "CUST-1002",
+   "invoice_no": "INV-EK-6602",
+   "amount": 95000,
+   "due_date": "2026-05-15",
+   "days_overdue": 42,
+   "status": "OVERDUE"
+  },
+  {
+   "customer_account": "CUST-1002",
+   "invoice_no": "INV-EK-6610",
+   "amount": 60000,
+   "due_date": "2026-05-30",
+   "days_overdue": 27,
+   "status": "OVERDUE"
+  },
+  {
+   "customer_account": "CUST-7000",
+   "invoice_no": "INV-MT-9901",
+   "amount": 200000,
+   "due_date": "2026-04-01",
+   "days_overdue": 86,
+   "status": "OVERDUE"
+  }
+ ],
+ "Payment_History": [
+  {
+   "customer_account": "CUST-1001",
+   "avg_days_to_pay": 28,
+   "last_payment_date": "2026-06-01",
+   "last_payment_amount": 130000,
+   "dispute_count": 0
+  },
+  {
+   "customer_account": "CUST-1002",
+   "avg_days_to_pay": 51,
+   "last_payment_date": "2026-05-01",
+   "last_payment_amount": 40000,
+   "dispute_count": 2
+  },
+  {
+   "customer_account": "CUST-2001",
+   "avg_days_to_pay": 30,
+   "last_payment_date": "2026-06-10",
+   "last_payment_amount": 75000,
+   "dispute_count": 0
+  },
+  {
+   "customer_account": "CUST-5001",
+   "avg_days_to_pay": 55,
+   "last_payment_date": "2026-06-05",
+   "last_payment_amount": 200000,
+   "dispute_count": 0
+  },
+  {
+   "customer_account": "CUST-7000",
+   "avg_days_to_pay": 95,
+   "last_payment_date": "2026-02-15",
+   "last_payment_amount": 50000,
+   "dispute_count": 4
+  }
+ ],
+ "Payment_Terms": [
+  {
+   "terms_code": "NET30",
+   "description": "Net 30 days",
+   "net_days": 30,
+   "prepayment_required": "N"
+  },
+  {
+   "terms_code": "NET45",
+   "description": "Net 45 days",
+   "net_days": 45,
+   "prepayment_required": "N"
+  },
+  {
+   "terms_code": "NET60",
+   "description": "Net 60 days",
+   "net_days": 60,
+   "prepayment_required": "N"
+  },
+  {
+   "terms_code": "PREPAYMENT",
+   "description": "Prepayment required",
+   "net_days": 0,
+   "prepayment_required": "Y"
+  }
+ ],
+ "Risk_Signals": [
+  {
+   "customer_account": "CUST-1001",
+   "fraud_flag": "N",
+   "risk_score": 12,
+   "watchlist": "N",
+   "notes": "Stable account"
+  },
+  {
+   "customer_account": "CUST-1002",
+   "fraud_flag": "N",
+   "risk_score": 55,
+   "watchlist": "N",
+   "notes": "Slow payer"
+  },
+  {
+   "customer_account": "CUST-7000",
+   "fraud_flag": "Y",
+   "risk_score": 88,
+   "watchlist": "Y",
+   "notes": "Multiple disputes, on credit hold"
+  }
+ ]
+}

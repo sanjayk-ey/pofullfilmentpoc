@@ -12,13 +12,16 @@ Payment_History, Payment_Terms, Risk_Signals).
 Exception types: CREDIT_HOLD.
 """
 from modules.stage_result import StageResult
-from modules.xlsx_util import load_sheets, clean, to_num, yes
+from modules.xlsx_util import clean, to_num, yes
+from modules.integrations import ERP
 
 
 class CreditValidator:
     stage_key = "credit"
     title = "Credit"
     icon = "🏦"
+    # Mock system: ERP serves credit limit, invoice aging and risk signals.
+    systems = ("ERP",)
     steps = [
         (0.30, "🏦", "Checking credit limit and available credit..."),
         (0.30, "📄", "Reviewing open and overdue invoices..."),
@@ -27,9 +30,9 @@ class CreditValidator:
     ]
 
     def __init__(self):
-        s = load_sheets("credit-master-data.xlsx",
-                        ["Credit_Master", "Invoice_Aging", "Payment_History",
-                         "Payment_Terms", "Risk_Signals"])
+        s = ERP.get_credit(
+            ["Credit_Master", "Invoice_Aging", "Payment_History",
+             "Payment_Terms", "Risk_Signals"])
         self.credit = {clean(r.get("customer_account")): r for r in s["Credit_Master"] if clean(r.get("customer_account"))}
         self.aging = s["Invoice_Aging"]
         self.terms = {clean(r.get("terms_code")): r for r in s["Payment_Terms"] if clean(r.get("terms_code"))}

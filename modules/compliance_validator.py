@@ -12,7 +12,8 @@ SDS_Repository, Product_Eligibility).
 Exception types: COMPLIANCE_RESTRICTION, MISSING_SDS.
 """
 from modules.stage_result import StageResult
-from modules.xlsx_util import load_sheets, clean, yes
+from modules.xlsx_util import clean, yes
+from modules.integrations import PIM
 
 
 class ComplianceValidator:
@@ -23,6 +24,8 @@ class ComplianceValidator:
     subcheck = True
     parent_layer = "Product Match"
     icon = "🛡️"
+    # Mock system: PIM serves product compliance / regional eligibility / SDS.
+    systems = ("PIM",)
     steps = [
         (0.30, "🌍", "Validating regional product eligibility..."),
         (0.30, "📑", "Checking compliance restrictions for ship-to region..."),
@@ -31,9 +34,9 @@ class ComplianceValidator:
     ]
 
     def __init__(self):
-        s = load_sheets("compliance-master-data.xlsx",
-                        ["Compliance_Rules", "Regional_Restrictions",
-                         "SDS_Repository", "Product_Eligibility"])
+        s = PIM.get_compliance(
+            ["Compliance_Rules", "Regional_Restrictions",
+             "SDS_Repository", "Product_Eligibility"])
         self.rules = s["Compliance_Rules"]
         self.regional = {clean(r.get("region_code")): r for r in s["Regional_Restrictions"] if clean(r.get("region_code"))}
         self.sds = {clean(r.get("sku")): r for r in s["SDS_Repository"] if clean(r.get("sku"))}

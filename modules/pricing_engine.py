@@ -16,7 +16,8 @@ from datetime import date
 from dateutil import parser as dateparser
 
 from modules.stage_result import StageResult
-from modules.xlsx_util import load_sheets, clean, to_num
+from modules.xlsx_util import clean, to_num
+from modules.integrations import COMMERCE
 
 
 def _as_date(v, default=None):
@@ -32,6 +33,8 @@ class PricingEngine:
     stage_key = "pricing"
     title = "Pricing and Promo"
     icon = "💲"
+    # Mock system: Commerce serves price lists, contracts, promotions and tax.
+    systems = ("COMMERCE",)
     steps = [
         (0.30, "📋", "Loading price list and negotiated contracts..."),
         (0.30, "📅", "Applying date-bound contract pricing..."),
@@ -42,10 +45,10 @@ class PricingEngine:
     ]
 
     def __init__(self):
-        s = load_sheets("pricing-master-data.xlsx",
-                        ["Price_List", "Contracts", "Volume_Tiers", "Rebates",
-                         "Promotions", "Surcharges", "Freight_Terms", "Margin_Policy",
-                         "Raw_Material_Index", "Tax_Rates"])
+        s = COMMERCE.get_pricing(
+            ["Price_List", "Contracts", "Volume_Tiers", "Rebates",
+             "Promotions", "Surcharges", "Freight_Terms", "Margin_Policy",
+             "Raw_Material_Index", "Tax_Rates"])
         self.price_list = {clean(r.get("sku")): r for r in s["Price_List"] if clean(r.get("sku"))}
         self.contracts = s["Contracts"]
         self.tiers = s["Volume_Tiers"]

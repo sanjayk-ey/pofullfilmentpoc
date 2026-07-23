@@ -22,13 +22,16 @@ Exception types: INVENTORY_SHORTAGE, ALLOCATION_CONFLICT, SPLIT_NOT_ALLOWED,
                  SPLIT_SHIPMENT, MIN_ORDER_QTY_NOT_MET, RESTRICTED_WAREHOUSE.
 """
 from modules.stage_result import StageResult
-from modules.xlsx_util import load_sheets, clean, to_num
+from modules.xlsx_util import clean, to_num
+from modules.integrations import ERP
 
 
 class InventoryValidator:
     stage_key = "inventory"
     title = "Inventory Checks"
     icon = "📦"
+    # Mock system: ERP serves plant / DC stock, ATP and allocation.
+    systems = ("ERP",)
     steps = [
         (0.30, "🏭", "Checking plant and distribution center stock..."),
         (0.30, "🚛", "Adding in-transit and available-to-promise supply..."),
@@ -37,9 +40,9 @@ class InventoryValidator:
     ]
 
     def __init__(self):
-        s = load_sheets("inventory-master-data.xlsx",
-                        ["Plant_Stock", "DC_Stock", "In_Transit", "ATP",
-                         "Allocation_Rules", "Fulfillment_Preferences"])
+        s = ERP.get_inventory(
+            ["Plant_Stock", "DC_Stock", "In_Transit", "ATP",
+             "Allocation_Rules", "Fulfillment_Preferences"])
         self.atp = {clean(r.get("sku")): r for r in s["ATP"] if clean(r.get("sku"))}
         # DC stock indexed (sku, location) -> qty.  We track on-hand and the
         # quantity already reserved/committed to other demand, so unreserved

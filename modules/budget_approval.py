@@ -12,13 +12,16 @@ Approval_Matrix, Buyer_Authority).
 Exception types: BUDGET_EXCEEDED, APPROVAL_REQUIRED, MISSING_APPROVER.
 """
 from modules.stage_result import StageResult
-from modules.xlsx_util import load_sheets, clean, to_num, yes
+from modules.xlsx_util import clean, to_num, yes
+from modules.integrations import ERP
 
 
 class BudgetApprovalValidator:
     stage_key = "budget_approval"
     title = "Approval"
     icon = "💰"
+    # Mock system: ERP (finance) serves budgets, cost centers and the approval matrix.
+    systems = ("ERP",)
     steps = [
         (0.30, "💰", "Calculating order value against budgets..."),
         (0.30, "🏦", "Checking cost-center and branch available budget..."),
@@ -27,8 +30,8 @@ class BudgetApprovalValidator:
     ]
 
     def __init__(self):
-        s = load_sheets("budget-master-data.xlsx",
-                        ["Budget_Master", "Cost_Centers", "Approval_Matrix", "Buyer_Authority"])
+        s = ERP.get_budget(
+            ["Budget_Master", "Cost_Centers", "Approval_Matrix", "Buyer_Authority"])
         self.budget = {(clean(r.get("level_type")), clean(r.get("level_id"))): r for r in s["Budget_Master"]}
         self.cc = {clean(r.get("cost_center_id")): r for r in s["Cost_Centers"] if clean(r.get("cost_center_id"))}
         self.matrix = s["Approval_Matrix"]

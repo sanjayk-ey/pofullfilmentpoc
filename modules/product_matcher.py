@@ -17,13 +17,17 @@ Exception types: PRODUCT_CONFIG_EXCEPTION, OBSOLETE_SKU, INVALID_UOM,
                  OUT_OF_STOCK (requested quantity not available — order stopped).
 """
 from modules.stage_result import StageResult
-from modules.xlsx_util import load_sheets, clean, to_num
+from modules.xlsx_util import clean, to_num
+from modules.integrations import PIM, ERP
 
 
 class ProductMatchValidator:
     stage_key = "product_match"
     title = "Product Match"
     icon = "📦"
+    # Mock systems this agent fetches & validates against (PIM = catalog / UOM /
+    # substitutes, ERP = warehouse stock availability).
+    systems = ("PIM", "ERP")
     steps = [
         (0.30, "🔎", "Matching requested SKUs to catalog variants..."),
         (0.30, "🧩", "Validating required configuration attributes..."),
@@ -33,9 +37,9 @@ class ProductMatchValidator:
     ]
 
     def __init__(self):
-        s = load_sheets("product-master-data.xlsx",
-                        ["Product_Master", "Product_Attributes", "UOM_Conversions",
-                         "Substitution_Rules", "Compatibility_Rules"])
+        s = PIM.get_product_catalog(
+            ["Product_Master", "Product_Attributes", "UOM_Conversions",
+             "Substitution_Rules", "Compatibility_Rules"])
         self.products = {clean(r.get("sku")): r for r in s["Product_Master"] if clean(r.get("sku"))}
         self.attributes = s["Product_Attributes"]
         self.subs = {clean(r.get("original_sku")): r for r in s["Substitution_Rules"] if clean(r.get("original_sku"))}
@@ -50,7 +54,7 @@ class ProductMatchValidator:
         self.dc_available = {}
         self.dc_breakdown = {}
         try:
-            inv = load_sheets("inventory-master-data.xlsx", ["DC_Stock"])
+            inv = ERP.get_inventory(["DC_Stock"])
             for d in inv.get("DC_Stock", []):
                 sku = clean(d.get("sku"))
                 loc = clean(d.get("location_id"))

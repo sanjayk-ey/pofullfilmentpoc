@@ -12,7 +12,8 @@ Cost_Centers, Product_Visibility_Rules) + product-master-data.xlsx (sku->family)
 Exception types: UNAUTHORIZED_BUYER, RESTRICTED_PRODUCT, INVALID_COST_CENTER.
 """
 from modules.stage_result import StageResult
-from modules.xlsx_util import load_sheets, clean, yes
+from modules.xlsx_util import clean, yes
+from modules.integrations import COMMERCE, PIM
 
 ROLE_RANK = {"JUNIOR_BUYER": 1, "BUYER": 2, "SENIOR_BUYER": 3, "ACCOUNT_MANAGER": 4}
 
@@ -29,6 +30,9 @@ class BuyerAuthorizationValidator:
     subcheck = True
     parent_layer = "Customer Validation"
     icon = "🔐"
+    # Mock systems: Commerce serves the buyer directory / permissions; PIM
+    # resolves each SKU's product family for visibility rules.
+    systems = ("COMMERCE", "PIM")
     steps = [
         (0.30, "🔐", "Validating buyer profile, role, and status..."),
         (0.30, "🏢", "Confirming branch and cost center assignment..."),
@@ -37,14 +41,14 @@ class BuyerAuthorizationValidator:
     ]
 
     def __init__(self):
-        s = load_sheets("buyer-master-data.xlsx",
-                        ["Buyer_Profiles", "User_Permissions", "Cost_Centers",
-                         "Product_Visibility_Rules"])
+        s = COMMERCE.get_buyer(
+            ["Buyer_Profiles", "User_Permissions", "Cost_Centers",
+             "Product_Visibility_Rules"])
         self.profiles = {clean(r.get("buyer_id")): r for r in s["Buyer_Profiles"] if clean(r.get("buyer_id"))}
         self.perms = {clean(r.get("buyer_id")): r for r in s["User_Permissions"] if clean(r.get("buyer_id"))}
         self.cost_centers = {clean(r.get("cost_center_id")): r for r in s["Cost_Centers"] if clean(r.get("cost_center_id"))}
         self.visibility = s["Product_Visibility_Rules"]
-        prod = load_sheets("product-master-data.xlsx", ["Product_Master"])["Product_Master"]
+        prod = PIM.get_product_catalog(["Product_Master"])["Product_Master"]
         self.sku_family = {clean(r.get("sku")): clean(r.get("product_family")) for r in prod if clean(r.get("sku"))}
 
     def validate(self, ctx) -> StageResult:

@@ -14,7 +14,8 @@ their company name and a contact person, and the system resolves the internal
 account and buyer records behind the scenes.
 """
 import re
-from modules.xlsx_util import load_sheets, clean
+from modules.xlsx_util import clean
+from modules.integrations import COMMERCE
 
 
 def normalize(name: str) -> str:
@@ -45,8 +46,7 @@ class EntityResolver:
 
     def _load_customers(self):
         try:
-            rows = load_sheets("customer-master-data.xlsx",
-                               ["Customer_Master"])["Customer_Master"]
+            rows = COMMERCE.get_customer(["Customer_Master"])["Customer_Master"]
         except Exception:
             rows = []
         for r in rows:
@@ -57,8 +57,7 @@ class EntityResolver:
 
     def _load_buyers(self):
         try:
-            rows = load_sheets("buyer-master-data.xlsx",
-                               ["Buyer_Profiles"])["Buyer_Profiles"]
+            rows = COMMERCE.get_buyer(["Buyer_Profiles"])["Buyer_Profiles"]
         except Exception:
             rows = []
         for r in rows:
@@ -81,8 +80,7 @@ class EntityResolver:
         """Index each customer's ACTIVE contract reference so we can supply it
         as the default when a PO omits the contract number."""
         try:
-            rows = load_sheets("pricing-master-data.xlsx",
-                               ["Contracts"])["Contracts"]
+            rows = COMMERCE.get_pricing(["Contracts"])["Contracts"]
         except Exception:
             rows = []
         for r in rows:
@@ -97,8 +95,7 @@ class EntityResolver:
         """Index each ship-to location's default delivery instructions, keyed by
         both ZIP and by customer account (so we can fall back one level up)."""
         try:
-            rows = load_sheets("customer-master-data.xlsx",
-                               ["Ship_To_Master"])["Ship_To_Master"]
+            rows = COMMERCE.get_customer(["Ship_To_Master"])["Ship_To_Master"]
         except Exception:
             rows = []
         for r in rows:
