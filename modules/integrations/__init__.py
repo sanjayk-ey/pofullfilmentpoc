@@ -3,9 +3,8 @@ modules.integrations
 =====================
 Mock enterprise-system integration layer for the Order Orchestration demo.
 
-Instead of reading the ``mock-data/*.xlsx`` workbooks directly, every agent now
-fetches and validates its data through a **mock system client** that stands in
-for a real enterprise system:
+Every agent fetches and validates its data through a **mock system client** that
+stands in for a real enterprise system:
 
     Mock ERP       — inventory / stock / ATP, credit, budget & approvals
     Mock PIM       — product catalog, attributes, UOM, substitutes, compliance
@@ -14,11 +13,10 @@ for a real enterprise system:
     Mock Shipping  — carrier coverage, freight rating, delivery SLA
 
 Each client exposes API-style methods, carries a system name + endpoint, and
-records every call in a shared ``CALL_LOG``. The data is served from JSON
-snapshots (generated from the Excel master data by ``snapshot_tool.py``) so it
-is 100% identical to the previous Excel-backed path. To move to real
-integrations later, only the internals of these clients change — the agents and
-their validation logic stay exactly the same.
+records every call in a shared ``CALL_LOG``. The data is served from the JSON
+master-data snapshots in ``data/`` (the single source of truth for demo data).
+To move to real integrations later, only the internals of these clients change —
+the agents and their validation logic stay exactly the same.
 """
 from .registry import SYSTEMS, system_meta, system_name, describe_systems
 from .base import CALL_LOG, reset_call_log

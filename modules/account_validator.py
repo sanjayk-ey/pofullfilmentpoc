@@ -2,8 +2,9 @@
 account_validator.py
 Corporate Account Hierarchy and Ship-To Validation.
 
-Reads MOCK master data (no real ERP / CRM / WMS / OMS / SMTP) from a single
-Excel workbook:  mock-data/customer-master-data.xlsx  with sheets:
+Customer identity and hierarchy data is fetched from the Mock Commerce platform
+(and buying history from the Mock OMS). The underlying snapshot carries these
+sheets:
     Customer_Master    - customer accounts + ERP customer records + CRM/account records
     Account_Hierarchy  - branch -> regional division -> global parent
     Ship_To_Master     - ship-to locations matched by ZIP
@@ -20,14 +21,10 @@ Responsibilities:
 Exception types covered:
   UNMATCHED_CUSTOMER, DUPLICATE_CUSTOMER, INVALID_SHIP_TO, HIERARCHY_MISMATCH
 """
-import os
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Tuple
 
 from modules.integrations import COMMERCE, OMS
-
-MOCK_DIR             = os.path.join(os.path.dirname(__file__), "..", "mock-data")
-CUSTOMER_MASTER_XLSX = os.path.join(MOCK_DIR, "customer-master-data.xlsx")
 
 # Rule levels ordered from most specific to least specific
 RULE_LEVELS = ["ship_to", "branch", "regional_division", "global_parent"]
@@ -76,27 +73,6 @@ class AccountValidationResult:
         return self.status == "EXCEPTION"
 
 
-# ── Excel loader ─────────────────────────────────────────────────────────────
-def _read_sheet(wb, sheet_name: str) -> List[dict]:
-    """Read a worksheet into a list of row-dicts. Row 1 = title, row 2 = headers."""
-    ws = wb[sheet_name]
-    rows = list(ws.iter_rows(values_only=True))
-    if len(rows) < 2:
-        return []
-    headers = [str(h).strip() if h is not None else "" for h in rows[1]]
-    out = []
-    for raw in rows[2:]:
-        if raw is None or all(v is None or str(v).strip() == "" for v in raw):
-            continue
-        record = {}
-        for h, v in zip(headers, raw):
-            if not h:
-                continue
-            record[h] = v
-        out.append(record)
-    return out
-
-
 def _clean(v):
     """Return a stripped string for non-empty values, else None."""
     if v is None:
@@ -106,11 +82,10 @@ def _clean(v):
 
 
 class AccountValidator:
-    def __init__(self, master_path: str = CUSTOMER_MASTER_XLSX):
+    def __init__(self):
         # Customer identity, corporate hierarchy, ship-to master, hierarchy rules
         # and fulfillment-rule profiles are fetched from the Mock Commerce
-        # platform. (``master_path`` is retained for backward compatibility but
-        # the data now flows through the mock system clients.)
+        # platform.
         c = COMMERCE.get_customer(
             ["Customer_Master", "Account_Hierarchy", "Ship_To_Master",
              "Hierarchy_Rules", "Fulfillment_Rules"])

@@ -1,20 +1,19 @@
 """
 xlsx_util.py
-Shared helpers for reading the mock master-data Excel workbooks.
+Shared data helpers.
 
-Every workbook follows the same layout per sheet:
-    row 1 = title banner (merged)
-    row 2 = column headers
-    row 3+ = data rows
+Value helpers (``clean`` / ``to_num`` / ``yes``) are used across every agent.
+
+``load_sheets`` returns ``{sheet_name: [row_dict, ...]}`` from the JSON master-data
+snapshots in ``modules/integrations/data/`` (the same snapshots that back the mock
+enterprise-system clients). The master data no longer lives in Excel workbooks;
+callers still pass the historical ``*.xlsx`` name, which is mapped to the matching
+``*.json`` snapshot.
 """
+import json
 import os
-import openpyxl
 
-MOCK_DIR = os.path.join(os.path.dirname(__file__), "..", "mock-data")
-
-
-def mock_path(filename: str) -> str:
-    return os.path.join(MOCK_DIR, filename)
+DATA_DIR = os.path.join(os.path.dirname(__file__), "integrations", "data")
 
 
 def clean(v):
@@ -40,32 +39,16 @@ def yes(v) -> bool:
     return str(v).strip().upper() in ("Y", "YES", "TRUE", "1")
 
 
-def read_sheet(wb, sheet_name: str) -> list:
-    """Read a worksheet into a list of row-dicts. Returns [] if the sheet is absent."""
-    if sheet_name not in wb.sheetnames:
-        return []
-    ws = wb[sheet_name]
-    rows = list(ws.iter_rows(values_only=True))
-    if len(rows) < 2:
-        return []
-    headers = [str(h).strip() if h is not None else "" for h in rows[1]]
-    out = []
-    for raw in rows[2:]:
-        if raw is None or all(v is None or str(v).strip() == "" for v in raw):
-            continue
-        record = {}
-        for h, v in zip(headers, raw):
-            if h:
-                record[h] = v
-        out.append(record)
-    return out
-
-
 def load_sheets(filename: str, sheet_names: list) -> dict:
-    """Load several sheets from a workbook in one shot: {sheet_name: [rows...]}."""
-    path = mock_path(filename)
-    wb = openpyxl.load_workbook(path, data_only=True)
-    try:
-        return {name: read_sheet(wb, name) for name in sheet_names}
-    finally:
-        wb.close()
+    """Load several sheets from a master-data snapshot in one shot:
+    ``{sheet_name: [rows...]}``. ``filename`` may be given with the historical
+    ``.xlsx`` extension; the matching ``.json`` snapshot is read."""
+    stem = filename[:-5] if filename.lower().endswith(".xlsx") else filename
+    path = os.path.join(DATA_DIR, stem + ".json")
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"Master-data snapshot '{os.path.basename(path)}' is missing from "
+            f"{DATA_DIR}.")
+    with open(path, encoding="utf-8") as f:
+        snap = json.load(f)
+    return {name: list(snap.get(name, [])) for name in sheet_names}
