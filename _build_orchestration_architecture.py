@@ -132,8 +132,8 @@ MW = 11.28                     # main content width (full)
 MCX = MX + MW / 2
 
 L1 = (0.82, 0.80, "PO\nINTAKE", BLUE)
-L3 = (1.72, 3.50, "ORCHESTRATION\n& HUMAN\nDECISIONS", YELLOW)
-L5 = (5.34, 1.12, "ORDER CREATION\n& DOWNSTREAM", GREEN)
+L3 = (1.58, 4.16, "ORCHESTRATION\nHUMAN DECISIONS\n& LEGACY DATA", YELLOW)
+L5 = (5.94, 1.02, "ORDER CREATION\n& DOWNSTREAM", GREEN)
 
 
 def tier(band):
@@ -159,14 +159,24 @@ y = L1[0]
 flowbox(MX + 0.05, y + 0.16, MW - 0.1, 0.52, "CUSTOMER INTERACTION LAYER", BLUE,
         ["Received as Email PO, Excel PO etc.  \u2192  handed to the orchestration below"])
 
-# ── L3 ORCHESTRATION — all agents contained in one orchestration box ──────────
-y, h = L3[0], L3[1]
-box(s, MX, y, MW, h, fill=BG2, line_color=YELLOW, line_w=0.9)
-txt(s, MX + 0.14, y + 0.18, MW - 0.28, 0.26,
+# ── L3 ORCHESTRATION — agents in the middle, flanked by the Human Decision
+#    Layer (above) and the Legacy Data Source Systems (below). Every agent both
+#    pauses for a human on exception AND validates against the legacy data. ────
+oy, oh = L3[0], L3[1]
+box(s, MX, oy, MW, oh, fill=BG2, line_color=YELLOW, line_w=0.9)
+txt(s, MX + 0.14, oy + 0.14, MW - 0.28, 0.24,
     [[(BOT + "  AGENT ORCHESTRATION  ", 9.6, YELLOW, T, F),
       ("\u2014 multi AI agents works together to process order end-to-end", 8, GREY, F, F)]],
     align=PP_ALIGN.CENTER)
-down(s, MCX - 0.14, y + 0.56, 0.28, 0.12, color=YELLOW)
+
+# Human Decision Layer rail (ABOVE the agents)
+rail_y = oy + 0.50; rail_h = 0.52
+rb = box(s, MX + 0.14, rail_y, MW - 0.28, rail_h, fill=PANEL, line_color=AMBER, line_w=1.3)
+box(s, MX + 0.14, rail_y, MW - 0.28, 0.06, fill=AMBER, radius=False)
+fill_text(rb, [[("\u26A0  HUMAN DECISION LAYER   ", 9.2, AMBER, T, F),
+                ("\u2014 every agent pauses on exception for a human decision, then the pipeline resumes   (all agents pass \u21d2 straight-through)",
+                 7.6, GREY, F, F)]],
+          align=PP_ALIGN.CENTER)
 
 agents = [
     ("Intake", "Agent", "reads PO \u00b7 extracts fields"),
@@ -179,7 +189,8 @@ agents = [
     ("Optimization", "Agent", "plan A/B/C \u00b7 freight"),
     ("Approvals", "Agent", "budget \u00b7 matrix (last)"),
 ]
-na = len(agents); ag = 0.08; aw = (MW - 0.28 - ag * (na - 1)) / na; ax0 = MX + 0.14; aty = y + 0.74; ah = 1.16
+na = len(agents); ag = 0.08; aw = (MW - 0.28 - ag * (na - 1)) / na; ax0 = MX + 0.14
+aty = oy + 1.38; ah = 1.16
 for i, (n1, n2, focus) in enumerate(agents):
     b = box(s, ax0 + i * (aw + ag), aty, aw, ah, fill=PANEL, line_color=YELLOW, line_w=0.8)
     box(s, ax0 + i * (aw + ag), aty, aw, 0.05, fill=YELLOW, radius=False)
@@ -189,17 +200,27 @@ for i, (n1, n2, focus) in enumerate(agents):
     if i < na - 1:
         chev(s, ax0 + i * (aw + ag) + aw - 0.02, aty + 0.49, ag + 0.06, 0.18, color=YELLOW)
 
-# ── HUMAN DECISION LAYER wired to EVERY agent (inside the orchestration box) ──
-rail_y = y + 2.55; rail_h = 0.62
+# Legacy Data Source Systems strip (BELOW the agents) — read by every agent
+data_y = oy + 2.90; data_h = 1.08
+db = box(s, MX + 0.14, data_y, MW - 0.28, data_h, fill=PANEL, line_color=TEAL, line_w=1.3)
+box(s, MX + 0.14, data_y, MW - 0.28, 0.06, fill=TEAL, radius=False)
+txt(s, MX + 0.24, data_y + 0.11, MW - 0.48, 0.2,
+    [[("LEGACY DATA SOURCE SYSTEMS   ", 9, TEAL, T, F),
+      ("\u2014 every agent validates against these systems of record (ERP / CRM / legacy DBs)", 7.4, GREY, F, F)]],
+    align=PP_ALIGN.CENTER)
+dtiles = ["Master data", "Pricing &\ncontracts", "Credit &\nterms",
+          "Inventory\n/ ATP", "Logistics\n& carriers", "Approvals matrix\n& budget"]
+tx0 = MX + 0.24; tn = len(dtiles); tgap = 0.10; tw = (MW - 0.48 - tgap * (tn - 1)) / tn
+ty = data_y + 0.42; th = 0.52
+for i, d in enumerate(dtiles):
+    b = box(s, tx0 + i * (tw + tgap), ty, tw, th, fill=PANEL2, line_color=LINE, line_w=0.7)
+    fill_text(b, [[(ln, 7.2, WHITE, F, F)] for ln in d.split("\n")], ls=0.95)
+
+# Wire EVERY agent to the human decision layer (up) and legacy data (down)
 for i in range(na):
     cx = ax0 + i * (aw + ag) + aw / 2
-    conn(s, cx, aty + ah, cx, rail_y, color=AMBER, w=1.2, dash='dash', tail=True, head=True)
-rb = box(s, MX + 0.14, rail_y, MW - 0.28, rail_h, fill=PANEL, line_color=AMBER, line_w=1.3)
-box(s, MX + 0.14, rail_y, MW - 0.28, 0.06, fill=AMBER, radius=False)
-fill_text(rb, [[("\u26A0  HUMAN DECISION LAYER   ", 9.2, AMBER, T, F),
-                ("\u2014 every agent pauses on exception for a human decision, then the pipeline resumes   (all agents pass \u21d2 straight-through)",
-                 7.6, GREY, F, F)]],
-          align=PP_ALIGN.CENTER)
+    conn(s, cx, aty, cx, rail_y + rail_h, color=AMBER, w=1.0, dash='dash', tail=True, head=True)
+    conn(s, cx, aty + ah, cx, data_y, color=TEAL, w=1.0, dash='dash', tail=True, head=True)
 
 # ── L5 ORDER CREATION & DOWNSTREAM ───────────────────────────────────────────
 y, h = L5[0], L5[1]

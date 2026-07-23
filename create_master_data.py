@@ -90,7 +90,7 @@ build_workbook("buyer-master-data.xlsx", [
       "default_cost_center", "role", "status", "max_order_value", "currency",
       "can_self_approve", "punchout_id", "approver_id", "approval_threshold_amount"],
      [
-        ["BUY-001", "John Miller", "john.miller@glps.com", "CUST-1001", "BR-GLP-MW", "CC-MW-100", "SENIOR_BUYER", "ACTIVE", 250000, "USD", "Y", "PUNCH-GL-001", "APR-501", 25000],
+        ["BUY-001", "John Miller", "john.miller@glps.com", "CUST-1001", "BR-GLP-MW", "CC-MW-100", "SENIOR_BUYER", "ACTIVE", 250000, "USD", "Y", "PUNCH-GL-001", "APR-501", 250000],
         ["BUY-002", "Linda Park", "linda.park@glps.com", "CUST-1001", "BR-GLP-MW", "CC-MW-200", "SENIOR_BUYER", "ACTIVE", 200000, "USD", "Y", "PUNCH-GL-002", "APR-501", 200000],
         ["BUY-003", "Mark Snow", "mark.snow@ekbd.com", "CUST-1002", "BR-GLP-NE", "CC-NE-100", "BUYER", "ACTIVE", 75000, "USD", "Y", "PUNCH-EK-003", "APR-502", 50000],
         ["BUY-010", "Sara Lee", "sara.lee@pcbk.com", "CUST-5001", "BR-PCBK-WEST", "CC-WEST-100", "BUYER", "ACTIVE", 120000, "USD", "Y", "PUNCH-PC-010", "APR-503", 75000],
@@ -327,11 +327,10 @@ build_workbook("pricing-master-data.xlsx", [
      ["contract_reference", "customer_account", "scope_type", "scope_id",
       "contract_price", "currency", "valid_from", "valid_to", "status", "margin_floor_pct"],
      [
-        # Aggressive negotiated price on the flagship digital shower system: the
-        # 20.7% contract discount + 1% loyalty rebate = 21.5% effective discount
-        # exceeds the SHOWERSYS 10% policy, so it becomes the CSR margin-approval
-        # gate on a marquee (Kohler-type) finished product.
-        ["CONTRACT-GLP-2026-007", "CUST-1001", "sku", "SKU-SHS-7700", 1150.00, "USD", "2026-01-01", "2026-12-31", "ACTIVE", 22],
+        # Negotiated price on the flagship digital shower system: the 6.9%
+        # contract discount + 1% loyalty rebate = 7.8% effective discount stays
+        # within the SHOWERSYS 10% policy, so it prices cleanly (no margin gate).
+        ["CONTRACT-GLP-2026-007", "CUST-1001", "sku", "SKU-SHS-7700", 1350.00, "USD", "2026-01-01", "2026-12-31", "ACTIVE", 22],
         ["CONTRACT-GLP-2026-007", "CUST-1001", "sku", "SKU-DRN-3010", 39.50, "USD", "2026-01-01", "2026-12-31", "ACTIVE", 20],
         ["CONTRACT-GLP-2026-007", "CUST-1001", "family", "VALVE", 80.00, "USD", "2026-01-01", "2026-12-31", "ACTIVE", 22],
         ["CONTRACT-GLP-2025-099", "CUST-1001", "sku", "SKU-SHS-7700", 1300.00, "USD", "2025-01-01", "2025-12-31", "EXPIRED", 15],

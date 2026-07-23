@@ -5,8 +5,8 @@ shared context dictionary through them. Used by both the Streamlit app (with
 per-stage animation) and the headless test harness.
 
 Stage order:
-  Buyer Authorization -> Product Match -> Compliance -> Pricing
-  -> Credit -> Inventory -> Logistics -> Budget/Approval Matrix
+  Buyer Authorization -> Product Match -> Compliance -> Inventory
+  -> Pricing -> Credit -> Logistics -> Budget/Approval Matrix
   (these pause on the first exception; the approval-matrix check runs LAST)
   -> Exception Governance (always)  -> Order Execution (only if nothing paused)
 """
@@ -31,12 +31,14 @@ SEQUENTIAL_STAGES = [
     BuyerAuthorizationValidator(),
     ProductMatchValidator(),
     ComplianceValidator(),
+    # Inventory / ATP runs right after the product is matched (it only needs the
+    # resolved lines) and before pricing, credit and logistics.
+    InventoryValidator(),
     PricingEngine(),
     CreditValidator(),
-    InventoryValidator(),
     LogisticsValidator(),
-    # Approval matrix / budget check runs LAST — only after product, pricing,
-    # credit, inventory and logistics have all been validated.
+    # Approval matrix / budget check runs LAST — only after product, inventory,
+    # pricing, credit and logistics have all been validated.
     BudgetApprovalValidator(),
 ]
 GOVERNANCE = ExceptionGovernance()

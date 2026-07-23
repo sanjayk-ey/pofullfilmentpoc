@@ -15,6 +15,10 @@ ENV/
 # Streamlit
 .streamlit/secrets.toml
 
+# Secrets / credentials — Outlook (Graph) email intake
+.env
+.graph_token_cache.json
+
 # Runtime data (auto-generated duplicate PO log)
 data/submitted_pos.json
 

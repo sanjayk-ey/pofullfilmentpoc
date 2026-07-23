@@ -6,7 +6,7 @@ PO Date     : 02 July 2026
 
 BUYER
 Company Name : Great Lakes Plumbing Supply Co
-Email        : procurement@greatlakesps.com
+Email        : john.miller@glpss.com
 
 SHIP TO
 Great Lakes Plumbing - Chicago DC
@@ -20,7 +20,7 @@ Item # | Product Code   | Description                            |   Qty | UOM
 1      | SKU-CTG-1000   | Legacy 2-Handle Faucet Cartridge       |   40  | EA
 2      | SKU-DRN-3010   | Pop-Up Drain Assembly                  |   30  | EA
 3      | SKU-SEL-1150   | Tank-to-Bowl Gasket Kit                |   50  | EA
-4      | SKU-VLV-2201   | Pressure-Balancing Shower Valve        |    0  | EA
+4      | SKU-VLV-2201   | Pressure-Balancing Shower Valve        |   12  | EA
 5      | SKU-DRN-7213   | Kohler Clearflo Bath Drain Kit (K-7213)|   52  | EA
 6      | SKU-SHS-7700   | Shower System                          |    5  | EA
 ================================================================================

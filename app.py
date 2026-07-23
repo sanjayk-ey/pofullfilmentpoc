@@ -21,7 +21,8 @@ def nap(seconds):
 import streamlit.components.v1 as _components  # noqa: E402
 
 
-def inject_autoscroll(active: bool = True, force_follow: bool = False):
+def inject_autoscroll(active: bool = True, force_follow: bool = False,
+                      suppress_idle_scroll: bool = False):
     """Smart chat-style auto-scroll that follows the pipeline as it animates
     but NEVER traps the user.
 
@@ -46,6 +47,7 @@ def inject_autoscroll(active: bool = True, force_follow: bool = False):
     """
     flag = "true" if active else "false"
     force = "true" if force_follow else "false"
+    suppress = "true" if suppress_idle_scroll else "false"
     _components.html(
         """
         <script>
@@ -55,6 +57,12 @@ def inject_autoscroll(active: bool = True, force_follow: bool = False):
               const doc = w.document;
               const ACTIVE = %s;
               const FORCE_FOLLOW = %s;
+              const SUPPRESS_IDLE = %s;
+              // A CSR decision card is on screen and scroll_to_csr_top() will
+              // position the viewport on the banner — so release follow and do
+              // NOT perform the idle scroll-to-bottom (it would fight the pin
+              // and cause 2–3 competing scrolls).
+              if (SUPPRESS_IDLE) w.__poFollow = false;
               // A CSR decision button was just clicked — snap back into
               // follow mode so the resuming pipeline is tracked again.
               if (FORCE_FOLLOW) w.__poFollow = true;
@@ -118,6 +126,7 @@ def inject_autoscroll(active: bool = True, force_follow: bool = False):
               // gone, so its observer/interval are dead — replace them).
               if (w.__poObs) { try { w.__poObs.disconnect(); } catch (_) {} }
               if (w.__poInt) { try { clearInterval(w.__poInt); } catch (_) {} }
+              if (w.__poBurst) { try { clearInterval(w.__poBurst); } catch (_) {} w.__poBurst = null; }
 
               if (ACTIVE) {
                 w.__poFollow = w.__poFollow;   // keep whatever the user chose
@@ -137,11 +146,47 @@ def inject_autoscroll(active: bool = True, force_follow: bool = False):
                 scrollNow();
                 setTimeout(scrollNow, 120);
                 setTimeout(scrollNow, 400);
+
+                // A resume just started (FORCE_FOLLOW). After a decision is
+                // approved the page has scrolled UP to the card and the history
+                // replay is large, so the MutationObserver can miss the first
+                // streamed deltas — leaving the resuming pipeline BELOW the fold
+                // (the user sees the card get replaced but "no process appears
+                // next to the button"). Pin follow ON and hard-scroll to the
+                // bottom on a fast cadence for a sustained window so the resuming
+                // agents are guaranteed to stream into view right where the CSR
+                // just clicked. The user can break out any time by scrolling up.
+                if (FORCE_FOLLOW) {
+                  w.__poFollow = true;
+                  let ticks = 0;
+                  const burst = setInterval(() => {
+                    w.__poFollow = true;   // ignore spurious disengage mid-resume
+                    const el = findScrollable();
+                    if (el) { try { el.scrollTo({ top: el.scrollHeight, behavior: 'auto' }); }
+                              catch (_) { el.scrollTop = el.scrollHeight; } }
+                    if (++ticks > 260) { clearInterval(burst); w.__poBurst = null; }  // ~39s @150ms
+                  }, 150);
+                  w.__poBurst = burst;
+                  const stopBurst = (e) => {
+                    const up = !e || (e.deltaY && e.deltaY < 0)
+                             || (e.key && ['PageUp','ArrowUp','Home'].includes(e.key));
+                    if (up) {
+                      try { clearInterval(burst); } catch (_) {}
+                      w.__poBurst = null;
+                      w.removeEventListener('wheel', stopBurst);
+                      w.removeEventListener('keydown', stopBurst);
+                    }
+                  };
+                  w.addEventListener('wheel', stopBurst, { passive: true });
+                  w.addEventListener('keydown', stopBurst);
+                }
               } else {
                 // Terminal / idle: one final scroll to reveal the last
-                // message, then hand full control back to the user.
+                // message, then hand full control back to the user. When a CSR
+                // decision card is on screen (SUPPRESS_IDLE) we skip this —
+                // scroll_to_csr_top() owns the viewport position instead.
                 w.__poObs = null; w.__poInt = null;
-                if (w.__poFollow) {
+                if (w.__poFollow && !SUPPRESS_IDLE) {
                   const el = findScrollable();
                   if (el) { try { el.scrollTo({ top: el.scrollHeight,
                                                 behavior: 'smooth' }); }
@@ -151,7 +196,7 @@ def inject_autoscroll(active: bool = True, force_follow: bool = False):
             } catch (e) { /* cross-origin / startup race — ignore */ }
           })();
         </script>
-        """ % (flag, force),
+        """ % (flag, force, suppress),
         height=0,
     )
 
@@ -202,23 +247,31 @@ def scroll_to_csr_top(anchor_id: str):
                   }
                 }
                 if (target) {
-                  // Re-assert the position a few times: on a long section the
-                  // auto-follow may fire a competing *smooth* scroll-to-bottom,
-                  // so a single scroll can get overridden. Keep follow OFF and
-                  // pin the banner to the top for a short window.
-                  const pin = () => {
+                  // Keep follow OFF so nothing drags us back to the bottom.
+                  w.__poFollow = false;
+                  // Give the banner a little breathing room from the top edge so
+                  // the single scroll lands cleanly (no second nudge scroll).
+                  try { target.style.scrollMarginTop = '16px'; } catch (_) {}
+                  let done = false;
+                  const doScroll = () => {
+                    if (done) return; done = true;
                     w.__poFollow = false;
-                    try { target.scrollIntoView({behavior:'auto', block:'start'}); }
+                    try { target.scrollIntoView({behavior:'smooth', block:'start'}); }
                     catch (_) { target.scrollIntoView(true); }
-                    // Nudge up a bit so the banner isn't flush against the top.
-                    const sc = target.closest('[data-testid="stAppScrollToBottomContainer"]')
-                            || target.closest('[data-testid="stAppViewMain"]')
-                            || target.closest('section.main')
-                            || doc.scrollingElement || doc.documentElement;
-                    if (sc) sc.scrollTop = Math.max(0, sc.scrollTop - 16);
                   };
-                  pin();
-                  [80, 180, 320, 500, 750].forEach((t) => setTimeout(pin, t));
+                  // The decision card renders progressively (banner, detail,
+                  // impact table, picklist, buttons), so its position keeps
+                  // shifting for a moment. Wait until the page height stops
+                  // changing, THEN scroll exactly once — no jitter, no 2–3
+                  // competing jumps.
+                  let lastH = -1, stable = 0;
+                  const settle = setInterval(() => {
+                    const h = doc.body.scrollHeight;
+                    if (h === lastH) { stable++; } else { stable = 0; lastH = h; }
+                    if (stable >= 3) { clearInterval(settle); doScroll(); }
+                  }, 90);
+                  // Hard cap: always scroll even if the height never fully settles.
+                  setTimeout(() => { try { clearInterval(settle); } catch (_) {} doScroll(); }, 1400);
                   return;
                 }
                 if (n > 0) setTimeout(() => tryScroll(n - 1), 100);
@@ -239,6 +292,11 @@ from modules                  import duplicate_checker as dup
 from modules.account_validator import AccountValidator, AccountValidationResult
 from modules.pipeline         import build_context, SEQUENTIAL_STAGES, GOVERNANCE, EXECUTION
 from modules.intake_resolver  import IntakeResolver
+# Outlook / Microsoft 365 PO email intake — kept internal but HIDDEN for now.
+# Turn on by setting EMAIL_INTAKE_ENABLED=1 (env) once the Entra app
+# registration (tenant id + client id + Mail.Read consent) is available.
+from modules                  import email_intake
+EMAIL_INTAKE_ENABLED = os.environ.get("EMAIL_INTAKE_ENABLED", "0") == "1"
 from modules.manual_entry_validators import (
     validate_manual_sku, validate_manual_quantity,
 )
@@ -432,14 +490,14 @@ AGENT_NAMES = {
     # Buyer authorization is a sub-check of Customer Validation — it is handled
     # by the same agent so it reads as one process, not a separate agent.
     "buyer_authorization":  "Customer Validation Agent",
-    "product_match":        "Product Matching Agent",
+    "product_match":        "Product Validation Agent",
     # Compliance is a sub-check of Product Match — it is handled by the same
     # agent so it reads as one process, not a separate agent.
-    "compliance":           "Product Matching Agent",
+    "compliance":           "Product Validation Agent",
     "pricing":              "Pricing & Promo Agent",
     "credit":               "Credit Agent",
     "inventory":            "Inventory Agent",
-    "logistics":            "Shipments Agent",
+    "logistics":            "Shipment Selection Agent",
     "budget_approval":      "Approvals Agent",
     "exception_governance": "Exception Governance Agent",
     "order_execution":      "Order Execution Agent",
@@ -448,6 +506,42 @@ AGENT_NAMES = {
 
 def agent_name(stage_key) -> str:
     return AGENT_NAMES.get(stage_key, "Orchestration Agent")
+
+
+# ── Which agent owns each intake issue ──────────────────────────────────────
+# The intake resolver detects every "soft" issue up front, but each decision is
+# surfaced during the run of the agent that owns it (so the multi-agent flow
+# reads naturally): quantity at Intake, buyer/ship-to at Customer Validation,
+# and product/UOM at Product Matching. Issues are processed in this order with a
+# single monotonic pointer, pausing at each bucket boundary to animate the agent
+# in between.
+ISSUE_BUCKET = {
+    "INVALID_QUANTITY":    "intake",
+    "UNRESOLVED_BUYER":    "customer",
+    "PARTIAL_SHIP_TO":     "customer",
+    "UNRESOLVED_SHIP_TO":  "customer",
+    "SUBSTITUTE_SKU":      "product",
+    "UOM_CONVERSION":      "product",
+    "UOM_AMBIGUOUS":       "product",
+    "UNRESOLVED_SKU":      "product",
+    "MISSING_SKU":         "product",
+}
+_BUCKET_ORDER = {"intake": 0, "customer": 1, "product": 2}
+
+
+def _bucket_for(issue) -> str:
+    return ISSUE_BUCKET.get(getattr(issue, "kind", ""), "product")
+
+
+def _order_issues_by_agent(issues):
+    """Return (sorted_issues, bounds). Issues are grouped in agent order and
+    ``bounds`` gives the boundary indices: intake=[0,c), customer=[c,p),
+    product=[p,n)."""
+    ordered = sorted(issues, key=lambda i: _BUCKET_ORDER.get(_bucket_for(i), 2))
+    c = sum(1 for i in ordered if _bucket_for(i) == "intake")
+    p = c + sum(1 for i in ordered if _bucket_for(i) == "customer")
+    n = len(ordered)
+    return ordered, {"c": c, "p": p, "n": n}
 
 
 def agent_tag(stage_key) -> str:
@@ -980,7 +1074,66 @@ def render_stage_result(res, divider=True, subchecks=None):
     )
 
 
-def _run_stage_animation(stage, ctx, subchecks=None):
+# Agents that never get a standalone "completed successfully" banner:
+# buyer authorization is folded into Customer Validation, governance is internal,
+# and order execution reports its own "Order created" success message.
+_SKIP_SUCCESS_BANNER = {"buyer_authorization", "exception_governance", "order_execution"}
+
+
+def _agent_success_banner(stage_key):
+    """Green 'completed successfully' banner shown after an agent's process
+    passes with no exception. Rendered both live (during the animation) and in
+    the settled transcript (render_orch_static) so it persists across reruns and
+    each agent visibly wraps up before the next one begins."""
+    st.success(f"✅ {agent_name(stage_key)} — process completed successfully.")
+
+
+def _animate_agent_scan(stage):
+    """Animate a stage's process steps in a status panel WITHOUT validating.
+
+    Used to show an agent visibly executing its checks BEFORE it pauses for a
+    CSR decision that its own scan surfaced (e.g. Product Validation discovers an
+    obsolete SKU / UOM mismatch). The panel is left in an "action required"
+    state; the caller then routes to the decision phase."""
+    tag = agent_tag(getattr(stage, "stage_key", None))
+    with st.status(f"{tag}  ·  {stage.icon} {stage.title}...", expanded=True) as status:
+        st.caption(f"{tag} is handling this step.")
+        for delay, emoji, text in stage.steps:
+            st.write(f"{emoji} {text}")
+            nap(paced_delay(delay))
+        # Hold on a clear "found something" beat so the CSR sees the scan finish
+        # and understands WHY the pipeline is about to pause — before the rerun
+        # swaps in the decision card.
+        st.write("🟡 Found line item(s) that need your confirmation before the "
+                 "match can be finalized...")
+        nap(paced_delay(0.6))
+        status.update(
+            label=f"{tag}  ·  {stage.icon} {stage.title} — action required",
+            state="complete", expanded=True)
+
+
+def _render_product_scan_panel_static():
+    """Persistent 'Product Validation ran its scan' panel for the product
+    decision screen.
+
+    The live scan (``_animate_agent_scan``) is transient and is gone after the
+    rerun that surfaces the decision, so re-render the agent's completed checks
+    ABOVE the decision card. This keeps clear, lasting visibility that the
+    Product Validation agent actually executed its catalog / lifecycle / UOM
+    scan and only THEN surfaced the CSR decision."""
+    tag = agent_tag("product_match")
+    steps = next((getattr(s, "steps", []) for s in SEQUENTIAL_STAGES
+                  if getattr(s, "stage_key", None) == "product_match"), [])
+    with st.status(f"{tag}  ·  📦 Product Match — scan complete, action required",
+                   state="complete", expanded=True):
+        st.caption(f"{tag} scanned each order line against the catalog, product "
+                   "lifecycle and units of measure.")
+        for _delay, emoji, text in steps:
+            st.write(f"{emoji} {text}")
+        st.write("🟡 Found line item(s) that need your confirmation below.")
+
+
+def _run_stage_animation(stage, ctx, subchecks=None, animate_steps=True):
     """Animate a pipeline stage step-by-step, optionally folding its sub-checks
     (the SAME agent's sub-processes) into the SAME status panel so one agent
     shows exactly ONE running panel during processing.
@@ -991,6 +1144,10 @@ def _run_stage_animation(stage, ctx, subchecks=None):
     needs to *see* the pipeline resume and progress stage-by-stage, not just
     watch a stack of collapsed headers appear.
 
+    When ``animate_steps`` is False the main step loop is skipped (the agent's
+    scan already animated before a CSR decision) and the stage simply finalizes
+    with the resolved context — avoids replaying the same steps twice.
+
     Returns ``(stage_result, folded_subcheck_results)``. Folded sub-checks only
     run when the parent stage passes; they stop at the first sub-check that
     raises an exception."""
@@ -1000,9 +1157,20 @@ def _run_stage_animation(stage, ctx, subchecks=None):
     tag = agent_tag(getattr(stage, "stage_key", None))
     with st.status(f"{tag}  ·  {stage.icon} {stage.title}...", expanded=True) as status:
         st.caption(f"{tag} is handling this step.")
-        for delay, emoji, text in stage.steps:
-            st.write(f"{emoji} {text}")
-            nap(paced_delay(delay))
+        if animate_steps:
+            for delay, emoji, text in stage.steps:
+                st.write(f"{emoji} {text}")
+                nap(paced_delay(delay))
+        else:
+            # Scan already animated before the CSR decisions — finalize the match
+            # with the resolved lines (shown as a few visible steps, not a flash).
+            for delay, emoji, text in [
+                (0.30, "🔁", "Applying your decisions to the order lines..."),
+                (0.30, "🔎", "Re-matching the resolved lines against the catalog..."),
+                (0.25, "✅", "Confirming SKUs, configuration and units of measure..."),
+            ]:
+                st.write(f"{emoji} {text}")
+                nap(paced_delay(delay))
         result[0] = stage.validate(ctx)
 
         # Fold the same agent's sub-checks into THIS panel (indented) so the
@@ -1068,8 +1236,9 @@ def _run_full_pipeline_legacy(po: ExtractedPO, av: AccountValidationResult):
 
 # ─── Helper: AI processing animation ─────────────────────────────────────────
 def run_intake(orch, raw_text: str, source_label: str) -> ExtractedPO:
-    """Single Intake Agent process: read + extract the PO AND review it against
-    master data, all inside ONE status panel so intake reads as one step.
+    """Single Intake Agent process: read + extract the PO inside ONE status
+    panel. Master-data resolution runs silently (for routing) but is NOT
+    narrated here — intake only reads and extracts.
 
     Side effects on ``orch``:
       * sets ``po`` / ``is_dup`` / ``dup_rec`` after extraction,
@@ -1081,7 +1250,6 @@ def run_intake(orch, raw_text: str, source_label: str) -> ExtractedPO:
         (0.35, "📄", "Analyzing document format and structure..."),
         (0.30, "🔍", "Reading PO header section..."),
         (0.30, "🔢", "Extracting Purchase Order number..."),
-        (0.30, "👤", "Identifying customer account information..."),
         (0.40, "📦", "Scanning order line items (SKU / Qty / UOM)..."),
         (0.25, "🏷️", "Matching unit-of-measure codes to known standards..."),
         (0.30, "📍", "Extracting ship-to location and ZIP code..."),
@@ -1096,12 +1264,13 @@ def run_intake(orch, raw_text: str, source_label: str) -> ExtractedPO:
 
     extracted = [None]
     _tag = agent_tag("intake")
-    with st.status(f"{_tag}  ·  Reading, extracting & reviewing PO — {source_label}",
+    with st.status(f"{_tag}  ·  Reading & extracting PO — {source_label}",
                    expanded=True) as status:
         st.caption(f"{_tag} is handling this step.")
 
-        # Read & extract the PO, then review it against master data — all as one
-        # continuous intake stream in THIS single panel (no sub-process breaks).
+        # Read & extract the PO in THIS single panel. Intake does not narrate the
+        # master-data review — that resolution happens silently and each decision
+        # surfaces during the owning agent's run.
         for i, (delay, emoji, text) in enumerate(extract_steps):
             st.write(f"{emoji} {text}")
             nap(paced_delay(delay))
@@ -1121,60 +1290,35 @@ def run_intake(orch, raw_text: str, source_label: str) -> ExtractedPO:
         if is_dup or po.missing_fields:
             # Skip the master-data review — the caller shows the escalation card.
             orch["issues"] = []
+            orch["bucket_bounds"] = {"c": 0, "p": 0, "n": 0}
             status.update(
-                label=f"{_tag}  ·  Extraction complete — results below",
+                label=f"{_tag}  ·  Extraction complete",
                 state="complete",
                 expanded=False,
             )
             nap(0.15)
             return po
 
-        # Continue in the SAME panel: review the order against master data.
-        orch["issues"] = INTAKE_RESOLVER.resolve(po)
-        n = len(orch["issues"])
-        if n > 0:
-            for delay, text in [
-                (THINK_PACE, "🔎 Ran product catalog / lifecycle / UOM / "
-                             "ship-to / buyer resolution against master data."),
-                (THINK_PACE, f"⚠️ Found **{n} item(s)** that need CSR "
-                             "confirmation before I continue."),
-                (THINK_PACE, "🛑 **Downstream checks (pricing, inventory, "
-                             "credit, compliance, logistics, order creation) "
-                             "are paused** until each item is resolved."),
-            ]:
-                st.markdown(text)
-                nap(delay)
-            status.update(
-                label=f"{_tag}  ·  Intake review — {n} item(s) need CSR confirmation",
-                state="complete",
-                expanded=True,
-            )
-        else:
-            for delay, text in [
-                (THINK_PACE, "🔎 **Product catalog check** — matching each line "
-                             "against Product Master by code AND description "
-                             "(the order assistant is label-independent)…"),
-                (THINK_PACE, "♻️ **Lifecycle check** — is each SKU ACTIVE, "
-                             "OBSOLETE, or INACTIVE?"),
-                (THINK_PACE, "📏 **UOM check** — does each line's UOM match the "
-                             "product's base UOM? If missing, defaulting to base "
-                             "UOM from Product Master."),
-                (THINK_PACE, "📍 **Ship-to resolution** — matching the ship-to "
-                             "against registered locations for this customer…"),
-                (THINK_PACE, "👤 **Buyer resolution** — mapping buyer email → "
-                             "internal buyer ID + cost center from Buyer Profiles."),
-                (THINK_PACE, "📄 **Optional-field backfill** — looking up contact "
-                             "person and contract reference in master data when "
-                             "the PO omitted them (delivery instructions come "
-                             "only from the PO — never from master)."),
-            ]:
-                st.markdown(text)
-                nap(delay)
-            status.update(
-                label=f"{_tag}  ·  Intake complete — order validated against master data",
-                state="complete",
-                expanded=True,
-            )
+        # Resolve the PO against master data SILENTLY so the orchestrator knows
+        # which decisions to surface later — but intake itself only READS and
+        # EXTRACTS, so no master-data review narration is shown in this panel.
+        # Each detected issue is surfaced during the run of the agent that owns
+        # it (quantity → Intake decision, buyer/ship-to → Customer Validation,
+        # product/UOM → Product Validation).
+        _issues, _bounds = _order_issues_by_agent(INTAKE_RESOLVER.resolve(po))
+        orch["issues"] = _issues
+        orch["bucket_bounds"] = _bounds
+        orch["issue_ptr"] = 0
+        status.update(
+            label=f"{_tag}  ·  Extraction complete",
+            state="complete",
+            expanded=False,
+        )
+    # Intake read + extracted the PO cleanly. When no intake-level decision
+    # (e.g. invalid quantity) is pending, announce success before the next
+    # agent begins. (Intake-bucket issues open a decision card instead.)
+    if orch["bucket_bounds"].get("c", 0) == 0:
+        _agent_success_banner("intake")
     nap(0.15)
     return po
 
@@ -1206,6 +1350,9 @@ def new_orchestration(kind: str, payload):
         "is_dup": False, "dup_rec": None,
         "av": None,
         "issues": [], "issue_ptr": 0,
+        # Boundary indices for the per-agent issue buckets (see run_intake):
+        # intake=[0,c), customer=[c,p), product=[p,n).
+        "bucket_bounds": {"c": 0, "p": 0, "n": 0},
         "decisions": [],       # settled CSR decisions (rendered as history)
         # Persistent record of decision CARDS the CSR has already actioned.
         # We keep them on screen (in render_orch_static) so the next stage's
@@ -1215,6 +1362,9 @@ def new_orchestration(kind: str, payload):
         "resolved_issues": [],
         "ctx": None,
         "stage_index": 0,
+        # Guard so the Product Validation agent's scan animates exactly once
+        # (before its product-line CSR decisions); the match is finalized after.
+        "product_scan_done": False,
         "governance_done": False,  # guard so a stage-exception re-entry does
                                    # not re-run governance twice
         "results": [],         # settled StageResults
@@ -1343,6 +1493,11 @@ def render_orch_static(orch):
         # Rolling CSR decision log (compact summary — the individual card
         # bubbles are re-rendered inline inside drive_orchestration).
         render_decision_log(orch["decisions"])
+        # Intake wrapped up cleanly (no duplicate / missing-field escalation and
+        # no pending intake-level decision) → persist its success banner.
+        if (not orch["is_dup"] and not orch["po"].missing_fields
+                and orch.get("bucket_bounds", {}).get("c", 0) == 0):
+            _agent_success_banner("intake")
         st.markdown("---")
 
         results = orch["results"]
@@ -1357,6 +1512,10 @@ def render_orch_static(orch):
             render_account_result(orch["av"], subchecks=buyer_subs)
             for r in buyer_subs:
                 rendered.add(id(r))
+            # Customer Validation is only "complete" once buyer authorization has
+            # settled and passed (the buyer decision, if any, is resolved).
+            if not orch["av"].is_exception and any(not r.is_exception for r in buyer_subs):
+                _agent_success_banner("account")
             st.markdown("---")
 
         # ── Remaining decision layers ────────────────────────────────────
@@ -1372,8 +1531,14 @@ def render_orch_static(orch):
                 render_stage_result(res, divider=False, subchecks=comp_subs)
                 for s in comp_subs:
                     rendered.add(id(s))
+                stage_ok = (not res.is_exception
+                            and all(not s.is_exception for s in comp_subs))
             else:
                 render_stage_result(res, divider=False)
+                stage_ok = not res.is_exception
+            # Persist the per-agent success banner for passed pipeline stages.
+            if stage_ok and res.stage_key not in _SKIP_SUCCESS_BANNER:
+                _agent_success_banner(res.stage_key)
             st.markdown("---")
 
 
@@ -1547,8 +1712,22 @@ def _render_uom_conversion_selector(orch, issue):
 
     ea = kits * ea_per_kit
     total = kits * price_per_kit
-    st.caption(f"Selected: **{kits} {base_uom}** = {ea} {orig_uom}  ·  "
+    # Delta vs. what the PO originally requested: rounding up to whole base-UOM
+    # units usually fulfills MORE than the requested quantity, so show the price
+    # impact of those extra units (price-per-EA × extra EA).
+    price_per_ea = (total / ea) if ea else 0
+    delta_ea = (ea - orig_qty) if isinstance(orig_qty, (int, float)) else None
+    delta_price = (delta_ea * price_per_ea) if delta_ea is not None else None
+
+    caption = (f"Selected: **{kits} {base_uom}** = {ea} {orig_uom}  ·  "
                f"Total {currency} {total:,.2f}")
+    if delta_price is not None and abs(delta_price) >= 0.005:
+        sign = "+" if delta_price > 0 else "−"
+        caption += (f"  ·  Δ {sign}{currency} {abs(delta_price):,.2f} "
+                    f"({_fmt_qty(abs(delta_ea))} {orig_uom} "
+                    f"{'over' if delta_ea > 0 else 'under'} the "
+                    f"{_fmt_qty(orig_qty)} {orig_uom} requested)")
+    st.caption(caption)
 
     return {
         "kind": "convert_pick",
@@ -2395,7 +2574,10 @@ def _narrate_intake_review(orch, po):
     st.rerun(), so Streamlit reconciled the shorter narration panel onto the
     longer extraction panel at the same position and left stale extraction
     lines behind — which looked like later messages overriding earlier ones."""
-    orch["issues"] = INTAKE_RESOLVER.resolve(po)
+    _issues, _bounds = _order_issues_by_agent(INTAKE_RESOLVER.resolve(po))
+    orch["issues"] = _issues
+    orch["bucket_bounds"] = _bounds
+    orch["issue_ptr"] = 0
     n = len(orch["issues"])
     if n > 0:
         think(f"{AGENT_ICON} {agent_name('intake')} — intake review — action required", [
@@ -2403,8 +2585,8 @@ def _narrate_intake_review(orch, po):
                          "ship-to / buyer resolution against master data."),
             (THINK_PACE, f"⚠️ Found **{n} item(s)** that need CSR "
                          "confirmation before I continue."),
-            (THINK_PACE, "🛑 **Downstream checks (pricing, inventory, "
-                         "credit, compliance, logistics, order creation) "
+            (THINK_PACE, "🛑 **Downstream checks (compliance, inventory, "
+                         "pricing, credit, logistics, order creation) "
                          "are paused** until each item is resolved."),
         ], icon="⚠️")
     else:
@@ -2453,13 +2635,15 @@ def _run_account_layer(orch):
     same run as the layers before and after it."""
     po = orch["po"]
     _render_resolved_intake_cards(orch)
-    if orch.get("resolved_issues"):
-        think("Resuming automated processing", [
-            (THINK_PACE, "✅ **All CSR decisions captured** and applied to the PO."),
-            (THINK_PACE, "▶️ **Resuming the automated pipeline** — "
-                         "account & ship-to hierarchy validation next, "
-                         "then every remaining decision layer will animate below."),
-        ], icon="▶️")
+    # `first_pass` = the Customer Validation agent has not yet animated its
+    # customer-identity checks. On the first pass we run identity resolution and,
+    # if a buyer / ship-to decision is still pending, PAUSE right there so the
+    # CSR decision surfaces DURING this agent's run (its result card is kept on
+    # screen above the decision by render_orch_static). On re-entry (after the
+    # decision) we skip identity and fold in buyer authorization.
+    first_pass = not orch.get("account_identity_done")
+    p_bound = orch["bucket_bounds"]["p"]
+    pending_customer = orch.get("issue_ptr", 0) < p_bound
 
     account_steps = [
         (0.35, "🏢", "Resolving customer identity against customer master..."),
@@ -2471,32 +2655,46 @@ def _run_account_layer(orch):
         (0.30, "📚", "Verifying customer buying history (tenure, volume, payment behaviour)..."),
         (0.30, "⚙️", "Determining applicable hierarchy-level rules..."),
         (0.25, "🧾", "Recording applied hierarchy level in audit trail..."),
+        (0.35, "👤", "Looking up buyer email against Buyer Profiles master..."),
+        (0.30, "🔐", "Mapping buyer → internal buyer ID + cost center and authorization..."),
     ]
     buyer_stage = _stage_by_key("buyer_authorization")
-    av_holder = [None]
+    av_holder = [orch.get("av")]
     buyer_holder = [None]
     _tag = agent_tag("account")
-    with st.status(f"{_tag}  ·  Validating customer identity, hierarchy & buyer authorization...",
-                   expanded=True) as status:
+    _panel_label = (f"{_tag}  ·  Validating customer identity, hierarchy & buyer authorization..."
+                    if first_pass else f"{_tag}  ·  Buyer authorization...")
+    with st.status(_panel_label, expanded=True) as status:
         st.caption(f"{_tag} is handling this step.")
-        for i, (delay, emoji, text) in enumerate(account_steps):
-            st.write(f"{emoji} {text}")
-            nap(paced_delay(delay))
-            if i == 4 and av_holder[0] is None:
+        # ── Part 1: customer identity + hierarchy (first pass only) ──────────
+        if first_pass:
+            for i, (delay, emoji, text) in enumerate(account_steps):
+                st.write(f"{emoji} {text}")
+                nap(paced_delay(delay))
+                if i == 4 and av_holder[0] is None:
+                    av_holder[0] = ACCOUNT_VALIDATOR.validate(po.customer_account,
+                                                              po.ship_to_zip, po.company_name)
+            if av_holder[0] is None:
                 av_holder[0] = ACCOUNT_VALIDATOR.validate(po.customer_account,
                                                           po.ship_to_zip, po.company_name)
-        if av_holder[0] is None:
-            av_holder[0] = ACCOUNT_VALIDATOR.validate(po.customer_account,
-                                                      po.ship_to_zip, po.company_name)
+            orch["av"] = av_holder[0]
         av = av_holder[0]
-        orch["av"] = av
 
         if av.is_exception:
             status.update(label=f"{_tag}  ·  Customer validation — action required",
                           state="complete", expanded=True)
+        elif first_pass and pending_customer:
+            # Identity check done and shown; a buyer / ship-to decision is still
+            # pending. Pause the agent HERE so the CSR resolves it as part of
+            # this Customer Validation run, then buyer authorization resumes.
+            orch["account_identity_done"] = True
+            status.update(
+                label=f"{_tag}  ·  Customer validation — buyer / ship-to confirmation required",
+                state="complete", expanded=True)
         else:
-            # Build the shared context, then fold buyer authorization (same
-            # agent) into THIS panel as an indented sub-check.
+            # No pending customer decision (or resuming after one) → build the
+            # shared context and fold buyer authorization (same agent) into THIS
+            # panel as an indented sub-check.
             orch["ctx"] = build_context(po, av)
             if buyer_stage is not None:
                 st.markdown(f"↳ **{buyer_stage.icon} {buyer_stage.title}**")
@@ -2514,9 +2712,17 @@ def _run_account_layer(orch):
                 label=f"{_tag}  ·  Customer validation & buyer authorization — {state_txt}",
                 state="complete", expanded=True)
 
+    orch["account_identity_done"] = True
     av = av_holder[0]
     if av.is_exception:
         orch["phase"] = "account_pending"
+        return "pause"
+
+    # Identity done but a buyer / ship-to decision is pending → hand off to the
+    # customer_issues phase so the decision renders below the (now static)
+    # Customer Validation result card.
+    if first_pass and pending_customer:
+        orch["phase"] = "customer_issues"
         return "pause"
 
     buyer_res = buyer_holder[0]
@@ -2531,6 +2737,9 @@ def _run_account_layer(orch):
     if buyer_res is not None:
         orch["ctx"].update(buyer_res.data or {})
         orch["results"].append(buyer_res)
+    # Customer identity + buyer authorization both passed → announce success
+    # before the pipeline agents begin (matches the settled transcript).
+    _agent_success_banner("account")
     return None
 
 
@@ -2543,6 +2752,20 @@ def _run_pipeline_layers(orch):
     # 1) Sequential stages — each finishes before the next begins.
     while orch["stage_index"] < len(SEQUENTIAL_STAGES):
         stage = SEQUENTIAL_STAGES[orch["stage_index"]]
+        # Product-line CSR decisions (obsolete SKU / UOM / SKU-not-found) are
+        # owned by the Product Validation agent and are surfaced DURING its run:
+        # the agent first animates its catalog / lifecycle / UOM scan (so the CSR
+        # sees it executing), then pauses to surface the decisions its scan
+        # found. After they are resolved the match is finalized (below) with the
+        # resolved lines. The monotonic issue pointer reaching bounds['n'] clears
+        # this gate.
+        if (getattr(stage, "stage_key", None) == "product_match"
+                and orch.get("issue_ptr", 0) < orch.get("bucket_bounds", {}).get("n", 0)):
+            if not orch.get("product_scan_done"):
+                _animate_agent_scan(stage)
+                orch["product_scan_done"] = True
+            orch["phase"] = "product_issues"
+            return "pause"
         # Buyer authorization is normally folded into the Customer Validation
         # panel by _run_account_layer, so skip it here. (If an account exception
         # was overridden the fold never happened, so let it run standalone.)
@@ -2552,9 +2775,14 @@ def _run_pipeline_layers(orch):
             continue
 
         # Fold this agent's sub-checks (e.g. compliance under product match)
-        # into the SAME panel so the agent shows only one running panel.
+        # into the SAME panel so the agent shows only one running panel. When the
+        # Product Validation scan already animated (before its CSR decisions), we
+        # finalize the match without replaying the same steps.
         subs = _folded_subchecks(stage)
-        res, folded = _run_stage_animation(stage, orch["ctx"], subchecks=subs)
+        _skip_steps = (getattr(stage, "stage_key", None) == "product_match"
+                       and orch.get("product_scan_done"))
+        res, folded = _run_stage_animation(stage, orch["ctx"], subchecks=subs,
+                                           animate_steps=not _skip_steps)
         if res.is_exception:
             # OUT_OF_STOCK is a hard stop: the product has no stock in ANY
             # warehouse, so there is nothing a CSR can approve to continue. Stop
@@ -2586,6 +2814,10 @@ def _run_pipeline_layers(orch):
             orch["ctx"].update(sub_res.data or {})
             orch["results"].append(sub_res)
             orch["stage_index"] += 1
+        # This agent (and any folded sub-checks) passed → success banner before
+        # the next agent begins. Matches the settled transcript render.
+        if getattr(stage, "stage_key", None) not in _SKIP_SUCCESS_BANNER:
+            _agent_success_banner(getattr(stage, "stage_key", None))
         nap(paced_delay(0.35))
 
     # 2) Order execution.
@@ -2639,20 +2871,30 @@ def drive_orchestration():
                 orch["phase"] = "intake_review"
                 st.rerun()
 
-            # Flagged items need CSR confirmation → resolve them one-by-one.
-            if orch["issues"]:
+            # Flagged items need CSR confirmation, surfaced during the owning
+            # agent's run. Route to the earliest bucket that has issues; the
+            # per-phase drivers advance the monotonic pointer and hand off to the
+            # next agent. (Product-line issues surface inside the pipeline, so a
+            # PO with only product issues goes to the account phase first.)
+            b = orch["bucket_bounds"]
+            if b["c"] > 0:
                 orch["phase"] = "intake_issues"
                 st.rerun()
 
-            # Clean PO → keep streaming Customer Validation and every downstream
-            # decision layer in THIS SAME run. Each layer runs all of its
-            # processes to completion before the next layer starts, and because
-            # there is no rerun between them no panel is ever replaced/overridden.
+            # No intake-level decision → keep streaming in THIS SAME run so the
+            # Customer Validation agent's process appears immediately AFTER the
+            # "Intake completed" message (no rerun gap between the two agents).
+            # The Customer Validation agent animates its identity checks and, if a
+            # buyer / ship-to decision is pending, _run_account_layer sets the
+            # phase to 'customer_issues' and returns "pause" so the decision
+            # surfaces on the next run — as part of that agent's run. Every
+            # downstream decision layer then streams one after another with no
+            # rerun replacing a panel in between.
             if _run_account_layer(orch) == "pause":
-                st.rerun()                       # account exception → CSR
+                st.rerun()                       # account exception / buyer decision → CSR
             orch["phase"] = "pipeline"           # so a stage pause resumes here
             if _run_pipeline_layers(orch) == "pause":
-                st.rerun()                       # stage exception → CSR
+                st.rerun()                       # stage / product decision → CSR
         st.rerun()                               # phase == 'done'
 
     # ---- intake_review: duplicate / missing fields / resolver issues ----
@@ -2722,14 +2964,15 @@ def drive_orchestration():
         _route_after_intake(orch, po)
         st.rerun()
 
-    # ---- intake_issues: resolve one issue at a time ----
+    # ---- intake_issues: Intake Agent's decisions (quantity) ----
     elif phase == "intake_issues":
         with st.chat_message("assistant"):
             # Re-render every already-resolved intake decision card FIRST
             # so the current decision card / next stage always appears
             # BELOW the button the CSR just clicked (chronological order).
             _render_resolved_intake_cards(orch)
-            if orch["issue_ptr"] < len(orch["issues"]):
+            c = orch["bucket_bounds"]["c"]
+            if orch["issue_ptr"] < c:
                 # Wrap the ACTIVE decision card in a keyed container. The key
                 # changes with issue_ptr, so when the CSR resolves this card
                 # Streamlit removes the entire container (impact table +
@@ -2739,7 +2982,78 @@ def drive_orchestration():
                 with st.container(key=f"active_issue_{orch['issue_ptr']}"):
                     render_intake_issue(orch, orch["issues"][orch["issue_ptr"]])
                 return   # wait for CSR
+        # Intake decisions done → hand off to the Customer Validation agent. It
+        # animates its identity checks first, then surfaces any buyer / ship-to
+        # decision as part of that run. Re-engage auto-follow so the resuming
+        # animation is tracked down the page (the transient rerun below would
+        # otherwise consume the flag before the animation starts).
+        st.session_state.reengage_scroll = True
         orch["phase"] = "account"
+        st.rerun()
+
+    # ---- customer_issues: Customer Validation Agent's decisions (buyer/ship-to)
+    #      surfaced BEFORE the customer-validation animation so the resolved
+    #      buyer / ship-to feed the account layer + shared context. ----
+    elif phase == "customer_issues":
+        with st.chat_message("assistant"):
+            _render_resolved_intake_cards(orch)
+            p = orch["bucket_bounds"]["p"]
+            if orch["issue_ptr"] < p:
+                with st.container(key=f"active_issue_{orch['issue_ptr']}"):
+                    render_intake_issue(orch, orch["issues"][orch["issue_ptr"]])
+                return   # wait for CSR
+        # Buyer / ship-to resolved → resume the Customer Validation agent. Keep
+        # auto-follow engaged so the resuming animation is tracked down the page.
+        st.session_state.reengage_scroll = True
+        orch["phase"] = "account"
+        st.rerun()
+
+    # ---- product_issues: Product Matching Agent's decisions (obsolete SKU /
+    #      UOM / SKU-not-found) surfaced as Product Match runs. Resolved lines
+    #      are folded back into the shared context before matching continues. ----
+    elif phase == "product_issues":
+        with st.chat_message("assistant"):
+            _render_resolved_intake_cards(orch)
+            n = orch["bucket_bounds"]["n"]
+            if orch["issue_ptr"] < n:
+                # Persistent Product Validation context: the live scan panel is
+                # transient (gone after this rerun), so re-render the agent's
+                # completed scan here so the product-line decision clearly reads
+                # as the RESULT of THIS agent's run rather than appearing on its
+                # own with no visibility that the agent executed.
+                #
+                # The whole decision UI lives in a uniquely-keyed container so
+                # that when the pipeline resumes (a DIFFERENTLY-keyed container),
+                # Streamlit REMOVES this subtree wholesale instead of positionally
+                # reusing its st.status / widgets — otherwise the resolved card
+                # lingers and the finalize panel bleeds into the old scan panel.
+                with st.container(key=f"product_decision_{orch['issue_ptr']}"):
+                    st.markdown("### 📦 Product Validation")
+                    render_agent_badge("product_match")
+                    _render_product_scan_panel_static()
+                    render_intake_issue(orch, orch["issues"][orch["issue_ptr"]])
+                return   # wait for CSR
+            # All product-line decisions captured → refresh the pipeline context
+            # from the (now-resolved) PO order lines before Product Match runs.
+            po = orch.get("po")
+            if orch.get("ctx") is not None and po is not None:
+                orch["ctx"]["order_lines"] = [
+                    {"line_number": l.line_number, "sku": l.sku,
+                     "quantity": l.quantity, "uom": l.uom,
+                     "description": l.description}
+                    for l in po.order_lines
+                ]
+        # Product decisions resolved → rerun into the 'pipeline' phase to stream
+        # the finalize + downstream agents. We DELIBERATELY rerun (rather than
+        # streaming inline here) so Streamlit prunes the just-resolved decision
+        # card's widgets (selectbox + buttons) at a clean rerun boundary — inline
+        # streaming in the same 'product_issues' phase leaves the old card
+        # lingering on screen for several seconds while new panels render ABOVE
+        # it, so the next process does not appear next to the approve button.
+        # apply_issue_decision already set reengage_scroll, so the forced-follow
+        # burst tracks the resuming pipeline down the page.
+        st.session_state.reengage_scroll = True
+        orch["phase"] = "pipeline"
         st.rerun()
 
     # ---- account: customer validation → straight into the pipeline ----
@@ -2779,14 +3093,25 @@ def drive_orchestration():
     # exception that needs CSR input.
     elif phase == "pipeline":
         with st.chat_message("assistant"):
+            # Keep every already-actioned CSR decision card on screen (buyer,
+            # obsolete SKU, UOM, …) so the resuming pipeline animation streams
+            # directly BELOW them — the next process appears right after the
+            # decision the CSR just approved, in natural reading order.
+            _render_resolved_intake_cards(orch)
             if orch["pending"] is not None:
                 with st.container(key=f"active_stage_pending_{orch['stage_index']}"):
                     render_pending_exception(orch, orch["pending"])
                 return
             # Resume the downstream layers (after a CSR override or an account
             # exception was cleared). Runs to completion in this continuous run.
-            if _run_pipeline_layers(orch) == "pause":
-                st.rerun()                       # next stage exception → CSR
+            # Stream inside a uniquely-keyed container that never existed in the
+            # 'product_issues' decision render, so Streamlit mounts these panels
+            # FRESH (and prunes the old decision subtree) instead of reusing its
+            # st.status node — this is what makes the resuming process appear
+            # cleanly right where the CSR clicked, with no lingering card.
+            with st.container(key="pipeline_resume_stream"):
+                if _run_pipeline_layers(orch) == "pause":
+                    st.rerun()                   # next stage exception → CSR
         st.rerun()                               # phase == 'done'
 
     # ---- terminal states ----
@@ -2833,12 +3158,15 @@ if "show_upload"    not in st.session_state: st.session_state.show_upload    = F
 if "session_id"     not in st.session_state: st.session_state.session_id     = str(uuid.uuid4())[:8]
 if "upload_key"     not in st.session_state: st.session_state.upload_key     = 0
 if "welcomed"       not in st.session_state: st.session_state.welcomed       = False
+if "show_email"     not in st.session_state: st.session_state.show_email     = False
+if "email_flow"     not in st.session_state: st.session_state.email_flow     = None
+if "email_results"  not in st.session_state: st.session_state.email_results  = None
 
 WELCOME_TEXT = (
     "👋 **Hello! I am your order assistant.**\n\n"
     "Paste a Purchase Order below, or click **➕** to upload an Excel PO "
     "(`.xlsx` / `.xls`). I will read it, resolve it against master data, and "
-    "work through customer, product, pricing, credit, inventory and logistics "
+    "work through customer, product, inventory, pricing, credit and logistics "
     "checks step by step.\n\n"
     "Whenever something is missing, ambiguous, obsolete, or breaks a business "
     "rule, I will pause and ask you to **Approve**, **Reject**, or **Escalate** "
@@ -2928,9 +3256,12 @@ else:
         # Every other phase (start / account / resuming pipeline / intake
         # re-entry) streams content and should follow.
         _po = _orch.get("po")
+        # A CSR decision card is on screen (and awaiting input) whenever any of
+        # the per-agent issue phases still has an unresolved issue. Auto-follow
+        # must RELEASE in that case so the card stays put and stays clickable.
         _issue_waiting = (
-            _ph == "intake_issues"
-            and _orch.get("issue_ptr", 0) < len(_orch.get("issues", []))
+            _ph in ("intake_issues", "customer_issues", "product_issues")
+            and _orch.get("issue_ptr", 0) < _orch.get("bucket_bounds", {}).get("n", 0)
         )
         _intake_deadend = _ph == "intake_review" and (
             _orch.get("is_dup")
@@ -2941,7 +3272,16 @@ else:
             _ph in ("done", "terminal", "account_pending")
             or _issue_waiting or _intake_deadend or _pipeline_waiting
         )
-        inject_autoscroll(active=not _waiting, force_follow=_reengage)
+        # A CSR decision banner is on screen whenever a per-agent issue is
+        # waiting or a stage / account exception is pending — in those cases
+        # scroll_to_csr_top() positions the viewport on the banner, so the idle
+        # scroll-to-bottom must be suppressed (otherwise the two fight and the
+        # page visibly scrolls 2–3 times before landing on the banner).
+        _csr_banner = (
+            _issue_waiting or _pipeline_waiting or _ph == "account_pending"
+        )
+        inject_autoscroll(active=not _waiting, force_follow=_reengage,
+                          suppress_idle_scroll=_csr_banner)
         # Render the whole run inside a container keyed by this PO's run_id so
         # the subtree has a stable identity across the reruns of ONE PO.
         with st.container(key=f"po_run_{_orch.get('run_id', 'active')}"):
@@ -2983,15 +3323,133 @@ if st.session_state.show_upload:
                 st.session_state.show_upload = False
                 st.rerun()
 
+# ─── Outlook email PO panel (shown when 📧 clicked) ──────────────────────────
+if EMAIL_INTAKE_ENABLED and st.session_state.show_email:
+    with st.container(border=True):
+        st.markdown("#### 📧 Read Purchase Order from Outlook")
+        cfg = email_intake.get_config()
+
+        if not email_intake.is_configured():
+            st.warning(
+                "**Outlook connection is not configured yet.**\n\n"
+                "To read POs straight from your mailbox, this needs a Microsoft "
+                "Entra app registration (from EY IT) with the delegated "
+                "**`Mail.Read`** permission. Then create a `.env` file "
+                "(see `.env.example`) with:\n\n"
+                "- `GRAPH_CLIENT_ID` — the app's Application (client) ID\n"
+                "- `GRAPH_TENANT_ID` — your EY tenant (directory) ID\n"
+                "- `PO_SUBJECT_KEYWORD` — subject keyword, e.g. `purchase order`\n\n"
+                "Restart the app after saving `.env`."
+            )
+        else:
+            token = None
+            try:
+                token = email_intake.acquire_token_silent(cfg["client_id"], cfg["tenant_id"])
+            except email_intake.EmailIntakeError as e:
+                st.error(str(e))
+
+            # ── Step 1: not signed in and no active device-code flow ──────────
+            if token is None and st.session_state.email_flow is None:
+                st.caption("You need to sign in to your EY mailbox once. A code-based "
+                           "sign-in will open — no password is stored by this app.")
+                if st.button("🔐 Connect to Outlook", key="email_connect"):
+                    try:
+                        st.session_state.email_flow = email_intake.begin_device_flow(
+                            cfg["client_id"], cfg["tenant_id"])
+                    except email_intake.EmailIntakeError as e:
+                        st.error(str(e))
+                    st.rerun()
+
+            # ── Step 2: device-code flow in progress ─────────────────────────
+            elif token is None and st.session_state.email_flow is not None:
+                flow = st.session_state.email_flow
+                st.info(flow.get("message", "Follow the sign-in instructions."))
+                st.markdown(
+                    f"1. Open **{flow.get('verification_uri', 'https://microsoft.com/devicelogin')}**  \n"
+                    f"2. Enter code **`{flow.get('user_code', '')}`**  \n"
+                    "3. Complete sign-in with your EY account, then click below."
+                )
+                c1, c2 = st.columns([1, 1])
+                with c1:
+                    if st.button("✅ I've completed sign-in", key="email_complete"):
+                        try:
+                            email_intake.complete_device_flow(
+                                cfg["client_id"], cfg["tenant_id"], flow)
+                            st.session_state.email_flow = None
+                        except email_intake.EmailIntakeError as e:
+                            st.error(str(e))
+                        st.rerun()
+                with c2:
+                    if st.button("Cancel sign-in", key="email_cancel_flow"):
+                        st.session_state.email_flow = None
+                        st.rerun()
+
+            # ── Step 3: signed in — fetch & pick a PO email ──────────────────
+            else:
+                st.success(f"Connected. Searching Inbox for subject containing "
+                           f"**“{cfg['subject_keyword']}”**.")
+                if st.button("🔎 Fetch latest PO emails", key="email_fetch"):
+                    try:
+                        st.session_state.email_results = email_intake.fetch_po_emails(
+                            token, cfg["subject_keyword"])
+                    except email_intake.EmailIntakeError as e:
+                        st.error(str(e))
+                        st.session_state.email_results = None
+                    st.rerun()
+
+                results = st.session_state.email_results
+                if results is not None:
+                    if not results:
+                        st.info("No matching PO emails found in your Inbox.")
+                    else:
+                        labels = [
+                            f"{e.subject}  ·  {e.sender}  ·  {e.received_label}"
+                            for e in results
+                        ]
+                        idx = st.selectbox(
+                            "Select a PO email to process",
+                            range(len(results)),
+                            format_func=lambda i: labels[i],
+                            key="email_pick",
+                        )
+                        chosen = results[idx]
+                        with st.expander("Preview email body"):
+                            st.text(chosen.body_text[:2000] or "(empty body)")
+                        if st.button("▶️ Process this PO", key="email_process"):
+                            new_orchestration("text", chosen.body_text)
+                            st.session_state.welcomed = True
+                            st.session_state.show_email = False
+                            st.session_state.email_results = None
+                            st.rerun()
+
+        if st.button("✖ Close", key="close_email"):
+            st.session_state.show_email = False
+            st.rerun()
+
 # ─── Bottom input row ─────────────────────────────────────────────────────────
-col_plus, col_hint = st.columns([1, 10])
-with col_plus:
-    if st.button("➕", help="Upload an Excel PO file (.xlsx / .xls only)",
-                 use_container_width=True):
-        st.session_state.show_upload = not st.session_state.show_upload
-        st.rerun()
-with col_hint:
-    st.caption("Click **➕** to upload Excel PO  |  or paste text directly below")
+if EMAIL_INTAKE_ENABLED:
+    col_plus, col_mail, col_hint = st.columns([1, 1, 9])
+    with col_plus:
+        if st.button("➕", help="Upload an Excel PO file (.xlsx / .xls only)",
+                     use_container_width=True):
+            st.session_state.show_upload = not st.session_state.show_upload
+            st.rerun()
+    with col_mail:
+        if st.button("📧", help="Read a PO directly from your Outlook inbox",
+                     use_container_width=True):
+            st.session_state.show_email = not st.session_state.show_email
+            st.rerun()
+    with col_hint:
+        st.caption("**➕** upload Excel PO  |  **📧** read PO from Outlook  |  or paste text below")
+else:
+    col_plus, col_hint = st.columns([1, 10])
+    with col_plus:
+        if st.button("➕", help="Upload an Excel PO file (.xlsx / .xls only)",
+                     use_container_width=True):
+            st.session_state.show_upload = not st.session_state.show_upload
+            st.rerun()
+    with col_hint:
+        st.caption("Click **➕** to upload Excel PO  |  or paste text directly below")
 
 # Text input — stays pinned at bottom of chat
 if prompt := st.chat_input("Paste your PO text here, or click ➕ above to upload an Excel file..."):
