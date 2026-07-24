@@ -11,7 +11,7 @@ A downstream outage is detected when an integration returns an error; an outage
 can be forced by including the word "FAIL" in the PO number, which reports an
 EXECUTION_FAILURE for the affected system.
 
-Master data: execution-master-data.xlsx (Integration_Endpoints,
+Master data: execution-master-data (Integration_Endpoints,
 Communication_Templates, Document_Repository).
 
 Exception types: EXECUTION_FAILURE.
@@ -39,7 +39,7 @@ class OrderExecution:
     ]
 
     def __init__(self):
-        s = load_sheets("execution-master-data.xlsx",
+        s = load_sheets("execution-master-data",
                         ["Integration_Endpoints", "Communication_Templates",
                          "Document_Repository"])
         self.endpoints = s["Integration_Endpoints"]

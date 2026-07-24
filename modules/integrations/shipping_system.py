@@ -8,7 +8,8 @@ from typing import Dict, List
 
 from .base import MockSystemClient
 
-_LOGISTICS_WB = "logistics-master-data.xlsx"
+# JSON snapshot dataset name (files live in modules/integrations/data/).
+_LOGISTICS = "logistics-master-data"
 
 
 class ShippingSystem(MockSystemClient):
@@ -18,7 +19,7 @@ class ShippingSystem(MockSystemClient):
     def get_logistics(self, sheets: List[str]) -> Dict[str, List[dict]]:
         """Fetch logistics sheets (Carrier_Coverage, Freight_Rating, SLA_Rules,
         Warehouse_Master, Delivery_Calendar)."""
-        return self._fetch(_LOGISTICS_WB, sheets, "logistics")
+        return self._fetch(_LOGISTICS, sheets, "logistics")
 
 
 SHIPPING = ShippingSystem()

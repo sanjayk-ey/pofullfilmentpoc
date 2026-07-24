@@ -36,6 +36,7 @@ AMBER  = RGBColor(0xFF, 0xB0, 0x20)
 BLUE   = RGBColor(0x4A, 0x9E, 0xFF)
 TEAL   = RGBColor(0x33, 0xC9, 0xC9)
 PURPLE = RGBColor(0xA9, 0x7B, 0xFF)
+ORANGE = RGBColor(0xFF, 0x8A, 0x3D)
 LINE   = RGBColor(0x3C, 0x3C, 0x4E)
 FONT = "Segoe UI"
 BOT = "\U0001F916"          # robot / agent icon (matches the app)
@@ -178,49 +179,92 @@ fill_text(rb, [[("\u26A0  HUMAN DECISION LAYER   ", 9.2, AMBER, T, F),
                  7.6, GREY, F, F)]],
           align=PP_ALIGN.CENTER)
 
+# Enterprise systems of record (the "legacy data source systems"). Each system
+# has a distinct colour, reused for the agent's system tag AND the connector that
+# wires the agent to that system below.
+SYS = {
+    "PIM":      (PURPLE, "PIM"),
+    "ERP":      (BLUE,   "ERP"),
+    "COMMERCE": (GREEN,  "Commerce"),
+    "OMS":      (ORANGE, "OMS"),
+    "SHIPPING": (TEAL,   "Shipping Provider"),
+}
+
+# (name1, name2, connected enterprise systems) — mapping matches the app.
 agents = [
-    ("Intake", "Agent", "reads PO \u00b7 extracts fields"),
-    ("Customer", "Validation Agent", "account \u00b7 buyer auth \u00b7 ship-to"),
-    ("Product", "Matching Agent", "catalog \u00b7 compliance"),
-    ("Pricing &", "Promo Agent", "contract \u00b7 promo \u00b7 margin"),
-    ("Credit", "Agent", "limit \u00b7 terms \u00b7 risk"),
-    ("Inventory", "Agent", "DC stock \u00b7 ATP \u00b7 alloc"),
-    ("Shipments", "Agent", "carrier \u00b7 service \u00b7 SLA"),
-    ("Optimization", "Agent", "plan A/B/C \u00b7 freight"),
-    ("Approvals", "Agent", "budget \u00b7 matrix (last)"),
+    ("Intake", "Agent", ()),
+    ("Customer", "Validation Agent", ("COMMERCE", "OMS", "PIM")),
+    ("Product", "Matching Agent", ("PIM", "ERP")),
+    ("Pricing &", "Promo Agent", ("COMMERCE",)),
+    ("Credit", "Agent", ("ERP",)),
+    ("Inventory", "Agent", ("ERP",)),
+    ("Shipments", "Agent", ("SHIPPING", "ERP")),
+    ("Optimization", "Agent", ("SHIPPING", "ERP")),
+    ("Approvals", "Agent", ("ERP",)),
 ]
 na = len(agents); ag = 0.08; aw = (MW - 0.28 - ag * (na - 1)) / na; ax0 = MX + 0.14
-aty = oy + 1.38; ah = 1.16
-for i, (n1, n2, focus) in enumerate(agents):
+aty = oy + 1.14; ah = 1.14
+for i, (n1, n2, sysx) in enumerate(agents):
     b = box(s, ax0 + i * (aw + ag), aty, aw, ah, fill=PANEL, line_color=YELLOW, line_w=0.8)
     box(s, ax0 + i * (aw + ag), aty, aw, 0.05, fill=YELLOW, radius=False)
-    fill_text(b, [[(BOT + " ", 8.3, YELLOW, T, F), (n1, 6.8, WHITE, T, F)],
-                  [(n2, 6.8, WHITE, T, F)],
-                  [(focus, 5.6, GREY, F, F)]], ls=1.16)
+    # colour-coded tags for the enterprise systems this agent connects to
+    if sysx:
+        sys_line = []
+        for j, code in enumerate(sysx):
+            col, label = SYS[code]
+            if j:
+                sys_line.append((" \u00b7 ", 5.8, DGREY, F, F))
+            sys_line.append((label, 6.2, col, T, F))
+    else:
+        sys_line = [("PO document only", 5.6, DGREY, F, T)]
+    fill_text(b, [[(BOT + " ", 8.4, YELLOW, T, F), (n1, 7.0, WHITE, T, F)],
+                  [(n2, 7.0, WHITE, T, F)],
+                  sys_line], ls=1.18)
     if i < na - 1:
-        chev(s, ax0 + i * (aw + ag) + aw - 0.02, aty + 0.49, ag + 0.06, 0.18, color=YELLOW)
+        chev(s, ax0 + i * (aw + ag) + aw - 0.02, aty + 0.48, ag + 0.06, 0.18, color=YELLOW)
 
-# Legacy Data Source Systems strip (BELOW the agents) — read by every agent
-data_y = oy + 2.90; data_h = 1.08
-db = box(s, MX + 0.14, data_y, MW - 0.28, data_h, fill=PANEL, line_color=TEAL, line_w=1.3)
-box(s, MX + 0.14, data_y, MW - 0.28, 0.06, fill=TEAL, radius=False)
-txt(s, MX + 0.24, data_y + 0.11, MW - 0.48, 0.2,
-    [[("LEGACY DATA SOURCE SYSTEMS   ", 9, TEAL, T, F),
-      ("\u2014 every agent validates against these systems of record (ERP / CRM / legacy DBs)", 7.4, GREY, F, F)]],
-    align=PP_ALIGN.CENTER)
-dtiles = ["Master data", "Pricing &\ncontracts", "Credit &\nterms",
-          "Inventory\n/ ATP", "Logistics\n& carriers", "Approvals matrix\n& budget"]
-tx0 = MX + 0.24; tn = len(dtiles); tgap = 0.10; tw = (MW - 0.48 - tgap * (tn - 1)) / tn
-ty = data_y + 0.42; th = 0.52
-for i, d in enumerate(dtiles):
-    b = box(s, tx0 + i * (tw + tgap), ty, tw, th, fill=PANEL2, line_color=LINE, line_w=0.7)
-    fill_text(b, [[(ln, 7.2, WHITE, F, F)] for ln in d.split("\n")], ls=0.95)
-
-# Wire EVERY agent to the human decision layer (up) and legacy data (down)
+# Human-decision connectors (agents <-> human decision layer, above)
 for i in range(na):
     cx = ax0 + i * (aw + ag) + aw / 2
     conn(s, cx, aty, cx, rail_y + rail_h, color=AMBER, w=1.0, dash='dash', tail=True, head=True)
-    conn(s, cx, aty + ah, cx, data_y, color=TEAL, w=1.0, dash='dash', tail=True, head=True)
+
+# ── LEGACY DATA SOURCE SYSTEMS (systems of record = ERP / PIM / Commerce / OMS /
+#    Shipping). Each agent is linked to its system(s) with a light, colour-coded
+#    dotted connector so the mapping is easy to trace. ────────────────────────
+data_y = oy + 2.70; data_h = 1.30
+box(s, MX + 0.14, data_y, MW - 0.28, data_h, fill=PANEL, line_color=TEAL, line_w=1.3)
+box(s, MX + 0.14, data_y, MW - 0.28, 0.06, fill=TEAL, radius=False)
+txt(s, MX + 0.24, data_y + 0.10, MW - 0.48, 0.2,
+    [[("LEGACY DATA SOURCE SYSTEMS", 9, TEAL, T, F)]],
+    align=PP_ALIGN.CENTER)
+
+sys_tiles = [
+    ("PIM",      "Product catalog,\nattributes, UOM,\ncompliance"),
+    ("ERP",      "Inventory,\ncredit, budget\n& approvals"),
+    ("COMMERCE", "Pricing & promos,\ncustomer &\nbuyer master"),
+    ("OMS",      "Order &\nbuying history"),
+    ("SHIPPING", "Carrier coverage,\nfreight &\ndelivery SLA"),
+]
+tx0 = MX + 0.24; tn = len(sys_tiles); tgap = 0.14; tw = (MW - 0.48 - tgap * (tn - 1)) / tn
+ty = data_y + 0.38; th = 0.84
+sys_cx = {}
+for i, (code, desc) in enumerate(sys_tiles):
+    col, label = SYS[code]
+    x = tx0 + i * (tw + tgap)
+    sys_cx[code] = x + tw / 2
+    b = box(s, x, ty, tw, th, fill=PANEL2, line_color=col, line_w=1.4)
+    box(s, x, ty, tw, 0.06, fill=col, radius=False)
+    lines = [[(label, 9.5, col, T, F)]] + [[(ln, 6.0, GREY, F, F)] for ln in desc.split("\n")]
+    fill_text(b, lines, ls=1.02)
+
+# Simple straight vertical dotted connector from each agent down to the top edge
+# of the legacy-data box (Intake only reads the PO, so it has no data-source link).
+for i, (n1, n2, sysx) in enumerate(agents):
+    if not sysx:
+        continue
+    cx = ax0 + i * (aw + ag) + aw / 2
+    conn(s, cx, aty + ah, cx, data_y, color=TEAL, w=0.9,
+         dash="sysDot", tail=True, head=False)
 
 # ── L5 ORDER CREATION & DOWNSTREAM ───────────────────────────────────────────
 y, h = L5[0], L5[1]

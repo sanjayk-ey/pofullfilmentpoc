@@ -8,8 +8,9 @@ from typing import Dict, List
 
 from .base import MockSystemClient
 
-_PRODUCT_WB = "product-master-data.xlsx"
-_COMPLIANCE_WB = "compliance-master-data.xlsx"
+# JSON snapshot dataset names (files live in modules/integrations/data/).
+_PRODUCT = "product-master-data"
+_COMPLIANCE = "compliance-master-data"
 
 
 class PIMSystem(MockSystemClient):
@@ -19,12 +20,12 @@ class PIMSystem(MockSystemClient):
     def get_product_catalog(self, sheets: List[str]) -> Dict[str, List[dict]]:
         """Fetch product-catalog sheets (Product_Master, Product_Attributes,
         UOM_Conversions, Substitution_Rules, Compatibility_Rules)."""
-        return self._fetch(_PRODUCT_WB, sheets, "product-catalog")
+        return self._fetch(_PRODUCT, sheets, "product-catalog")
 
     def get_compliance(self, sheets: List[str]) -> Dict[str, List[dict]]:
         """Fetch compliance sheets (Compliance_Rules, Regional_Restrictions,
         SDS_Repository, Product_Eligibility)."""
-        return self._fetch(_COMPLIANCE_WB, sheets, "product-compliance")
+        return self._fetch(_COMPLIANCE, sheets, "product-compliance")
 
 
 PIM = PIMSystem()

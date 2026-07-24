@@ -9,7 +9,7 @@ master-data identifiers the orchestration stages work with:
                         (Buyer_Profiles.buyer_name)
 
 This mirrors how a production order-management platform performs entity
-resolution against ERP / CRM master data: a customer sends a standard PO with
+resolution against ERP master data: a customer sends a standard PO with
 their company name and a contact person, and the system resolves the internal
 account and buyer records behind the scenes.
 """

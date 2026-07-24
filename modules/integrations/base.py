@@ -27,9 +27,10 @@ def reset_call_log() -> None:
 
 
 @functools.lru_cache(maxsize=None)
-def _load_snapshot(workbook: str) -> Dict[str, List[dict]]:
-    """Load a workbook's JSON snapshot ({sheet: [rows]}). Cached per process."""
-    path = os.path.join(DATA_DIR, workbook.replace(".xlsx", "") + ".json")
+def _load_snapshot(dataset: str) -> Dict[str, List[dict]]:
+    """Load a system's JSON snapshot ({sheet: [rows]}) by dataset name. The
+    dataset name maps to ``data/<dataset>.json``. Cached per process."""
+    path = os.path.join(DATA_DIR, dataset + ".json")
     if not os.path.exists(path):
         raise FileNotFoundError(
             f"Mock data snapshot '{os.path.basename(path)}' is missing from "
@@ -58,10 +59,10 @@ class MockSystemClient:
         return self.meta["endpoint"]
 
     # ── Core fetch ──────────────────────────────────────────────────────────
-    def _fetch(self, workbook: str, sheets: List[str], resource: str) -> Dict[str, List[dict]]:
-        """Return ``{sheet: [rows]}`` for the requested sheets from a snapshot,
-        logging the call as if it were a real API request."""
-        snap = _load_snapshot(workbook)
+    def _fetch(self, dataset: str, sheets: List[str], resource: str) -> Dict[str, List[dict]]:
+        """Return ``{sheet: [rows]}`` for the requested sheets from the system's
+        JSON snapshot, logging the call as if it were a real API request."""
+        snap = _load_snapshot(dataset)
         out = {name: list(snap.get(name, [])) for name in sheets}
         CALL_LOG.append({
             "system": self.code,

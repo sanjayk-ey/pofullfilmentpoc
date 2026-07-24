@@ -9,9 +9,10 @@ from typing import Dict, List
 
 from .base import MockSystemClient
 
-_PRICING_WB = "pricing-master-data.xlsx"
-_CUSTOMER_WB = "customer-master-data.xlsx"
-_BUYER_WB = "buyer-master-data.xlsx"
+# JSON snapshot dataset names (files live in modules/integrations/data/).
+_PRICING = "pricing-master-data"
+_CUSTOMER = "customer-master-data"
+_BUYER = "buyer-master-data"
 
 
 class CommerceSystem(MockSystemClient):
@@ -22,17 +23,17 @@ class CommerceSystem(MockSystemClient):
         """Fetch pricing sheets (Price_List, Contracts, Volume_Tiers, Rebates,
         Promotions, Surcharges, Freight_Terms, Margin_Policy, Raw_Material_Index,
         Tax_Rates)."""
-        return self._fetch(_PRICING_WB, sheets, "pricing")
+        return self._fetch(_PRICING, sheets, "pricing")
 
     def get_customer(self, sheets: List[str]) -> Dict[str, List[dict]]:
         """Fetch customer-master sheets (Customer_Master, Account_Hierarchy,
         Ship_To_Master, Hierarchy_Rules, Fulfillment_Rules)."""
-        return self._fetch(_CUSTOMER_WB, sheets, "customer")
+        return self._fetch(_CUSTOMER, sheets, "customer")
 
     def get_buyer(self, sheets: List[str]) -> Dict[str, List[dict]]:
         """Fetch buyer-directory sheets (Buyer_Profiles, User_Permissions,
         Cost_Centers, Product_Visibility_Rules)."""
-        return self._fetch(_BUYER_WB, sheets, "buyer")
+        return self._fetch(_BUYER, sheets, "buyer")
 
 
 COMMERCE = CommerceSystem()

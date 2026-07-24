@@ -560,7 +560,7 @@ def render_agent_badge(stage_key):
         unsafe_allow_html=True)
 
 
-# ── Mock enterprise-system connections per agent ────────────────────────────
+# ── Enterprise-system connections per agent ─────────────────────────────────
 # Each agent fetches & validates its data from one or more mock systems (ERP /
 # PIM / Commerce / OMS / Shipping). The pipeline stage classes carry a `systems`
 # attribute; these entries cover the non-stage agents (Customer Validation,
@@ -587,14 +587,13 @@ STAGE_SYSTEMS = _build_stage_systems_map()
 
 
 def systems_for(stage_key) -> tuple:
-    """Mock systems an agent/process connects to (for the 'connecting to…' UI)."""
+    """Systems an agent/process connects to (for the 'connecting to…' UI)."""
     return STAGE_SYSTEMS.get(stage_key, ())
 
 
 def _system_label(code) -> str:
     m = system_meta(code)
-    host = (m.get("endpoint") or "").split("//")[-1].split("/")[0]
-    return f"{m['icon']} **{m['name']}**" + (f" `{host}`" if host else "")
+    return f"{m['icon']} **{m['name']}**"
 
 
 def render_systems_connect(codes):
@@ -826,8 +825,8 @@ def render_po_result(po: ExtractedPO, is_dup: bool, dup_rec: dict = None):
 def render_account_result(av: AccountValidationResult, subchecks=None):
     st.markdown("### 🧭 Customer Validation")
     render_agent_badge("account")
-    # Customer Validation pulls customer details from Mock Commerce and buying
-    # history from Mock OMS (buyer authorization also checks Commerce + PIM).
+    # Customer Validation pulls customer details from Commerce and buying
+    # history from OMS (buyer authorization also checks Commerce + PIM).
     _acct_systems = tuple(dict.fromkeys(
         systems_for("account") + systems_for("buyer_authorization")))
     render_systems_static(_acct_systems)
@@ -856,13 +855,12 @@ def render_account_result(av: AccountValidationResult, subchecks=None):
             st.markdown("**Matching customer records (resolve to one):**")
             rows = "".join(
                 f"<tr><td>{c['customer_account']}</td><td>{c['company_name']}</td>"
-                f"<td>{c['branch_id']}</td><td>{c['erp_customer_id']}</td>"
-                f"<td>{c['crm_account_id']}</td></tr>"
+                f"<td>{c['branch_id']}</td><td>{c['erp_customer_id']}</td></tr>"
                 for c in av.candidates
             )
             st.markdown(
                 '<table class="field-table"><thead><tr>'
-                '<th>Account</th><th>Company</th><th>Branch</th><th>ERP ID</th><th>CRM ID</th>'
+                '<th>Account</th><th>Company</th><th>Branch</th><th>ERP ID</th>'
                 '</tr></thead><tbody>' + rows + '</tbody></table>',
                 unsafe_allow_html=True,
             )
@@ -911,8 +909,7 @@ def render_account_result(av: AccountValidationResult, subchecks=None):
         f"<tr><td><b>Ship-To Location</b></td><td>{av.ship_to['name']} "
         f"<span style='color:#64748B'>(ZIP {av.ship_to['zip']})</span></td></tr>"
         f"<tr><td><b>Customer</b></td><td>{av.customer['company_name']} "
-        f"<span style='color:#64748B'>(ERP {av.customer['erp_customer_id']}, "
-        f"CRM {av.customer['crm_account_id']})</span></td></tr>"
+        f"<span style='color:#64748B'>(ERP {av.customer['erp_customer_id']})</span></td></tr>"
         f"<tr><td><b>Customer Tier</b></td><td>{html_safe(tier)}</td></tr>"
         f"<tr><td><b>Payment Terms</b></td><td>{html_safe(terms)}</td></tr>"
         f"<tr><td><b>Distributor Classification</b></td><td>{html_safe(dist_disp)}</td></tr>"
@@ -2732,7 +2729,7 @@ def _run_account_layer(orch):
 
     account_steps = [
         (0.35, "🏢", "Resolving customer identity against customer master..."),
-        (0.30, "🔗", "Checking ERP and CRM customer records..."),
+        (0.30, "🔗", "Checking ERP customer records..."),
         (0.35, "🧭", "Mapping corporate account hierarchy (parent › division › branch)..."),
         (0.30, "📍", "Validating ship-to location against ship-to master..."),
         (0.30, "🔍", "Confirming ship-to belongs to customer hierarchy..."),

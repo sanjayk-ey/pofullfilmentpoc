@@ -5,7 +5,7 @@ Corporate Account Hierarchy and Ship-To Validation.
 Customer identity and hierarchy data is fetched from the Mock Commerce platform
 (and buying history from the Mock OMS). The underlying snapshot carries these
 sheets:
-    Customer_Master    - customer accounts + ERP customer records + CRM/account records
+    Customer_Master    - customer accounts + ERP customer records + account records
     Account_Hierarchy  - branch -> regional division -> global parent
     Ship_To_Master     - ship-to locations matched by ZIP
     Hierarchy_Rules    - rules defined at each hierarchy level
@@ -359,7 +359,7 @@ class AccountValidator:
         r.customer = customer
         r.audit_trail.append(
             f"Customer resolved: {customer['company_name']} "
-            f"(ERP {customer['erp_customer_id']}, CRM {customer['crm_account_id']}).")
+            f"(ERP {customer['erp_customer_id']}).")
 
         # ── Customer standing: tier, class, distributor status, terms ─────────
         r.audit_trail.append(

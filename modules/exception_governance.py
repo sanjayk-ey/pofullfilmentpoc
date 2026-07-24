@@ -8,7 +8,7 @@ severity, routes them to the correct role with full decision context, and
 attaches the resolution / escalation SLA. Routine orders pass through with no
 intervention.
 
-Master data: exception-governance-master-data.xlsx (Severity_Matrix,
+Master data: exception-governance-master-data (Severity_Matrix,
 Role_Routing, SLA_Thresholds).
 """
 from modules.stage_result import StageResult
@@ -27,7 +27,7 @@ class ExceptionGovernance:
     ]
 
     def __init__(self):
-        s = load_sheets("exception-governance-master-data.xlsx",
+        s = load_sheets("exception-governance-master-data",
                         ["Severity_Matrix", "Role_Routing", "SLA_Thresholds"])
         self.severity = {clean(r.get("exception_type")): r for r in s["Severity_Matrix"] if clean(r.get("exception_type"))}
         self.routing = {clean(r.get("category")): r for r in s["Role_Routing"] if clean(r.get("category"))}
